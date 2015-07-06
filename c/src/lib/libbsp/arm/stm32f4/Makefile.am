@@ -64,6 +64,89 @@ include_bsp_HEADERS += include/stm32_usart.h
 include_bsp_HEADERS += include/io.h
 include_bsp_HEADERS += include/rcc.h
 
+#HAL Device headers
+include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
+include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
+include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
+
+# CMSIS header
+include_bsp_HEADERS += hal/CMSIS/Include/core_cm4.h
+include_bsp_HEADERS += hal/CMSIS/Include/core_cmFunc.h
+include_bsp_HEADERS += hal/CMSIS/Include/core_cmInstr.h
+include_bsp_HEADERS += hal/CMSIS/Include/core_cmSimd.h
+
+#HAL header files
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_can.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cec.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_conf.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cortex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_crc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cryp_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cryp.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dac_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dac.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dcmi_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dcmi.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma2d.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_eth.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_fmpi2c_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_fmpi2c.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hash_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hash.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_hcd.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2s_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2s.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_irda.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_iwdg.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_ltdc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_nand.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_nor.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pccard.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_qspi.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rng.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sai_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sai.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sd.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sdram.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_smartcard.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spdifrx.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sram.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_usart.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_wwdg.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_fmc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_fsmc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_sdmmc.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
+include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
+
+# Discovery headers
+include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
+
 ###############################################################################
 #                  LibBSP                                                     #
 ###############################################################################
@@ -203,6 +286,9 @@ libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_iwdg.c
+
+# Discovery board bsp file
+libbsp_a_SOURCES += hal/BSP/STM32F4-Discovery/stm32f4_discovery.c
 
 ###############################################################################
 #                  Special Rules                                              #
