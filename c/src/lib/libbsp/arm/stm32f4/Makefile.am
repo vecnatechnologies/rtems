@@ -63,6 +63,7 @@ include_bsp_HEADERS += include/i2c.h
 include_bsp_HEADERS += include/stm32_usart.h
 include_bsp_HEADERS += include/io.h
 include_bsp_HEADERS += include/rcc.h
+include_bsp_HEADERS += include/console-config.h
 
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
@@ -191,13 +192,12 @@ libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq.c
 libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq-dispatch.c
 
 # Console
-libbsp_a_SOURCES += ../../shared/console.c
-libbsp_a_SOURCES += ../../shared/console_control.c
-libbsp_a_SOURCES += ../../shared/console_read.c
-libbsp_a_SOURCES += ../../shared/console_select.c
-libbsp_a_SOURCES += ../../shared/console_write.c
-libbsp_a_SOURCES += console/console-config.c
-libbsp_a_SOURCES += console/usart.c
+libbsp_a_SOURCES += ../../shared/console-termios.c
+libbsp_a_SOURCES += uart/uart.c
+
+# RTC
+libbsp_a_SOURCES += rtc/rtc-config.c
+libbsp_a_SOURCES += ../../shared/tod.c
 
 # I2C
 libbsp_a_SOURCES += i2c/i2c.c
@@ -216,11 +216,10 @@ libbsp_a_SOURCES += ../../../libcpu/arm/shared/cache/cache_.h
 
 
 libbsp_a_CPPFLAGS += -I$(srcdir)/../../../libcpu/arm/shared/include
-
-
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/STM32F4xx_HAL_Driver/Inc
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Device/ST/STM32F4xx/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Include
+libbsp_a_CPPFLAGS += -I$(srcdir)/include
 
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c
