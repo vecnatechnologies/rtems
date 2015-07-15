@@ -5,10 +5,14 @@
  *      Author: jay.doyle
  */
 
+#include <rtems.h>
+#include <rtems/system.h>
 #include <bsp.h>
 #include <libchip/rtc.h>
-#include <stm32f4xx_hal_rtc.h>
-#include <stm32f4xx_hal_rcc.h>
+#include <vecna-utils.h>
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_rtc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_rcc)
 
 #define STM32FXXXX_RTC_NUMBER 1
 #define BASE_RTC_YEAR 2000

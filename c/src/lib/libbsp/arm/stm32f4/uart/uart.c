@@ -5,9 +5,13 @@
 #include <rtems/rtems/intr.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stm32f4xx_hal_conf.h>
-#include <stm32f4xx_hal.h>
-#include <stm32f407xx.h>
+#include <vecna-utils.h>
+
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_uart)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_gpio)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_gpio_ex)
+
 #include <termios.h>
 #include <rtems/irq.h>
 #include <rtems/libio.h>
@@ -15,14 +19,12 @@
 #include <rtems/irq-extension.h>
 #include <console-config.h>
 
-
 #define DMA_BUFFER_LENGTH 128
-//TODO: Define this value by processor
 #define NUM_PROCESSOR_UARTS 6
+
 #define POLLED_TX_TIMEOUT 1000
 
 //TODO: Move these somewhere else
-#define COUNTOF(x) (sizeof(x)/sizeof(x[0]))
 uint32_t SystemCoreClock = 16000000UL;
 
 //------------------ Forward declarations ------------------
@@ -92,7 +94,7 @@ static serial_fifo uart_fifo[NUM_PROCESSOR_UARTS] = {
 
 static UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
 
-static stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
+stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
 
   //          UART1
   [0] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART1"),
@@ -234,13 +236,12 @@ const rtems_termios_device_handler stm32f_uart_polling_handlers = {
 
 
 //================== FIFO functions =================================
-static serial_fifo_error serialFifoAppend(
+static serial_fifo_error serial_fifo_append(
   serial_fifo* pfifo,
   uint8_t* buf,
   const uint32_t len
 )
 {
-
     int i;
     serial_fifo_error ret = SERIAL_FIFO_NO_ERROR;
 
@@ -262,7 +263,8 @@ static serial_fifo_error serialFifoAppend(
     return ret;
 }
 
-static serial_fifo_error serialFifoRemove(
+
+static serial_fifo_error serial_fifo_remove(
   serial_fifo* pfifo,
   uint8_t* buf,
   const uint32_t len,
@@ -294,12 +296,11 @@ static serial_fifo_error serialFifoRemove(
 }
 
 
-static uint8_t* serialFifoGetNextContiguousBlock(
+static uint8_t* serial_fifo_get_next_contiguous_block(
   serial_fifo* pfifo,
-  uint32_t* len
+  uint16_t* len
 )
 {
-
     uint8_t* ret = NULL;
 
     if((pfifo != NULL) && (len != NULL)){
@@ -323,244 +324,8 @@ static uint8_t* serialFifoGetNextContiguousBlock(
 }
 
 
-//================== STMF32 Support Functions =================================
-static stm32f_uart STM32FUartGetUartFromHandle(
-  const UART_HandleTypeDef *huart
-)
-{
-   uint32_t i;
-   stm32f_uart ret = STM32F_INVALID_UART;
-
-   for(i = 0UL; i < COUNTOF(stm32f_uart_driver_table) ; i++){
-       if(stm32f_uart_driver_table[i].handle == huart){
-           ret = (stm32f_uart) i;
-           break;
-       }
-   }
-
-   return ret;
-}
-
-
-static void STM32FInitUartClock(
-  const stm32f_uart Uart
-)
-{
-    switch(Uart)
-    {
-    case STM32F_UART1:
-        __HAL_RCC_USART1_CLK_ENABLE();
-        break;
-
-    case STM32F_UART2:
-        __HAL_RCC_USART2_CLK_ENABLE();
-        break;
-
-    case STM32F_UART3:
-        __HAL_RCC_USART3_CLK_ENABLE();
-        break;
-
-    case STM32F_UART4:
-        __HAL_RCC_UART4_CLK_ENABLE();
-        break;
-
-    case STM32F_UART5:
-        __HAL_RCC_UART5_CLK_ENABLE();
-        break;
-
-    case STM32F_UART6:
-        __HAL_RCC_USART6_CLK_ENABLE();
-        break;
-
-    case STM32F_INVALID_UART:
-        return;
-        break;
-    }
-}
-
-
-static void STM32FUartReset(
-  const stm32f_uart Uart
-)
-{
-    switch(Uart)
-    {
-    case STM32F_UART1:
-        __HAL_RCC_USART1_FORCE_RESET();
-        __HAL_RCC_USART1_RELEASE_RESET();
-        break;
-
-    case STM32F_UART2:
-        __HAL_RCC_USART2_FORCE_RESET();
-        __HAL_RCC_USART2_RELEASE_RESET();
-        break;
-
-    case STM32F_UART3:
-        __HAL_RCC_USART3_FORCE_RESET();
-        __HAL_RCC_USART3_RELEASE_RESET();
-        break;
-
-    case STM32F_UART4:
-        __HAL_RCC_UART4_FORCE_RESET();
-        __HAL_RCC_UART4_RELEASE_RESET();
-        break;
-
-    case STM32F_UART5:
-        __HAL_RCC_UART5_FORCE_RESET();
-        __HAL_RCC_UART5_RELEASE_RESET();
-        break;
-
-    case STM32F_UART6:
-        __HAL_RCC_USART6_FORCE_RESET();
-        __HAL_RCC_USART6_RELEASE_RESET();
-        break;
-
-    case STM32F_INVALID_UART:
-        return;
-        break;
-    }
-}
-
-
-static void STM32FInitGPIOClock(
-  const stm32f_gpio_port port
-)
-{
-    switch(port){
-
-    case STM32F_GOIO_PORTA:
-        __HAL_RCC_GPIOA_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTB:
-        __HAL_RCC_GPIOB_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTC:
-        __HAL_RCC_GPIOC_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTD:
-        __HAL_RCC_GPIOD_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTE:
-        __HAL_RCC_GPIOE_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTF:
-        __HAL_RCC_GPIOF_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTG:
-        __HAL_RCC_GPIOG_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTH:
-        __HAL_RCC_GPIOH_CLK_ENABLE();
-        break;
-    case STM32F_GOIO_PORTI:
-        __HAL_RCC_GPIOI_CLK_ENABLE();
-        break;
-
-    default:
-        break;
-    }
-}
-
-
-static GPIO_TypeDef* STM32FGetGPIO(
-  const stm32f_gpio_port port
-)
-{
-    GPIO_TypeDef * ret = NULL;
-
-    switch(port){
-
-    case STM32F_GOIO_PORTA:
-        ret = GPIOA;
-        break;
-    case STM32F_GOIO_PORTB:
-        ret = GPIOB;
-        break;
-    case STM32F_GOIO_PORTC:
-        ret = GPIOC;
-        break;
-    case STM32F_GOIO_PORTD:
-        ret = GPIOD;
-        break;
-    case STM32F_GOIO_PORTE:
-        ret = GPIOE;
-        break;
-    case STM32F_GOIO_PORTF:
-        ret = GPIOF;
-        break;
-    case STM32F_GOIO_PORTG:
-        ret = GPIOG;
-        break;
-    case STM32F_GOIO_PORTH:
-        ret = GPIOH;
-        break;
-    case STM32F_GOIO_PORTI:
-        ret = GPIOI;
-        break;
-
-    default:
-        break;
-    }
-
-    return ret;
-}
-
-
-static USART_TypeDef* STM32FUartGetRegisters(
-  const stm32f_uart Uart
-)
-{
-    USART_TypeDef* ret = NULL;
-
-    switch(Uart)
-    {
-    case STM32F_UART1:
-        ret = USART1;
-        break;
-
-    case STM32F_UART2:
-        ret = USART2;
-        break;
-
-    case STM32F_UART3:
-        ret = USART3;
-        break;
-
-    case STM32F_UART4:
-        ret = UART4;
-        break;
-
-    case STM32F_UART5:
-        ret = UART5;
-        break;
-
-    case STM32F_UART6:
-        ret = USART6;
-        break;
-
-    case STM32F_INVALID_UART:
-        break;
-    }
-
-    return ret;
-}
-
-
-static void STM32FInitDMAClock(
-  const stm32f_dma_controller controller
-)
-{
-
-    if(controller == STM32F_DMA1_CONTROLLER) {
-        __HAL_RCC_DMA1_CLK_ENABLE();
-    } else if(controller == STM32F_DMA2_CONTROLLER) {
-        __HAL_RCC_DMA2_CLK_ENABLE();
-    }
-}
-
-
 //============================== ISR Definitions ==========================================
-static void UART_DMA_TX_Handler(
+static void uart_dma_tx_handler(
   void* argData
 )
 {
@@ -573,13 +338,13 @@ static void UART_DMA_TX_Handler(
     // Check to see if we have transmitted any characters, if so them
     // remove them from the
     if(u32_StartCount > pUART->handle->TxXferCount) {
-        serialFifoRemove(pUART->fifo, NULL, (u32_StartCount - pUART->handle->TxXferCount), false);
+        serial_fifo_remove(pUART->fifo, NULL, (u32_StartCount - pUART->handle->TxXferCount), false);
         rtems_termios_dequeue_characters(pUART->tty, (u32_StartCount - pUART->handle->TxXferCount));
     }
 }
 
 
-static void UART_DMA_RX_Handler(
+static void uart_dma_rx_handler(
   void* argData
 )
 {
@@ -589,7 +354,7 @@ static void UART_DMA_RX_Handler(
 }
 
 
-static void RTEMS_UART_Handler(
+static void rtems_uart_handler(
   void *arg
 )
 {
@@ -619,12 +384,12 @@ static void RTEMS_UART_Handler(
       // If we have finished transferring then HAL_UART_IRQHandler has reset TxXferCount to 0
       //txCount = (pUART->handle->TxXferCount == 0) ? u32_StartTxCount : ( pUART->handle->TxXferCount - u32_StartTxCount);
 
-      serialFifoRemove(pUART->fifo, NULL, (u32_StartTxCount - pUART->handle->TxXferCount), false);
+      serial_fifo_remove(pUART->fifo, NULL, (u32_StartTxCount - pUART->handle->TxXferCount), false);
       rtems_termios_dequeue_characters(pUART->tty, (u32_StartTxCount - pUART->handle->TxXferCount));
   }
 }
 
-
+/*
 static void UART_Handler(
   rtems_vector_number vector,
   void* argData
@@ -656,7 +421,7 @@ static void UART_Handler(
         rtems_termios_dequeue_characters(pUART->tty, pUART->handle->TxXferCount - u32_StartTxCount);
     }
 }
-
+*/
 
 //============================== CONSOLE API FUNCTION ==========================================
 rtems_device_driver console_initialize(
@@ -674,7 +439,7 @@ rtems_device_driver console_initialize(
         stm32f_uart_driver_entry* pNextEntry = &stm32f_uart_driver_table[minor];
 
         //Configure the UART peripheral
-        pNextEntry->handle->Instance          = STM32FUartGetRegisters(STM32FUartGetUartFromHandle(pNextEntry->handle));
+        pNextEntry->handle->Instance          = stmf32_uart_get_registers(stm32f_uart_get_uart_from_handle(pNextEntry->handle));
         pNextEntry->handle->Init.BaudRate     = pNextEntry->initial_baud;
         pNextEntry->handle->Init.WordLength   = UART_WORDLENGTH_8B;
         pNextEntry->handle->Init.StopBits     = UART_STOPBITS_1;
@@ -744,13 +509,13 @@ static bool STM32FUartFirstOpenTTY(
 
     // Register DMA interrupt handlers (if necessary)
     if(pUart->uartType == STM32F_UART_TYPE_DMA){
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->RXDMA.DMAStreamInterruptNumber, NULL, 0, UART_DMA_RX_Handler, pUart->handle->hdmarx);}
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->TXDMA.DMAStreamInterruptNumber, NULL, 0, UART_DMA_TX_Handler, pUart->handle->hdmatx);}
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->RXDMA.DMAStreamInterruptNumber, NULL, 0, uart_dma_rx_handler, pUart->handle->hdmarx);}
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->TXDMA.DMAStreamInterruptNumber, NULL, 0, uart_dma_tx_handler, pUart->handle->hdmatx);}
     }
 
     // Register UART interrupt handler fpr either DMA or Interrupt modes
     if(pUart->uartType != STM32F_UART_TYPE_POLLING){
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->UartInterruptNumber, NULL, 0, RTEMS_UART_Handler, pUart);}
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->UartInterruptNumber, NULL, 0, rtems_uart_handler, pUart);}
     }
 
     return (ret == RTEMS_SUCCESSFUL);
@@ -784,7 +549,7 @@ static void STM32FUartLastCloseTTY(
     pUart->tty = NULL;
 
     if(pUart->uartType != STM32F_UART_TYPE_POLLING){
-        rtems_interrupt_handler_remove( pUart->UartInterruptNumber, RTEMS_UART_Handler, tty);
+        rtems_interrupt_handler_remove( pUart->UartInterruptNumber, rtems_uart_handler, tty);
     }
 }
 
@@ -846,7 +611,7 @@ static bool STM32FUartSetAttrTTY(
     }
 
     //##-1- Configure the UART peripheral ######################################
-    pUart->handle->Instance          = STM32FUartGetRegisters(STM32FUartGetUartFromHandle(pUart->handle));
+    pUart->handle->Instance          = stmf32_uart_get_registers(stm32f_uart_get_uart_from_handle(pUart->handle));
     pUart->handle->Init.BaudRate     = baud;
     pUart->handle->Init.WordLength   = char_size;
     pUart->handle->Init.StopBits     = stop_bits;
@@ -905,7 +670,7 @@ static int STM32FUartSetAttr(
     stm32f_uart_driver_entry* pNextEntry = &stm32f_uart_driver_table[minor];
 
     //##-1- Configure the UART peripheral ######################################
-    pNextEntry->handle->Instance          = STM32FUartGetRegisters(STM32FUartGetUartFromHandle(pNextEntry->handle));
+    pNextEntry->handle->Instance          = stmf32_uart_get_registers(stm32f_uart_get_uart_from_handle(pNextEntry->handle));
     pNextEntry->handle->Init.BaudRate     = baud;
     pNextEntry->handle->Init.WordLength   = char_size;
     pNextEntry->handle->Init.StopBits     = stop_bits;
@@ -961,7 +726,7 @@ void HAL_UART_TxCpltCallback(
 {
     static int final = 0;
 
-    stm32f_uart uartTxComplete = STM32FUartGetUartFromHandle(huart);
+    stm32f_uart uartTxComplete = stm32f_uart_get_uart_from_handle(huart);
 
     // If there are still characters in TX fifo start sending again...
     if(uartTxComplete < COUNTOF(stm32f_uart_driver_table)){
@@ -973,7 +738,7 @@ void HAL_UART_TxCpltCallback(
             uint8_t* txbuf = NULL;
             uint16_t txlen = 0UL;
 
-            txbuf = serialFifoGetNextContiguousBlock(pEntry->fifo, &txlen);
+            txbuf = serial_fifo_get_next_contiguous_block(pEntry->fifo, &txlen);
             if(txbuf != NULL) { HAL_UART_Transmit_IT(pEntry->handle, txbuf, txlen);}
         } else {
             final++;
@@ -1011,8 +776,8 @@ static void STM32FUartWriteTTY(
         break;
 
         case STM32F_UART_TYPE_INT:
-            serialFifoAppend(pUart->fifo, (uint8_t*) buf, len);
-            txbuf = serialFifoGetNextContiguousBlock(pUart->fifo, &txlen);
+            serial_fifo_append(pUart->fifo, (uint8_t*) buf, len);
+            txbuf = serial_fifo_get_next_contiguous_block(pUart->fifo, &txlen);
             if(txbuf != NULL) { error = (int) HAL_UART_Transmit_IT(pUart->handle, txbuf, txlen);}
             if(error == HAL_BUSY) {
                 busyCount++;
@@ -1088,7 +853,7 @@ void HAL_UART_MspInit(
 
   GPIO_InitTypeDef  GPIO_InitStruct;
   stm32f_uart_driver_entry* pUart;
-  stm32f_uart Uart = STM32FUartGetUartFromHandle(huart);
+  stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
 
   //##-1- Enable peripherals and GPIO Clocks #################################
 
@@ -1096,16 +861,16 @@ void HAL_UART_MspInit(
   pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
 
   // Enable Uart clocks
-  STM32FInitUartClock(Uart);
+  stm32f_init_uart_clock(Uart);
 
   // Enable GPIO clocks
-  STM32FInitGPIOClock(pUart->TXPin.port);
-  STM32FInitGPIOClock(pUart->RXPin.port);
+  stmf32_init_gpio_clock(pUart->TXPin.port);
+  stmf32_init_gpio_clock(pUart->RXPin.port);
 
   // Enable DMA clocks
   if(pUart->uartType == STM32F_UART_TYPE_DMA){
-      STM32FInitDMAClock(pUart->TXDMA.controller);
-      STM32FInitDMAClock(pUart->RXDMA.controller);
+      stmf32_init_dma_clock(pUart->TXDMA.controller);
+      stmf32_init_dma_clock(pUart->RXDMA.controller);
   }
 
   //##-2- Configure peripheral GPIO ##########################################
@@ -1117,13 +882,13 @@ void HAL_UART_MspInit(
   GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
   GPIO_InitStruct.Alternate = pUart->altFuncConfg;
 
-  HAL_GPIO_Init(STM32FGetGPIO(pUart->TXPin.port), &GPIO_InitStruct);
+  HAL_GPIO_Init(stmf32_get_gpio(pUart->TXPin.port), &GPIO_InitStruct);
 
   // UART RX GPIO pin configuration
   GPIO_InitStruct.Pin       = (1 << pUart->RXPin.pin);
   GPIO_InitStruct.Alternate = pUart->altFuncConfg;
 
-  HAL_GPIO_Init(STM32FGetGPIO(pUart->RXPin.port), &GPIO_InitStruct);
+  HAL_GPIO_Init(stmf32_get_gpio(pUart->RXPin.port), &GPIO_InitStruct);
 
   //##-3- Configure the DMA streams ##########################################
 
@@ -1190,17 +955,17 @@ void HAL_UART_MspDeInit(
   static DMA_HandleTypeDef hdma_rx;
 
   stm32f_uart_driver_entry* pUart;
-  stm32f_uart Uart = STM32FUartGetUartFromHandle(huart);
+  stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
   pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
 
   /*##-1- Reset peripherals ##################################################*/
-  STM32FUartReset(Uart);
+  stmf32_uart_reset(Uart);
 
   /*##-2- Disable peripherals and GPIO Clocks ################################*/
   /* Configure UART Tx as alternate function  */
-  HAL_GPIO_DeInit(STM32FGetGPIO(pUart->TXPin.port), (1 << pUart->TXPin.pin));
+  HAL_GPIO_DeInit(stmf32_get_gpio(pUart->TXPin.port), (1 << pUart->TXPin.pin));
   /* Configure UART Rx as alternate function  */
-  HAL_GPIO_DeInit(STM32FGetGPIO(pUart->RXPin.port), (1 << pUart->RXPin.pin));
+  HAL_GPIO_DeInit(stmf32_get_gpio(pUart->RXPin.port), (1 << pUart->RXPin.pin));
 
   /*##-3- Disable the DMA Streams ############################################*/
   if(pUart->uartType == STM32F_UART_TYPE_DMA){
