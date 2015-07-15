@@ -12,7 +12,7 @@
 #include <vecna-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_uart)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
 
 typedef enum {
     UartErrorNone = 0,

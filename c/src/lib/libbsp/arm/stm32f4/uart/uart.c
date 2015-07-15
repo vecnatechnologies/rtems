@@ -8,9 +8,9 @@
 #include <vecna-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_uart)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_gpio)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_gpio_ex)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio_ex)
 
 #include <termios.h>
 #include <rtems/irq.h>

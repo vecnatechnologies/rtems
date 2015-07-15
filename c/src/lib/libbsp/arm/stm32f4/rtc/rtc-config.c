@@ -11,8 +11,8 @@
 #include <libchip/rtc.h>
 #include <vecna-utils.h>
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_rtc)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, _hal_rcc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rtc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
 
 #define STM32FXXXX_RTC_NUMBER 1
 #define BASE_RTC_YEAR 2000
