@@ -1,8 +1,19 @@
-/*
- * hal-uart-interface.h
+/**
+ * @file hal-uart-interface.h
  *
- *  Created on: Jul 14, 2015
- *      Author: jay.doyle
+ * @ingroup uart
+ *
+ * @brief An interface layer to ST's hardware abstraction
+ *   layer API functions used in UART driver implementation.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
+ *
+ * The license and distribution terms for this file may be
+ * found in the file LICENSE in this distribution or at
+ * http://www.rtems.com/license/LICENSE.
  */
 
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_

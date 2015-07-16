@@ -1,8 +1,19 @@
-/*
- * vecna_utils.h
+/**
+ * @file vecna-utils.h
  *
- *  Created on: Jul 14, 2015
- *      Author: jay.doyle
+ * @ingroup misc
+ *
+ * @brief A set of utility functions used throughout the
+ *   STM32F BSP.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
+ *
+ * The license and distribution terms for this file may be
+ * found in the file LICENSE in this distribution or at
+ * http://www.rtems.com/license/LICENSE.
  */
 
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_

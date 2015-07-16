@@ -1,8 +1,19 @@
-/*
- * stm32fxxxx.c
+/**
+ * @file rtc-config.c
  *
- *  Created on: Jul 8, 2015
- *      Author: jay.doyle
+ * @ingroup rtc
+ *
+ * @brief A RTC driver implementation for all STM32F Cortex-M microcontrollers
+ *   based upon ST's hardware abstraction layer API.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
+ *
+ * The license and distribution terms for this file may be
+ * found in the file LICENSE in this distribution or at
+ * http://www.rtems.com/license/LICENSE.
  */
 
 #include <rtems.h>

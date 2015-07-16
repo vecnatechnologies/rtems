@@ -1,3 +1,21 @@
+/**
+ * @file uart.c
+ *
+ * @ingroup uart
+ *
+ * @brief A universal UART driver implementation for all STM32FXXXX Cortex-M
+ *  processors using ST's hardware abstraction layer.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
+ *
+ * The license and distribution terms for this file may be
+ * found in the file LICENSE in this distribution or at
+ * http://www.rtems.com/license/LICENSE.
+ */
+
 #include <rtems.h>
 #include <rtems/system.h>
 #include <rtems/rtems/status.h>
@@ -118,7 +136,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
   [1] .handle          = &(UartHandles[1]),
   [1] .fifo            = &(uart_fifo[1]),
   [1] .UartInterruptNumber = USART2_IRQn,
-  [1] .uartType        = STM32F_UART_TYPE_DMA,
+  [1] .uartType        = STM32F_UART_TYPE_INT,
   [1] .TXDMAStream     = DMA1_Stream6,
   [1] .RXDMAStream     = DMA1_Stream5,
   [1] .TXPin           = {STM32F_GOIO_PORTD, 5},
@@ -182,7 +200,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
   [5] .handle          = &(UartHandles[5]),
   [5] .fifo            = &(uart_fifo[5]),
   [5] .UartInterruptNumber = USART6_IRQn,
-  [5] .uartType        = STM32F_UART_TYPE_POLLING,
+  [5] .uartType        = STM32F_UART_TYPE_INT,
   [5] .TXDMAStream     = DMA2_Stream6,
   [5] .RXDMAStream     = DMA2_Stream2,
   [5] .TXPin           = {STM32F_GOIO_PORTC, 6},

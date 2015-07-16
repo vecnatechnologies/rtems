@@ -1,8 +1,19 @@
-/*
- * hal-uart-interface.c
+/**
+ * @file hal-uart-interface.c
  *
- *  Created on: Jul 14, 2015
- *      Author: jay.doyle
+ * @ingroup uart
+ *
+ * @brief A set of utility functions used in the STM32F UART drivers that provide
+ *   an API to the underlying hardware abstraction functions.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
+ *
+ * The license and distribution terms for this file may be
+ * found in the file LICENSE in this distribution or at
+ * http://www.rtems.com/license/LICENSE.
  */
 
 //================== STMF32 Support Functions =================================
