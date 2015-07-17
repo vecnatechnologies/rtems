@@ -17,6 +17,7 @@
  */
 
 #include <rtems.h>
+#include <rtems/ringbuf.h>
 #include <rtems/system.h>
 #include <rtems/rtems/status.h>
 #include <rtems/score/isr.h>
@@ -105,11 +106,13 @@ static int STM32FUartPollReadTTY(
 //--------------- Static data declarations -------------------------
 static rtems_device_minor_number m_consoleOuput = 0;
 
+static Ring_buffer_t uart_fifo[NUM_PROCESSOR_UARTS];
+/*
 static serial_fifo uart_fifo[NUM_PROCESSOR_UARTS] = {
    [0 ... NUM_PROCESSOR_UARTS-1] .count = 0UL,
    [0 ... NUM_PROCESSOR_UARTS-1] .head  = 0UL
 };
-
+*/
 static UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
 
 stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
@@ -200,7 +203,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
   [5] .handle          = &(UartHandles[5]),
   [5] .fifo            = &(uart_fifo[5]),
   [5] .UartInterruptNumber = USART6_IRQn,
-  [5] .uartType        = STM32F_UART_TYPE_INT,
+  [5] .uartType        = STM32F_UART_TYPE_POLLING,
   [5] .TXDMAStream     = DMA2_Stream6,
   [5] .RXDMAStream     = DMA2_Stream2,
   [5] .TXPin           = {STM32F_GOIO_PORTC, 6},
@@ -254,6 +257,7 @@ const rtems_termios_device_handler stm32f_uart_polling_handlers = {
 
 
 //================== FIFO functions =================================
+#if 0
 static serial_fifo_error serial_fifo_append(
   serial_fifo* pfifo,
   uint8_t* buf,
@@ -265,14 +269,20 @@ static serial_fifo_error serial_fifo_append(
 
     if((pfifo != NULL) && (buf != NULL)){
 
-        for(i = 0; i < len; i++){
-          if(pfifo->count < COUNTOF(pfifo->buffer)){
-              pfifo->buffer[(pfifo->head + pfifo->count + i) % COUNTOF(pfifo->buffer)] = buf[i];
-              pfifo->count++;
-          } else {
-              ret = SERIAL_FIFO_BUFFER_FULL;
-              break;
-          }
+        // check to see if there is enough space for all the data
+        // if not, then don't append any
+        if((COUNTOF(pfifo->buffer) - pfifo->count >= len)) {
+            for(i = 0; i < len; i++){
+              if(pfifo->count < COUNTOF(pfifo->buffer)){
+                  pfifo->buffer[(pfifo->head + pfifo->count) % COUNTOF(pfifo->buffer)] = buf[i];
+                  pfifo->count++;
+              } else {
+                  ret = SERIAL_FIFO_BUFFER_FULL;
+                  break;
+              }
+            }
+        }  else {
+            ret = SERIAL_FIFO_BUFFER_FULL;
         }
     } else {
         ret = SERIAL_FIFO_NULL_POINTER;
@@ -340,25 +350,29 @@ static uint8_t* serial_fifo_get_next_contiguous_block(
 
     return ret;
 }
-
+#endif
 
 //============================== ISR Definitions ==========================================
 static void uart_dma_tx_handler(
   void* argData
 )
 {
-
     stm32f_uart_driver_entry* pUART = (stm32f_uart_driver_entry*) argData;
-    uint32_t u32_StartCount = pUART->handle->TxXferCount;
+    //uint32_t u32_StartCount = pUART->handle->TxXferCount;
 
     HAL_DMA_IRQHandler(pUART->handle->hdmatx);
 
     // Check to see if we have transmitted any characters, if so them
     // remove them from the
-    if(u32_StartCount > pUART->handle->TxXferCount) {
-        serial_fifo_remove(pUART->fifo, NULL, (u32_StartCount - pUART->handle->TxXferCount), false);
-        rtems_termios_dequeue_characters(pUART->tty, (u32_StartCount - pUART->handle->TxXferCount));
-    }
+    //if(u32_StartCount > pUART->handle->TxXferCount) {
+        //int i;
+        //JAY
+        //for(i = 0; i < (u32_StartCount - pUART->handle->TxXferCount); i++) {
+        //    Ring_buffer_Remove_character(pUART->fifo, );
+        //}
+        //serial_fifo_remove(pUART->fifo, NULL, (u32_StartCount - pUART->handle->TxXferCount), false);
+        //rtems_termios_dequeue_characters(pUART->tty, (u32_StartCount - pUART->handle->TxXferCount));
+    //}
 }
 
 
@@ -379,12 +393,12 @@ static void rtems_uart_handler(
   stm32f_uart_driver_entry* pUART = (stm32f_uart_driver_entry*) arg;
 
   uint32_t u32_StartRxCount;
-  uint32_t u32_StartTxCount;
+  //uint32_t u32_StartTxCount;
 
   // Remember how many TX and RX bytes we had before processing the
   // interrupt so that we can determine what happened in the HAL ISR
   u32_StartRxCount = pUART->handle->RxXferCount;
-  u32_StartTxCount = pUART->handle->TxXferCount;
+  //u32_StartTxCount = pUART->handle->TxXferCount;
 
   HAL_UART_IRQHandler(pUART->handle);
 
@@ -395,6 +409,7 @@ static void rtems_uart_handler(
       rtems_termios_enqueue_raw_characters(pUART->tty, (char*) &(pUART->handle->pRxBuffPtr[u32_StartRxCount]), pUART->handle->RxXferCount - u32_StartRxCount);
   }
 
+/*
   // Check to see if we have transmitted any characters, if so them
   // remove them from the =
   if(u32_StartTxCount > pUART->handle->TxXferCount) {
@@ -405,6 +420,7 @@ static void rtems_uart_handler(
       serial_fifo_remove(pUART->fifo, NULL, (u32_StartTxCount - pUART->handle->TxXferCount), false);
       rtems_termios_dequeue_characters(pUART->tty, (u32_StartTxCount - pUART->handle->TxXferCount));
   }
+  */
 }
 
 /*
@@ -712,7 +728,7 @@ static int STM32FUartPollReadTTY(
     uint8_t next_char;
     stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
-    ret = (int) HAL_UART_Receive(pUart->handle, &next_char, 1, HAL_MAX_DELAY);
+    ret = (int) HAL_UART_Receive(pUart->handle, &next_char, 1, 0);
 
     if(ret == HAL_OK){
         return (int) next_char;
@@ -738,6 +754,53 @@ static int STM32FUartPollRead(
 }
 
 
+static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
+                                        uint8_t *buf,
+                                        size_t len
+)
+{
+    //JAY
+    int i;
+    int error = (int) HAL_OK;
+    uint16_t txlen;
+    static int busyCount = 0UL;
+
+    if((buf != NULL) || (len == 0)) {
+
+        for(i = 0; i < len; i++) {
+            Ring_buffer_Add_character(pUart->fifo, buf[i]);
+        }
+
+        if((pUart->handle->State == HAL_UART_STATE_READY) ||
+           (pUart->handle->State == HAL_UART_STATE_BUSY_RX)){
+            txlen = 0;
+
+            while(Ring_buffer_Is_empty(pUart->fifo) == false) {
+                Ring_buffer_Remove_character(pUart->fifo, pUart->tx_buffer[txlen]);
+                txlen++;
+            }
+        }
+
+        // Check to see if it is busy transmitting.
+        if(pUart->uartType == STM32F_UART_TYPE_DMA) {
+            if(pUart->tx_buffer != NULL) { error = (int) HAL_UART_Transmit_DMA(pUart->handle, (uint8_t*) pUart->tx_buffer, txlen);}
+
+        } else if (pUart->uartType == STM32F_UART_TYPE_INT) {
+            if(pUart->tx_buffer != NULL) { error = (int) HAL_UART_Transmit_IT(pUart->handle, (uint8_t*) pUart->tx_buffer, txlen);}
+        }
+
+        if(error == HAL_BUSY) {
+            busyCount++;
+        } else {
+            rtems_termios_dequeue_characters(pUart->tty, txlen);
+        }
+    } else {
+        error = -1;
+    }
+
+    return error;
+}
+
 void HAL_UART_TxCpltCallback(
   UART_HandleTypeDef *huart
 )
@@ -751,18 +814,25 @@ void HAL_UART_TxCpltCallback(
 
         stm32f_uart_driver_entry* pEntry = &(stm32f_uart_driver_table[uartTxComplete]);
 
-        if(pEntry->fifo->count > 0){
+        if(Ring_buffer_Is_empty(pEntry->fifo) == false) {
 
+            stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
+#if 0
+            if(pEntry->fifo->count > 0){
             uint8_t* txbuf = NULL;
             uint16_t txlen = 0UL;
 
+            //JAY
             txbuf = serial_fifo_get_next_contiguous_block(pEntry->fifo, &txlen);
             if(txbuf != NULL) { HAL_UART_Transmit_IT(pEntry->handle, txbuf, txlen);}
+#endif
         } else {
             final++;
         }
     }
 }
+
+
 
 
 static void STM32FUartWriteTTY(
@@ -771,13 +841,21 @@ static void STM32FUartWriteTTY(
   size_t len
 )
 {
-    static int busyCount = 0UL;
-    int error = (int) HAL_OK;
-    uint8_t* txbuf;
-    uint16_t txlen;
+//    int error = (int) HAL_OK;
+
     stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
     if(len > 0) {
+
+        if(pUart->uartType == STM32F_UART_TYPE_POLLING){
+            HAL_UART_Transmit(pUart->handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT);
+        } else {
+            stm32f_uart_get_next_tx_buf(pUart, (uint8_t*) buf, len);
+        }
+#if 0
+        uint8_t* txbuf;
+        uint16_t txlen;
+        static int busyCount = 0UL;
 
         switch(pUart->uartType){
 
@@ -794,11 +872,31 @@ static void STM32FUartWriteTTY(
         break;
 
         case STM32F_UART_TYPE_INT:
-            serial_fifo_append(pUart->fifo, (uint8_t*) buf, len);
-            txbuf = serial_fifo_get_next_contiguous_block(pUart->fifo, &txlen);
-            if(txbuf != NULL) { error = (int) HAL_UART_Transmit_IT(pUart->handle, txbuf, txlen);}
+
+            //JAY
+            int i;
+            for(i = 0; i < len; i++) {
+                Ring_buffer_Add_character(pUart->fifo, buf[i]);
+            }
+
+            //serial_fifo_append(pUart->fifo, (uint8_t*) buf, len);
+            //txbuf = serial_fifo_get_next_contiguous_block(pUart->fifo, &txlen);
+
+            if((pUart->handle->State == HAL_UART_STATE_READY) ||
+               (pUart->handle->State == HAL_UART_STATE_BUSY_RX)){
+                txlen = 0;
+
+                while(Ring_buffer_Is_empty(pUart->fifo) == false) {
+                    Ring_buffer_Remove_character(pUart->fifo, pUart->tx_buffer[txlen]);
+                    txlen++;
+                }
+            }
+            // Check to see if it is busy transmitting.
+            if(txbuf != NULL) { error = (int) HAL_UART_Transmit_IT(pUart->handle, (uint8_t*) pUart->tx_buffer, txlen);}
             if(error == HAL_BUSY) {
                 busyCount++;
+            } else {
+                rtems_termios_dequeue_characters(pUART->tty, txlen);
             }
             break;
 
@@ -811,6 +909,7 @@ static void STM32FUartWriteTTY(
             break;
 
         }
+#endif
     }
 }
 

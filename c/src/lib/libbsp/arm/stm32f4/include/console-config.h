@@ -20,6 +20,7 @@
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_CONSOLE_CONFIG_H_
 
 #include <rtems.h>
+#include <rtems/ringbuf.h>
 #include <rtems/termiostypes.h>
 #include <hal-uart-interface.h>
 
@@ -43,7 +44,8 @@ typedef struct {
     const char*                  device_name;
     struct rtems_termios_tty*    tty;
     UART_HandleTypeDef*          handle;
-    serial_fifo*                 fifo;
+    Ring_buffer_t*               fifo;
+    uint8_t                      tx_buffer[SERIAL_FIFO_SIZE];
     IRQn_Type                    UartInterruptNumber;
     DMA_Stream_TypeDef*          RXDMAStream;
     DMA_Stream_TypeDef*          TXDMAStream;
