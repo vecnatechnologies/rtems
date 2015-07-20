@@ -121,11 +121,11 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
 
   //          UART1
   [0] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART1"),
-  [0] .device_name         = "/dev/ttyS0",
+  [0] .device_name         = "/dev/console",
   [0] .handle              = &(UartHandles[0]),
   [0] .fifo                = &(uart_fifo[0]),
   [0] .UartInterruptNumber = USART1_IRQn,
-  [0] .uartType            = STM32F_UART_TYPE_INT,
+  [0] .uartType            = STM32F_UART_TYPE_POLLING,
   [0] .TXDMAStream         = DMA2_Stream7,
   [0] .RXDMAStream         = DMA2_Stream5,
   [0] .TXPin               = {STM32F_GOIO_PORTD, 6},
@@ -201,11 +201,11 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
 
   //          UART6
   [5] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART6"),
-  [5] .device_name     = "/dev/console",
+  [5] .device_name     = "/dev/ttyS5",
   [5] .handle          = &(UartHandles[5]),
   [5] .fifo            = &(uart_fifo[5]),
   [5] .UartInterruptNumber = USART6_IRQn,
-  [5] .uartType        = STM32F_UART_TYPE_POLLING,
+  [5] .uartType        = STM32F_UART_TYPE_DMA,
   [5] .TXDMAStream     = DMA2_Stream6,
   [5] .RXDMAStream     = DMA2_Stream2,
   [5] .TXPin           = {STM32F_GOIO_PORTC, 6},
@@ -655,17 +655,20 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
 
     if((buf != NULL) || (len == 0)) {
 
+        // First add in any new data
         for(i = 0; i < len; i++) {
             Ring_buffer_Add_character(pUart->fifo, buf[i]);
         }
 
-        // if the uart is ready to transmit then copy data to
-        // tx_buffer, otherwise add it to the ring buffer
+        // if the uart is ready to transmit then as much
+        // data as possible into the tx buffer including any
+        // data that was already in the ring buffer from previous
+        // calls.
         if((pUart->handle->State == HAL_UART_STATE_READY) ||
            (pUart->handle->State == HAL_UART_STATE_BUSY_RX)){
             txlen = 0;
 
-            while(Ring_buffer_Is_empty(pUart->fifo) == false) {
+            while((Ring_buffer_Is_empty(pUart->fifo) == false) && (txlen < sizeof(pUart->tx_buffer))) {
                 Ring_buffer_Remove_character(pUart->fifo, pUart->tx_buffer[txlen]);
                 txlen++;
             }
