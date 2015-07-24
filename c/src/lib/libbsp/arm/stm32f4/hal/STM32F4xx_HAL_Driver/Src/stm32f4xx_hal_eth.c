@@ -207,7 +207,7 @@ HAL_StatusTypeDef HAL_ETH_Init(ETH_HandleTypeDef *heth)
   /* Select MII or RMII Mode*/
   SYSCFG->PMC &= ~(SYSCFG_PMC_MII_RMII_SEL);
   SYSCFG->PMC |= (uint32_t)heth->Init.MediaInterface;
-  
+  __ETH_CLK_ENABLE();
   /* Ethernet Software reset */
   /* Set the SWR bit: resets all MAC subsystem internal registers and logic */
   /* After reset all the registers holds their respective reset values */
@@ -218,6 +218,7 @@ HAL_StatusTypeDef HAL_ETH_Init(ETH_HandleTypeDef *heth)
   {
   }
   
+
   /*-------------------------------- MAC Initialization ----------------------*/
   /* Get the ETHERNET MACMIIAR value */
   tmpreg1 = (heth->Instance)->MACMIIAR;

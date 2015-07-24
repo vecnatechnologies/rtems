@@ -163,13 +163,14 @@ libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
 libbsp_a_SOURCES += ../../shared/bsplibc.c
 libbsp_a_SOURCES += ../../shared/bsppost.c
-libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
 libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += ../../shared/cpucounterread.c
 libbsp_a_SOURCES += ../../shared/cpucounterdiff.c
 libbsp_a_SOURCES += ../../shared/gnatinstallhandler.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
 libbsp_a_SOURCES += ../../shared/src/stackalloc.c
+#libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
+
 
 # Startup
 libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
@@ -203,6 +204,11 @@ libbsp_a_SOURCES += console/usart.c
 libbsp_a_SOURCES += i2c/i2c.c
 libbsp_a_SOURCES += i2c/i2c-config.c
 
+# CAN
+
+libbsp_a_SOURCES += can/can_start.c
+libbsp_a_SOURCES += can/can.c
+
 # Clock
 libbsp_a_SOURCES += ../../shared/clockdrv_shell.h
 libbsp_a_SOURCES += ../shared/armv7m/clock/armv7m-clock-config.c
@@ -215,12 +221,15 @@ libbsp_a_SOURCES += ../../../libcpu/shared/src/cache_manager.c
 libbsp_a_SOURCES += ../../../libcpu/arm/shared/cache/cache_.h
 
 
+libbsp_a_CPPFLAGS += -DSTM32F407xx
 libbsp_a_CPPFLAGS += -I$(srcdir)/../../../libcpu/arm/shared/include
 
 
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/STM32F4xx_HAL_Driver/Inc
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Device/ST/STM32F4xx/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Include
+
+libbsp_a_CPPFLAGS += -I$(srcdir)/can/
 
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c
@@ -286,6 +295,7 @@ libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_iwdg.c
+
 
 # Discovery board bsp file
 libbsp_a_SOURCES += hal/BSP/STM32F4-Discovery/stm32f4_discovery.c
