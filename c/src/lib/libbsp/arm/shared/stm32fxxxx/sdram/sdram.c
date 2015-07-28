@@ -5,7 +5,7 @@
  *      Author: jay.doyle
  */
 
-#include <stm32f7xx_hal.h>
+//#include <stm32f7xx_hal.h>
 #include <vecna-utils.h>
 #include <stm32f-processor-specific.h>
 
@@ -14,9 +14,20 @@
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, cortex)
 #include stm_ll_header(TARGET_STM_PROCESSOR_PREFIX, fmc)
 
+#if defined(EXTERNAL_SDRAM)
+
 static SDRAM_HandleTypeDef      hsdram;
 static FMC_SDRAM_TimingTypeDef  SDRAM_Timing;
 static FMC_SDRAM_CommandTypeDef command;
+
+void Error_Handler(
+        void
+)
+{
+    while(1) {
+        ; // Stay here forever
+    }
+}
 
 /**
   * @brief  Configure the MPU attributes as Write Through for SRAM1/2.
@@ -120,7 +131,7 @@ static void BSP_SDRAM_Initialization_Sequence(
 
 }
 
-void BSP_SDRAM_Config(
+void BSP_SDRAM_Config( void
 )
 {
     /*##-1- Configure the SDRAM device #########################################*/
@@ -262,3 +273,7 @@ void HAL_Delay(__IO uint32_t Delay)
       }
   }
 }
+
+#else
+
+#endif

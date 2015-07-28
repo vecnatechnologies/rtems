@@ -215,7 +215,7 @@ static rtems_status_code set_system_clk(
   return RTEMS_SUCCESSFUL;
 }
 
-void Configure_Memory( void ) {
+void configure_external_memories( void ) {
 
 #ifdef EXTERNAL_SDRAM
     BSP_SDRAM_Config();
@@ -226,9 +226,10 @@ void Configure_Memory( void ) {
 void bsp_start( void )
 {
 
-  // Enable the CPU Cache
+  // enable the CPU Cache (if available)
   CPU_CACHE_Enable();
 
+  // basic initialization code
   HAL_Init();
 
   // configure all system clocks
@@ -236,18 +237,10 @@ void bsp_start( void )
                         HZ_TO_MHZ(HSE_FREQUENCY),
                         HSE_AVAILABLE);
 
-  Configure_Memory();
+  // configure external memories (if available)
+  configure_external_memories();
 
-  // Initialize LEDs
-  //BSP_LED_Init(LED1);
-  //BSP_LED_Init(LED2);
-  //BSP_LED_Init(LED3);
-  //BSP_LED_Init(LED4);
-  //BSP_LED_Init(LED5);
-  //BSP_LED_Init(LED6);
-
-  //stm32f4_gpio_set_config_array( &stm32f4_start_config_gpio[ 0 ] );
-
+  // initialize interrupt vectors with default handler
   bsp_interrupt_initialize();
 }
 

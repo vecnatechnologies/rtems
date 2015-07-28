@@ -149,6 +149,7 @@ include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/console-config.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/vecna-utils.h
 
 ###############################################################################
@@ -180,6 +181,9 @@ libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
 libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-startup.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-starthook.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
+
+# SDRAM
+libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/sdram.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c

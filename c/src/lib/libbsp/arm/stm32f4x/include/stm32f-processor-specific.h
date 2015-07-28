@@ -21,6 +21,12 @@
 //=========================== STMF32F407 ==============================
 #if defined(STM32F407xx)
 
+// This processor does not support external SDRAM
+#undef EXTERNAL_SDRAM
+
+// This processor does not support overdrive mode
+#undef ENABLE_PROCESSOR_OVERDRIVE
+
 #define NUM_PROCESSOR_UARTS 6
 
 //=========================== STMF32F745 ==============================
