@@ -20,14 +20,6 @@ static SDRAM_HandleTypeDef      hsdram;
 static FMC_SDRAM_TimingTypeDef  SDRAM_Timing;
 static FMC_SDRAM_CommandTypeDef command;
 
-void Error_Handler(
-        void
-)
-{
-    while(1) {
-        ; // Stay here forever
-    }
-}
 
 /**
   * @brief  Configure the MPU attributes as Write Through for SRAM1/2.
