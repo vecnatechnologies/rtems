@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f7xx.h
   * @author  MCD Application Team
-  * @version V1.0.0
-  * @date    28-April-2015
+  * @version V1.0.1
+  * @date    25-June-2015
   * @brief   CMSIS STM32F7xx Device Peripheral Access Layer Header File.           
   *            
   *          The file is the unique include file that the application programmer
@@ -75,9 +75,9 @@
    application 
   */
 #if !defined (STM32F756xx) && !defined (STM32F746xx) && !defined (STM32F745xx)
-   #define STM32F756xx    /*!< STM32F756VG, STM32F756ZG, STM32F756ZG, STM32F756IG, STM32F756BG,
+  /* #define STM32F756xx */   /*!< STM32F756VG, STM32F756ZG, STM32F756ZG, STM32F756IG, STM32F756BG,
                                    STM32F756NG Devices */
-  /* #define STM32F746xx */   /*!< STM32F746VE, STM32F746VG, STM32F746ZE, STM32F746ZG, STM32F746IE, STM32F746IG,
+   #define STM32F746xx    /*!< STM32F746VE, STM32F746VG, STM32F746ZE, STM32F746ZG, STM32F746IE, STM32F746IG,
                                    STM32F746BE, STM32F746BG, STM32F746NE, STM32F746NG Devices */
   /* #define STM32F745xx */   /*!< STM32F745VE, STM32F745VG, STM32F745ZG, STM32F745ZE, STM32F745IE, STM32F745IG Devices */
 #endif
@@ -96,11 +96,11 @@
 #endif /* USE_HAL_DRIVER */
 
 /**
-  * @brief CMSIS Device version number V1.0.0
+  * @brief CMSIS Device version number V1.0.1
   */
 #define __STM32F7xx_CMSIS_DEVICE_VERSION_MAIN   (0x01) /*!< [31:24] main version */
 #define __STM32F7xx_CMSIS_DEVICE_VERSION_SUB1   (0x00) /*!< [23:16] sub1 version */
-#define __STM32F7xx_CMSIS_DEVICE_VERSION_SUB2   (0x00) /*!< [15:8]  sub2 version */
+#define __STM32F7xx_CMSIS_DEVICE_VERSION_SUB2   (0x01) /*!< [15:8]  sub2 version */
 #define __STM32F7xx_CMSIS_DEVICE_VERSION_RC     (0x00) /*!< [7:0]  release candidate */ 
 #define __STM32F7xx_CMSIS_DEVICE_VERSION        ((__STM32F7xx_CMSIS_DEVICE_VERSION_MAIN << 24)\
                                                 |(__STM32F7xx_CMSIS_DEVICE_VERSION_SUB1 << 16)\
