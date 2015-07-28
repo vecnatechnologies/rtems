@@ -169,6 +169,10 @@ $(PROJECT_INCLUDE)/bsp/rcc.h: include/rcc.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/rcc.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/rcc.h
 
+$(PROJECT_INCLUDE)/bsp/console-config.h: include/console-config.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/console-config.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/console-config.h
+
 $(PROJECT_INCLUDE)/bsp/stm32f4xx.h: hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32f4xx.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32f4xx.h

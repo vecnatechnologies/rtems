@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vecna-utils.h>
+#include <stm32f-processor-specific.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
@@ -117,6 +118,8 @@ static serial_fifo uart_fifo[NUM_PROCESSOR_UARTS] = {
 */
 static UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
 
+#include <uart-config.c>
+/*
 stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
 
   //          UART1
@@ -215,7 +218,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
   [5] .initial_baud    = 115200,
   [5] .altFuncConfg    = GPIO_AF8_USART6,
 };
-
+*/
 
 rtems_termios_callbacks stm32f_uart_callbacks = {
     .firstOpen            = STM32FUartFirstOpen,

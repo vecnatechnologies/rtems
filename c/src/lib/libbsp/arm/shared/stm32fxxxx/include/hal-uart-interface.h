@@ -103,5 +103,7 @@ void stmf32_init_dma_clock(
   const stm32f_dma_controller controller
 );
 
+void SystemInit(void);
+
 
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_ */

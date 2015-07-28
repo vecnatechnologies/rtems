@@ -29,4 +29,8 @@
 #define _stm_processor_header(x) __stm_processor_header(stm32f##x.h)
 #define stm_processor_header(x) _stm_processor_header(x)
 
+#define __stm_hal_header(x) #x
+#define _stm_hal_header(x) __stm_hal_header(stm32f##x##_hal.h)
+#define stm_hal_header(x) _stm_hal_header(x)
+
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_ */
