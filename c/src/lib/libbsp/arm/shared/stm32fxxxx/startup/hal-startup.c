@@ -21,6 +21,7 @@
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
 
 #include <hal-startup-interface.h>
+#include <hal-sdram-interface.h>
 
 #define HZ_TO_MHZ(x) (x/1000000)
 
@@ -214,6 +215,13 @@ static rtems_status_code set_system_clk(
   return RTEMS_SUCCESSFUL;
 }
 
+void Configure_Memory( void ) {
+
+#ifdef EXTERNAL_SDRAM
+    BSP_SDRAM_Config();
+#endif
+
+}
 
 void bsp_start( void )
 {
@@ -227,6 +235,8 @@ void bsp_start( void )
   (void) set_system_clk(HZ_TO_MHZ(SYSCLK_FREQUENCY),
                         HZ_TO_MHZ(HSE_FREQUENCY),
                         HSE_AVAILABLE);
+
+  Configure_Memory();
 
   // Initialize LEDs
   //BSP_LED_Init(LED1);

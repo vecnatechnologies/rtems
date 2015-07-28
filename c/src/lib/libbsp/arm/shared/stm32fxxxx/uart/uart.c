@@ -655,13 +655,10 @@ void HAL_UART_MspInit(
 
   GPIO_InitTypeDef  GPIO_InitStruct;
   stm32f_uart_driver_entry* pUart;
-  //stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
+
   pUart = stm32f_get_driver_entry_from_handle(huart);
 
   //##-1- Enable peripherals and GPIO Clocks #################################
-
-  // Get driver table entry
-  //pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
 
   // Enable Uart clocks
   stm32f_init_uart_clock(pUart->uart);
@@ -757,8 +754,7 @@ void HAL_UART_MspDeInit(
   static DMA_HandleTypeDef hdma_rx;
 
   stm32f_uart_driver_entry* pUart;
-  //stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
-  //pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
+
   pUart = stm32f_get_driver_entry_from_handle(huart);
 
   /*##-1- Reset peripherals ##################################################*/

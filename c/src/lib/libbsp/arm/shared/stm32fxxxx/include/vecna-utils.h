@@ -25,6 +25,10 @@
 #define _stm_header(x, y) __stm_header(stm32f##x##_hal_##y.h)
 #define stm_header(x,y) _stm_header(x,y)
 
+#define __stm_ll_header(x) #x
+#define _stm_ll_header(x, y) __stm_ll_header(stm32f##x##_ll_##y.h)
+#define stm_ll_header(x,y) _stm_ll_header(x,y)
+
 #define __stm_processor_header(x) #x
 #define _stm_processor_header(x) __stm_processor_header(stm32f##x.h)
 #define stm_processor_header(x) _stm_processor_header(x)
