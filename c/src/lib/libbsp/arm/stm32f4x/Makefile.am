@@ -44,23 +44,6 @@ include_bsp_HEADERS += ../../shared/include/stackalloc.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
 include_bsp_HEADERS += include/irq.h
-include_bsp_HEADERS += include/stm32f4.h
-include_bsp_HEADERS += include/stm32f10xxx_gpio.h
-include_bsp_HEADERS += include/stm32f10xxx_rcc.h
-include_bsp_HEADERS += include/stm32f10xxx_exti.h
-include_bsp_HEADERS += include/stm32f4xxxx_adc.h
-include_bsp_HEADERS += include/stm32f4xxxx_exti.h
-include_bsp_HEADERS += include/stm32f4xxxx_gpio.h
-include_bsp_HEADERS += include/stm32f4xxxx_rcc.h
-include_bsp_HEADERS += include/stm32f4xxxx_pwr.h
-include_bsp_HEADERS += include/stm32f4xxxx_syscfg.h
-include_bsp_HEADERS += include/stm32f4xxxx_tim.h
-include_bsp_HEADERS += include/stm32f4xxxx_flash.h
-include_bsp_HEADERS += include/stm32f4xxxx_otgfs.h
-include_bsp_HEADERS += include/stm32_i2c.h
-include_bsp_HEADERS += include/i2c.h
-include_bsp_HEADERS += include/io.h
-include_bsp_HEADERS += include/rcc.h
 
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
@@ -185,6 +168,9 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 # SDRAM
 libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/sdram.c
 
+# Error
+libbsp_a_SOURCES += ../shared/stm32fxxxx/error/error.c
+
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c
 libbsp_a_SOURCES += ../../shared/src/irq-generic.c
@@ -203,10 +189,6 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-interface.c
 # RTC
 libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/rtc-config.c
 libbsp_a_SOURCES += ../../shared/tod.c
-
-# I2C
-libbsp_a_SOURCES += i2c/i2c.c
-libbsp_a_SOURCES += i2c/i2c-config.c
 
 # Clock
 libbsp_a_SOURCES += ../../shared/clockdrv_shell.h
@@ -230,7 +212,6 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/stm32fxxxx/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 
 libbsp_a_CPPFLAGS += -D STM32F407xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=4xx -DTARGET_STM_PROCESSOR=407
-#libbsp_a_CPPFLAGS += -DUSE_HAL_DRIVER
 
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c

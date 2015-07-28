@@ -43,7 +43,6 @@ include_bsp_HEADERS += ../../shared/include/irq-info.h
 include_bsp_HEADERS += ../../shared/include/stackalloc.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
-
 include_bsp_HEADERS += include/irq.h
 
 #HAL Device headers
@@ -169,6 +168,9 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # SDRAM
 libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/sdram.c
+
+# Error
+libbsp_a_SOURCES += ../shared/stm32fxxxx/error/error.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c
