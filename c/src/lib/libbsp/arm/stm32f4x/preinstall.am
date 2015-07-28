@@ -469,6 +469,10 @@ $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h: ../shared/stm32fxxxx/include/hal-ua
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h
 
+$(PROJECT_INCLUDE)/bsp/hal-startup-interface.h: ../shared/stm32fxxxx/include/hal-startup-interface.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-startup-interface.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-startup-interface.h
+
 $(PROJECT_INCLUDE)/bsp/vecna-utils.h: ../shared/stm32fxxxx/include/vecna-utils.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/vecna-utils.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/vecna-utils.h

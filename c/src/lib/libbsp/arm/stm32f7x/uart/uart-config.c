@@ -23,5 +23,6 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
   [0] .RXDMA           = {STM32F_DMA2_CONTROLLER, DMA2_Stream2_IRQn, DMA_CHANNEL_5, 2},
   [0] .initial_baud    = 115200,
   [0] .altFuncConfg    = GPIO_AF8_USART6,
+  [0] .uart            = STM32F_UART6
 };
 

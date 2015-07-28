@@ -148,6 +148,7 @@ include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/console-config.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/vecna-utils.h
 
 ###############################################################################
@@ -176,12 +177,9 @@ libbsp_a_SOURCES += ../../shared/src/stackalloc.c
 
 # Startup
 libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
-libbsp_a_SOURCES += startup/bspstart.c
-libbsp_a_SOURCES += startup/bspstarthook.c
-libbsp_a_SOURCES += startup/bspreset.c
-libbsp_a_SOURCES += startup/io.c
-libbsp_a_SOURCES += startup/rcc.c
-libbsp_a_SOURCES += startup/start-config-io.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-startup.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-starthook.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c

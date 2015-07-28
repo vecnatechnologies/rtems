@@ -24,16 +24,16 @@
 
 extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS];
 
-stm32f_uart stm32f_uart_get_uart_from_handle(
+stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 )
 {
    uint32_t i;
-   stm32f_uart ret = STM32F_INVALID_UART;
+   stm32f_uart_driver_entry* ret = NULL;
 
    for(i = 0UL; i < COUNTOF(stm32f_uart_driver_table) ; i++){
        if(stm32f_uart_driver_table[i].handle == huart){
-           ret = (stm32f_uart) i;
+           ret = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[i]);
            break;
        }
    }

@@ -15,10 +15,11 @@
 #include <rtems.h>
 #include <bspopts.h>
 #include <vecna-utils.h>
+#include <stm32f-processor-specific.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
-//#include stm_hal_header(TARGET_STM_PROCESSOR_PREFIX)
+
 #include <hal-startup-interface.h>
 
 #define HZ_TO_MHZ(x) (x/1000000)
@@ -31,6 +32,8 @@
 #define HSE_AVAILABLE           ((HSE_FREQUENCY > 0) ? 1 : 0)
 #define MAX_SYSCLK              216
 
+uint32_t SystemCoreClock = HSI_FREQUENCY;
+
 /**
   * @brief  CPU L1-Cache enable.
   * @param  None
@@ -38,11 +41,13 @@
   */
 static void CPU_CACHE_Enable(void)
 {
+#if defined(ENABLE_PROCESSOR_CACHES)
   /* Enable I-Cache */
   SCB_EnableICache();
 
   /* Enable D-Cache */
   SCB_EnableDCache();
+#endif
 }
 
 /**
@@ -153,11 +158,15 @@ static rtems_status_code set_system_clk(
       while(1) { ; }
   }
 
+  SystemCoreClock = src_clk;
+
   // Activate the OverDrive in case it is necessary to achieve desired frequency
+#if defined(ENABLE_PROCESSOR_OVERDRIVE)
   ret = HAL_PWREx_EnableOverDrive();
   if(ret != HAL_OK){
       while(1) { ; }
   }
+#endif
 
   // APB1 prescaler, APB1 clock must be < 42MHz
   apbpre1 = ( sys_clk * 100 ) / 42;
@@ -208,6 +217,7 @@ static rtems_status_code set_system_clk(
 
 void bsp_start( void )
 {
+
   // Enable the CPU Cache
   CPU_CACHE_Enable();
 

@@ -21,7 +21,9 @@
 //=========================== STMF32F407 ==============================
 #if defined(STM32F746xx)
 
-#define NUM_PROCESSOR_UARTS     1
+#define NUM_PROCESSOR_UARTS        1
+#define ENABLE_PROCESSOR_OVERDRIVE 1
+#define ENABLE_PROCESSOR_CACHES    1
 
 //TODO: Move this to some place more universal
 #define SYSCLK_FREQUENCY        STM32F4_SYSCLK

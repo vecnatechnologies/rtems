@@ -17,7 +17,6 @@
  */
 
 #include <rtems.h>
-#include <rtems/ringbuf.h>
 #include <rtems/system.h>
 #include <rtems/rtems/status.h>
 #include <rtems/score/isr.h>
@@ -40,12 +39,7 @@
 #include <console-config.h>
 
 #define DMA_BUFFER_LENGTH 128
-#define NUM_PROCESSOR_UARTS 6
-
 #define POLLED_TX_TIMEOUT 1000
-
-//TODO: Move these somewhere else
-uint32_t SystemCoreClock = 16000000UL;
 
 static uint8_t dummy_char;
 
@@ -108,117 +102,12 @@ static int STM32FUartPollReadTTY(
 
 //--------------- Static data declarations -------------------------
 static rtems_device_minor_number m_consoleOuput = 0;
-
 static Ring_buffer_t uart_fifo[NUM_PROCESSOR_UARTS];
-/*
-static serial_fifo uart_fifo[NUM_PROCESSOR_UARTS] = {
-   [0 ... NUM_PROCESSOR_UARTS-1] .count = 0UL,
-   [0 ... NUM_PROCESSOR_UARTS-1] .head  = 0UL
-};
-*/
 static UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
 
+//--------------- Processor specific UART configuration
 #include <uart-config.c>
-/*
-stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
 
-  //          UART1
-  [0] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART1"),
-  [0] .device_name         = "/dev/ttyS0",
-  [0] .handle              = &(UartHandles[0]),
-  [0] .fifo                = &(uart_fifo[0]),
-  [0] .UartInterruptNumber = USART1_IRQn,
-  [0] .uartType            = STM32F_UART_TYPE_DMA,
-  [0] .TXDMAStream         = DMA2_Stream7,
-  [0] .RXDMAStream         = DMA2_Stream5,
-  [0] .TXPin               = {STM32F_GOIO_PORTB, 6},
-  [0] .RXPin               = {STM32F_GOIO_PORTB, 7},
-  [0] .TXDMA               = {STM32F_DMA2_CONTROLLER, DMA2_Stream7_IRQn, DMA_CHANNEL_4, 7},
-  [0] .RXDMA               = {STM32F_DMA2_CONTROLLER, DMA2_Stream5_IRQn, DMA_CHANNEL_4, 5},
-  [0] .initial_baud        = 115200,
-  [0] .altFuncConfg        = GPIO_AF7_USART1,
-
-  //          UART2
-  [1] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART2"),
-  [1] .device_name     = "/dev/ttyS1",
-  [1] .handle          = &(UartHandles[1]),
-  [1] .fifo            = &(uart_fifo[1]),
-  [1] .UartInterruptNumber = USART2_IRQn,
-  [1] .uartType        = STM32F_UART_TYPE_INT,
-  [1] .TXDMAStream     = DMA1_Stream6,
-  [1] .RXDMAStream     = DMA1_Stream5,
-  [1] .TXPin           = {STM32F_GOIO_PORTD, 5},
-  [1] .RXPin           = {STM32F_GOIO_PORTD, 6},
-  [1] .TXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream6_IRQn, DMA_CHANNEL_4, 6},
-  [1] .RXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream5_IRQn, DMA_CHANNEL_4, 5},
-  [1] .initial_baud    = 115200,
-  [1] .altFuncConfg    = GPIO_AF7_USART2,
-
-  //          UART3
-  [2] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART3"),
-  [2] .device_name     = "/dev/ttyS2",
-  [2] .handle          = &(UartHandles[2]),
-  [2] .fifo            = &(uart_fifo[2]),
-  [2] .UartInterruptNumber = USART3_IRQn,
-  [2] .uartType        = STM32F_UART_TYPE_INT,
-  [2] .TXDMAStream     = DMA1_Stream4,
-  [2] .RXDMAStream     = DMA1_Stream1,
-  [2] .TXPin           = {STM32F_GOIO_PORTD, 8},
-  [2] .RXPin           = {STM32F_GOIO_PORTD, 9},
-  [2] .TXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream4_IRQn, DMA_CHANNEL_7, 4},
-  [2] .RXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream1_IRQn, DMA_CHANNEL_4, 1},
-  [2] .initial_baud    = 115200,
-  [2] .altFuncConfg    = GPIO_AF7_USART3,
-
-  //          UART4
-  [3] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART4"),
-  [3] .device_name     = "/dev/ttyS3",
-  [3] .handle          = &(UartHandles[3]),
-  [3] .fifo            = &(uart_fifo[3]),
-  [3] .UartInterruptNumber = UART4_IRQn,
-  [3] .uartType        = STM32F_UART_TYPE_INT,
-  [3] .TXDMAStream     = DMA1_Stream4,
-  [3] .RXDMAStream     = DMA1_Stream2,
-  [3] .TXPin           = {STM32F_GOIO_PORTC, 10},
-  [3] .RXPin           = {STM32F_GOIO_PORTC, 11},
-  [3] .TXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream4_IRQn, DMA_CHANNEL_4, 4},
-  [3] .RXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream2_IRQn, DMA_CHANNEL_4, 2},
-  [3] .initial_baud    = 115200,
-  [3] .altFuncConfg    = GPIO_AF8_UART4,
-
-  //          UART5
-  [4] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART5"),
-  [4] .device_name     = "/dev/ttyS4",
-  [4] .handle          = &(UartHandles[4]),
-  [4] .fifo            = &(uart_fifo[4]),
-  [4] .UartInterruptNumber = UART5_IRQn,
-  [4] .uartType        = STM32F_UART_TYPE_INT,
-  [4] .TXDMAStream     = DMA1_Stream7,
-  [4] .RXDMAStream     = DMA1_Stream0,
-  [4] .TXPin           = {STM32F_GOIO_PORTD, 2},
-  [4] .RXPin           = {STM32F_GOIO_PORTC, 12},
-  [4] .TXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream7_IRQn, DMA_CHANNEL_4, 7},
-  [4] .RXDMA           = {STM32F_DMA1_CONTROLLER, DMA1_Stream0_IRQn, DMA_CHANNEL_4, 0},
-  [4] .initial_baud    = 115200,
-  [4] .altFuncConfg    = GPIO_AF8_UART5,
-
-  //          UART6
-  [5] .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART6"),
-  [5] .device_name     = "/dev/console",
-  [5] .handle          = &(UartHandles[5]),
-  [5] .fifo            = &(uart_fifo[5]),
-  [5] .UartInterruptNumber = USART6_IRQn,
-  [5] .uartType        = STM32F_UART_TYPE_POLLING,
-  [5] .TXDMAStream     = DMA2_Stream6,
-  [5] .RXDMAStream     = DMA2_Stream2,
-  [5] .TXPin           = {STM32F_GOIO_PORTC, 6},
-  [5] .RXPin           = {STM32F_GOIO_PORTC, 7},
-  [5] .TXDMA           = {STM32F_DMA2_CONTROLLER, DMA2_Stream6_IRQn, DMA_CHANNEL_5, 6},
-  [5] .RXDMA           = {STM32F_DMA2_CONTROLLER, DMA2_Stream2_IRQn, DMA_CHANNEL_5, 2},
-  [5] .initial_baud    = 115200,
-  [5] .altFuncConfg    = GPIO_AF8_USART6,
-};
-*/
 
 rtems_termios_callbacks stm32f_uart_callbacks = {
     .firstOpen            = STM32FUartFirstOpen,
@@ -306,43 +195,9 @@ static void rtems_uart_handler(
       rtems_termios_enqueue_raw_characters(pUART->tty, pStartRx, rxCount);
 
       HAL_UART_Receive_IT(pUART->handle, &dummy_char, 1);
-      //JAY
   }
 }
 
-/*
-static void UART_Handler(
-  rtems_vector_number vector,
-  void* argData
-)
-{
-    uint32_t u32_StartRxCount;
-    uint32_t u32_StartTxCount;
-
-    //TODO: what is type of argData?  It might be rtems_termios_tty*
-
-    stm32f_uart_driver_entry* pUART = (stm32f_uart_driver_entry*) argData;
-
-    // Remember how many TX and RX bytes we had before processing the
-    // interrupt so that we can determine what happened in the HAL ISR
-    u32_StartRxCount = pUART->handle->RxXferCount;
-    u32_StartTxCount = pUART->handle->TxXferCount;
-
-    HAL_UART_IRQHandler(pUART->handle);
-
-    // Check to see if we received any characters, if so then
-    // enqueue them in termios
-    if(u32_StartRxCount > pUART->handle->RxXferCount) {
-        rtems_termios_enqueue_raw_characters(pUART->tty, (char*) &(pUART->handle->pRxBuffPtr[u32_StartRxCount]), pUART->handle->RxXferCount - u32_StartRxCount);
-    }
-
-    // Check to see if we have transmitted any characters, if so them
-    // remove them from the =
-    if(u32_StartTxCount > pUART->handle->TxXferCount) {
-        rtems_termios_dequeue_characters(pUART->tty, pUART->handle->TxXferCount - u32_StartTxCount);
-    }
-}
-*/
 
 //============================== CONSOLE API FUNCTION ==========================================
 rtems_device_driver console_initialize(
@@ -360,7 +215,7 @@ rtems_device_driver console_initialize(
         stm32f_uart_driver_entry* pNextEntry = &stm32f_uart_driver_table[minor];
 
         //Configure the UART peripheral
-        pNextEntry->handle->Instance          = stmf32_uart_get_registers(stm32f_uart_get_uart_from_handle(pNextEntry->handle));
+        pNextEntry->handle->Instance          = stmf32_uart_get_registers(pNextEntry->uart);
         pNextEntry->handle->Init.BaudRate     = pNextEntry->initial_baud;
         pNextEntry->handle->Init.WordLength   = UART_WORDLENGTH_8B;
         pNextEntry->handle->Init.StopBits     = UART_STOPBITS_1;
@@ -545,7 +400,7 @@ static bool STM32FUartSetAttrTTY(
     }
 
     //##-1- Configure the UART peripheral ######################################
-    pUart->handle->Instance          = stmf32_uart_get_registers(stm32f_uart_get_uart_from_handle(pUart->handle));
+    pUart->handle->Instance          = stmf32_uart_get_registers(pUart->uart);
     pUart->handle->Init.BaudRate     = baud;
     pUart->handle->Init.WordLength   = char_size;
     pUart->handle->Init.StopBits     = stop_bits;
@@ -604,7 +459,7 @@ static int STM32FUartSetAttr(
     stm32f_uart_driver_entry* pNextEntry = &stm32f_uart_driver_table[minor];
 
     //##-1- Configure the UART peripheral ######################################
-    pNextEntry->handle->Instance          = stmf32_uart_get_registers(stm32f_uart_get_uart_from_handle(pNextEntry->handle));
+    pNextEntry->handle->Instance          = stmf32_uart_get_registers(pNextEntry->uart);
     pNextEntry->handle->Init.BaudRate     = baud;
     pNextEntry->handle->Init.WordLength   = char_size;
     pNextEntry->handle->Init.StopBits     = stop_bits;
@@ -659,7 +514,6 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
                                         size_t len
 )
 {
-    //JAY
     int i;
     int error = (int) HAL_OK;
     uint16_t txlen;
@@ -712,7 +566,7 @@ void HAL_UART_TxCpltCallback(
 {
     static int final = 0;
 
-    stm32f_uart uartTxComplete = stm32f_uart_get_uart_from_handle(huart);
+    stm32f_uart uartTxComplete = stm32f_get_driver_entry_from_handle(huart)->uart;
 
     // If there are still characters in TX fifo start sending again...
     if(uartTxComplete < COUNTOF(stm32f_uart_driver_table)){
@@ -726,8 +580,6 @@ void HAL_UART_TxCpltCallback(
         }
     }
 }
-
-
 
 
 static void STM32FUartWriteTTY(
@@ -754,7 +606,6 @@ static int STM32FUartWrite(
   size_t bufferSize
 )
 {
-
     int error = (int) HAL_OK;
 
     // There is no need to check the value of minor number since it is derived
@@ -804,15 +655,16 @@ void HAL_UART_MspInit(
 
   GPIO_InitTypeDef  GPIO_InitStruct;
   stm32f_uart_driver_entry* pUart;
-  stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
+  //stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
+  pUart = stm32f_get_driver_entry_from_handle(huart);
 
   //##-1- Enable peripherals and GPIO Clocks #################################
 
   // Get driver table entry
-  pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
+  //pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
 
   // Enable Uart clocks
-  stm32f_init_uart_clock(Uart);
+  stm32f_init_uart_clock(pUart->uart);
 
   // Enable GPIO clocks
   stmf32_init_gpio_clock(pUart->TXPin.port);
@@ -901,16 +753,16 @@ void HAL_UART_MspDeInit(
   UART_HandleTypeDef *huart
 )
 {
-
   static DMA_HandleTypeDef hdma_tx;
   static DMA_HandleTypeDef hdma_rx;
 
   stm32f_uart_driver_entry* pUart;
-  stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
-  pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
+  //stm32f_uart Uart = stm32f_uart_get_uart_from_handle(huart);
+  //pUart = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[Uart]);
+  pUart = stm32f_get_driver_entry_from_handle(huart);
 
   /*##-1- Reset peripherals ##################################################*/
-  stmf32_uart_reset(Uart);
+  stmf32_uart_reset(pUart->uart);
 
   /*##-2- Disable peripherals and GPIO Clocks ################################*/
   /* Configure UART Tx as alternate function  */
@@ -927,77 +779,3 @@ void HAL_UART_MspDeInit(
   }
 }
 
-
-/*
-rtems_device_driver console_initialize(rtems_device_major_number major,
-                                       rtems_device_minor_number minor,
-                                       void* arg);
-
-rtems_device_driver console_open(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg);
-rtems_device_driver console_close(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg);
-rtems_device_driver console_read(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg);
-rtems_device_driver console_write(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg);
-rtems_device_driver console_control(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg);
-
-
-rtems_device_driver console_open(rtems_device_major_number major,
-                                 rtems_device_minor_number minor,
-                                 void* arg){
-
-    struct rtems_termios_callbacks* pcallbacks;
-
-    stm32f_uart_driver_entry* pSelectedUart = &stm32f_uart_driver_table[minor];
-
-    if((pSelectedUart->uartType == STM32F_UART_TYPE_INT) ||
-       (pSelectedUart->uartType == STM32F_UART_TYPE_DMA)){
-        pcallbacks = &stm32f_uart_callbacks;
-    } else if(pSelectedUart->uartType == STM32F_UART_TYPE_POLLING){
-        pcallbacks = &stm32f_uart_polling_callbacks;
-    }
-
-    return rtems_termios_open(major, minor, arg, pcallbacks);
-}
-
-
-rtems_device_driver console_close(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg){
-
-    return rtems_termios_close(arg);
-}
-
-
-rtems_device_driver console_read(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg){
-
-    return rtems_termios_read(arg);
-}
-
-
-rtems_device_driver console_write(rtems_device_major_number major,
-                                  rtems_device_minor_number minor,
-                                  void* arg){
-
-    return rtems_termios_write(arg);
-}
-
-
-rtems_device_driver console_control(rtems_device_major_number major,
-                                    rtems_device_minor_number minor,
-                                    void* arg){
-
-    return rtems_termios_ioctl(arg);
-}
-rtc_open
-*/

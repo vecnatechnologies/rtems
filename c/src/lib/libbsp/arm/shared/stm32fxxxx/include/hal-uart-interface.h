@@ -19,11 +19,20 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 
-#include <rtems.h>
 #include <vecna-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
+
+#include <rtems.h>
+#include <termios.h>
+#include <rtems/irq.h>
+#include <rtems/libio.h>
+#include <rtems/termiostypes.h>
+#include <rtems/irq-extension.h>
+#include <rtems/ringbuf.h>
+
+#define SERIAL_FIFO_SIZE 256
 
 typedef enum {
     UartErrorNone = 0,
@@ -75,7 +84,27 @@ typedef struct {
     uint32_t              stream;
 } stm32f_dma_config;
 
-stm32f_uart stm32f_uart_get_uart_from_handle(
+typedef struct {
+    rtems_termios_device_context base;
+    const char*                  device_name;
+    struct rtems_termios_tty*    tty;
+    UART_HandleTypeDef*          handle;
+    Ring_buffer_t*               fifo;
+    uint8_t                      tx_buffer[SERIAL_FIFO_SIZE];
+    IRQn_Type                    UartInterruptNumber;
+    DMA_Stream_TypeDef*          RXDMAStream;
+    DMA_Stream_TypeDef*          TXDMAStream;
+    uint32_t                     initial_baud;
+    stm32f_uart_type             uartType;
+    stm32f_gpio_pin              TXPin;
+    stm32f_gpio_pin              RXPin;
+    stm32f_dma_config            TXDMA;
+    stm32f_dma_config            RXDMA;
+    uint8_t                      altFuncConfg;
+    stm32f_uart                  uart;
+} stm32f_uart_driver_entry;
+
+stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 );
 
