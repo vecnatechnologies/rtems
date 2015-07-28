@@ -128,7 +128,7 @@ include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/stm32f7xx_ll_usb.h
 include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 
 # Evaluation board headers
-include_bsp_HEADERS += hal/BSP/STM327456G-Discovery/stm32746g_discovery.h
+include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
 
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/console-config.h
@@ -205,8 +205,9 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Device/ST/STM32F7xx/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/stm32fxxxx/include
+libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 
-libbsp_a_CPPFLAGS += -D STMF32F746xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=7xx -DTARGET_STM_PROCESSOR=746
+libbsp_a_CPPFLAGS += -D STM32F746xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=7xx -DTARGET_STM_PROCESSOR=746
 
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc_ex.c

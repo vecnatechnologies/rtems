@@ -19,7 +19,7 @@
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_STM32F_PROCESSOR_SPECIFIC_H_
 
 //=========================== STMF32F407 ==============================
-#if defined(STMF32F746xx)
+#if defined(STM32F746xx)
 
 #define NUM_PROCESSOR_UARTS     1
 

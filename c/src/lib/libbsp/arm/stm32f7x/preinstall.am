@@ -97,9 +97,9 @@ $(PROJECT_INCLUDE)/bsp/stm32f7xx.h: hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32f7xx.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32f7xx.h
 
-$(PROJECT_INCLUDE)/bsp/stm32f756xx.h: hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f756xx.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32f756xx.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32f756xx.h
+$(PROJECT_INCLUDE)/bsp/stm32f746xx.h: hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f746xx.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32f746xx.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32f746xx.h
 
 $(PROJECT_INCLUDE)/bsp/system_stm32f7xx.h: hal/CMSIS/Device/ST/STM32F7xx/Include/system_stm32f7xx.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/system_stm32f7xx.h
@@ -393,9 +393,9 @@ $(PROJECT_INCLUDE)/bsp/stm32_hal_legacy.h: hal/STM32F7xx_HAL_Driver/Inc/Legacy/s
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32_hal_legacy.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32_hal_legacy.h
 
-$(PROJECT_INCLUDE)/bsp/stm32756g_eval.h: hal/BSP/STM32756G_EVAL/stm32756g_eval.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32756g_eval.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32756g_eval.h
+$(PROJECT_INCLUDE)/bsp/stm32746g_discovery.h: hal/BSP/STM32746G-Discovery/stm32746g_discovery.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32746g_discovery.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32746g_discovery.h
 
 $(PROJECT_INCLUDE)/bsp/console-config.h: ../shared/stm32fxxxx/include/console-config.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/console-config.h

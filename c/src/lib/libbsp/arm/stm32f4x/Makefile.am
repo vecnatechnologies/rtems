@@ -225,8 +225,9 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Device/ST/STM32F4xx/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/stm32fxxxx/include
+libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 
-libbsp_a_CPPFLAGS += -D STMF32F407xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=4xx -DTARGET_STM_PROCESSOR=407
+libbsp_a_CPPFLAGS += -D STM32F407xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=4xx -DTARGET_STM_PROCESSOR=407
 #libbsp_a_CPPFLAGS += -DUSE_HAL_DRIVER
 
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash_ex.c
