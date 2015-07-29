@@ -71,6 +71,17 @@ void stm32f_init_uart_clock(
         __HAL_RCC_USART6_CLK_ENABLE();
         break;
 
+#if defined(STM32F4_ENABLE_USART_7)
+    case STM32F_UART7:
+        __HAL_RCC_UART7_CLK_ENABLE();
+        break;
+#endif
+
+#if defined(STM32F4_ENABLE_USART_8)
+    case STM32F_UART8:
+        __HAL_RCC_USART8_CLK_ENABLE();
+        break;
+#endif
     case STM32F_INVALID_UART:
         return;
         break;
@@ -114,6 +125,19 @@ void stmf32_uart_reset(
         __HAL_RCC_USART6_RELEASE_RESET();
         break;
 
+#if defined(STM32F4_ENABLE_USART_7)
+    case STM32F_UART7:
+        __HAL_RCC_UART7_FORCE_RESET();
+        __HAL_RCC_UART7_RELEASE_RESET();
+        break;
+#endif
+
+#if defined(STM32F4_ENABLE_USART_8)
+    case STM32F_UART8:
+        __HAL_RCC_USART8_FORCE_RESET();
+        __HAL_RCC_USART8_RELEASE_RESET();
+        break;
+#endif
     case STM32F_INVALID_UART:
         return;
         break;
@@ -236,6 +260,18 @@ USART_TypeDef* stmf32_uart_get_registers(
     case STM32F_UART6:
         ret = USART6;
         break;
+
+#if defined(STM32F4_ENABLE_USART_7)
+    case STM32F_UART7:
+        ret = UART7;
+        break;
+#endif
+
+#if defined(STM32F4_ENABLE_USART_8)
+    case STM32F_UART8:
+        ret = USART8;
+        break;
+#endif
 
     case STM32F_INVALID_UART:
         break;
