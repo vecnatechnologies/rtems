@@ -45,11 +45,14 @@
 #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
 
 // Clock Configuration
-#define SYSCLK_FREQUENCY        STM32F4_SYSCLK
-#define HSE_FREQUENCY           STM32F4_HSE_OSCILLATOR
+#define SYSCLK_FREQUENCY        STM32F7_SYSCLK
+#define HSE_VALUE               STM32F7_HSE_OSCILLATOR
 #define HSI_FREQUENCY           16000000
 #define STM32F_FLASH_LATENCY    FLASH_LATENCY_7
-#define HSE_AVAILABLE           ((HSE_FREQUENCY > 0) ? 1 : 0)
+#define HSE_AVAILABLE           1
+#define MAX_SYSCLK              216000000
+#define APB1_CLK                STM32F7_PCLK1
+#define APB2_CLK                STM32F7_PCLK2
 
 // Uart configuration
 #define NUM_PROCESSOR_UARTS        1

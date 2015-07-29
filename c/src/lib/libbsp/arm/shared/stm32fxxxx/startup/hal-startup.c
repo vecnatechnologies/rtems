@@ -24,14 +24,7 @@
 #include <hal-sdram-interface.h>
 
 #define HZ_TO_MHZ(x) (x/1000000)
-
-//TODO: Move this to some place more universal
-#define SYSCLK_FREQUENCY        STM32F4_SYSCLK
-#define HSE_FREQUENCY           STM32F4_HSE_OSCILLATOR
-#define HSI_FREQUENCY           16000000
-#define STM32F_FLASH_LATENCY    FLASH_LATENCY_7
-#define HSE_AVAILABLE           ((HSE_FREQUENCY > 0) ? 1 : 0)
-#define MAX_SYSCLK              216
+#define USB_OTG_CLK  48000000
 
 uint32_t SystemCoreClock = HSI_FREQUENCY;
 
@@ -72,7 +65,7 @@ static void CPU_CACHE_Enable(void)
  * @param hse_flag Flag determining which clock source to use, 1 for HSE,
  *                 0 for HSI.
  *
- * @retval RTEMS_SUCCESSFUL Configuration has been succesfully aplied for the
+ * @retval RTEMS_SUCCESSFUL Configuration has been successfully applied for the
  *                          requested clock speed.
  * @retval RTEMS_TIMEOUT HSE clock didn't start or PLL didn't lock.
  * @retval RTEMS_INVALID_NUMBER Requested clock speed is out of range.
@@ -101,7 +94,7 @@ static rtems_status_code set_system_clk(
 
   /*
    * Lets use 1MHz input for PLL so we get higher VCO output
-   * this way we get better value for the PLL_Q divader for the USB
+   * this way we get better value for the PLL_Q divider for the USB
    *
    * Though you might want to use 2MHz as per CPU specification:
    *
@@ -110,8 +103,7 @@ static rtems_status_code set_system_clk(
    * It is recommended to select a frequency of 2 MHz to limit PLL jitter.
    */
 
-  //if ( sys_clk > 180 ) {
-  if (sys_clk > MAX_SYSCLK ) {
+  if (sys_clk > HZ_TO_MHZ(MAX_SYSCLK)) {
     return RTEMS_INVALID_NUMBER;
   } else if ( sys_clk >= 96 ) {
     pll_n = sys_clk << 1;
@@ -138,7 +130,7 @@ static rtems_status_code set_system_clk(
   /* pll_q is a prescaler from VCO for the USB OTG FS, SDIO and RNG,
    * best if results in the 48MHz for the USB
    */
-  pll_q = ( (long) ( src_clk * pll_n ) ) / pll_m / 48;
+  pll_q = ( (long) ( src_clk * pll_n ) ) / pll_m / HZ_TO_MHZ(USB_OTG_CLK);
 
   if ( pll_q < 2 ) {
     pll_q = 2;
@@ -170,7 +162,7 @@ static rtems_status_code set_system_clk(
 #endif
 
   // APB1 prescaler, APB1 clock must be < 42MHz
-  apbpre1 = ( sys_clk * 100 ) / 42;
+  apbpre1 = ( sys_clk * 100 ) / HZ_TO_MHZ(APB1_CLK);
 
   if ( apbpre1 <= 100 ) {
     apbpre1 = RCC_HCLK_DIV1;
@@ -185,7 +177,7 @@ static rtems_status_code set_system_clk(
   }
 
   // APB2 prescaler, APB2 clock must be < 84MHz
-  apbpre2 = ( sys_clk * 100 ) / 84;
+  apbpre2 = ( sys_clk * 100 ) / HZ_TO_MHZ(APB2_CLK);
 
   if ( apbpre2 <= 100 ) {
     apbpre2 = RCC_HCLK_DIV1;
@@ -234,7 +226,7 @@ void bsp_start( void )
 
   // configure all system clocks
   (void) set_system_clk(HZ_TO_MHZ(SYSCLK_FREQUENCY),
-                        HZ_TO_MHZ(HSE_FREQUENCY),
+                        HZ_TO_MHZ(HSE_VALUE),
                         HSE_AVAILABLE);
 
   // configure external memories (if available)

@@ -27,17 +27,18 @@
 // This processor does not support overdrive mode
 #undef ENABLE_PROCESSOR_OVERDRIVE
 
-#define NUM_PROCESSOR_UARTS 6
+// clock configuration
+#define SYSCLK_FREQUENCY        STM32F4_SYSCLK
+#define HSE_VALUE               STM32F4_HSE_OSCILLATOR
+#define HSI_FREQUENCY           16000000
+#define STM32F_FLASH_LATENCY    FLASH_LATENCY_7
+#define HSE_AVAILABLE           1
+#define MAX_SYSCLK              168000000
+#define APB1_CLK                STM32F4_PCLK1
+#define APB2_CLK                STM32F4_PCLK2
 
-//=========================== STMF32F745 ==============================
-#elif defined(STMF32F745xx)
-
-#error "You need to define NUM_PROCESSOR_UARTS for STMF32F745xx"
-
-//=========================== STMF32F746 ==============================
-#elif defined(STMF32F746xx)
-
-#error "You need to define NUM_PROCESSOR_UARTS for STMF32F746xx"
+// uart configuration
+#define NUM_PROCESSOR_UARTS     6
 
 #else
 #error "Unspecified processor type!!"
