@@ -1,20 +1,24 @@
-/*
- * Copyright (c) 2012 Sebastian Huber.  All rights reserved.
+/**
+ * @file hal-startup.c
  *
- *  embedded brains GmbH
- *  Obere Lagerstr. 30
- *  82178 Puchheim
- *  Germany
- *  <rtems@embedded-brains.de>
+ * @ingroup startup
+ *
+ * @brief A set of utility functions for configuring clocks, caches,
+ * an external memory.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
  *
  * The license and distribution terms for this file may be
  * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * http://www.rtems.com/license/LICENSE.
  */
 
 #include <rtems.h>
 #include <bspopts.h>
-#include <vecna-utils.h>
+#include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
@@ -22,18 +26,22 @@
 
 #include <hal-startup-interface.h>
 #include <hal-sdram-interface.h>
+#include <hal-uart-interface.h>
 
 #define HZ_TO_MHZ(x) (x/1000000)
 #define USB_OTG_CLK  48000000
 
+// The STM32F HAL code requires this global variable
 uint32_t SystemCoreClock = HSI_FREQUENCY;
 
 /**
-  * @brief  CPU L1-Cache enable.
-  * @param  None
-  * @retval None
-  */
-static void CPU_CACHE_Enable(void)
+ * @brief  CPU L1-Cache enable.
+ * @param  None
+ * @retval None
+ */
+static void CPU_CACHE_Enable(
+  void
+)
 {
 #if defined(ENABLE_PROCESSOR_CACHES)
   /* Enable I-Cache */
@@ -79,16 +87,16 @@ static rtems_status_code set_system_clk(
 
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_OscInitTypeDef RCC_OscInitStruct;
-  HAL_StatusTypeDef  ret = HAL_OK;
+  HAL_StatusTypeDef ret = HAL_OK;
 
   int src_clk = 0;
 
-  uint32_t pll_m   = 0;
-  uint32_t pll_n   = 0;
-  uint32_t pll_p   = 0;
-  uint32_t pll_q   = 0;
+  uint32_t pll_m = 0;
+  uint32_t pll_n = 0;
+  uint32_t pll_p = 0;
+  uint32_t pll_q = 0;
 
-  uint32_t ahbpre  = 0;
+  uint32_t ahbpre = 0;
   uint32_t apbpre1 = 0;
   uint32_t apbpre2 = 0;
 
@@ -103,7 +111,7 @@ static rtems_status_code set_system_clk(
    * It is recommended to select a frequency of 2 MHz to limit PLL jitter.
    */
 
-  if (sys_clk > HZ_TO_MHZ(MAX_SYSCLK)) {
+  if ( sys_clk > HZ_TO_MHZ(MAX_SYSCLK) ) {
     return RTEMS_INVALID_NUMBER;
   } else if ( sys_clk >= 96 ) {
     pll_n = sys_clk << 1;
@@ -119,7 +127,7 @@ static rtems_status_code set_system_clk(
   }
 
   if ( hse_clk == 0 || hse_flag == 0 ) {
-    src_clk  = HZ_TO_MHZ(HSI_FREQUENCY);
+    src_clk = HZ_TO_MHZ(HSI_FREQUENCY);
     hse_flag = 0;
   } else {
     src_clk = hse_clk;
@@ -130,25 +138,29 @@ static rtems_status_code set_system_clk(
   /* pll_q is a prescaler from VCO for the USB OTG FS, SDIO and RNG,
    * best if results in the 48MHz for the USB
    */
-  pll_q = ( (long) ( src_clk * pll_n ) ) / pll_m / HZ_TO_MHZ(USB_OTG_CLK);
+  pll_q = ((long) (src_clk * pll_n)) / pll_m / HZ_TO_MHZ(USB_OTG_CLK);
 
   if ( pll_q < 2 ) {
     pll_q = 2;
   }
 
   // Apply clock configuration
-  RCC_OscInitStruct.OscillatorType = ((hse_flag != 0) ? RCC_OSCILLATORTYPE_HSE : RCC_OSCILLATORTYPE_HSI);
-  RCC_OscInitStruct.HSEState       = ((hse_flag != 0) ? RCC_HSE_ON : RCC_HSE_OFF);
-  RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource  = ((hse_flag != 0) ? RCC_PLLSOURCE_HSE : RCC_PLLSOURCE_HSI);
-  RCC_OscInitStruct.PLL.PLLM       = pll_m;
-  RCC_OscInitStruct.PLL.PLLN       = pll_n;
-  RCC_OscInitStruct.PLL.PLLP       = pll_p;
-  RCC_OscInitStruct.PLL.PLLQ       = pll_q;
+  RCC_OscInitStruct.OscillatorType = (
+      (hse_flag != 0) ? RCC_OSCILLATORTYPE_HSE : RCC_OSCILLATORTYPE_HSI);
+  RCC_OscInitStruct.HSEState = ((hse_flag != 0) ? RCC_HSE_ON : RCC_HSE_OFF);
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = (
+      (hse_flag != 0) ? RCC_PLLSOURCE_HSE : RCC_PLLSOURCE_HSI);
+  RCC_OscInitStruct.PLL.PLLM = pll_m;
+  RCC_OscInitStruct.PLL.PLLN = pll_n;
+  RCC_OscInitStruct.PLL.PLLP = pll_p;
+  RCC_OscInitStruct.PLL.PLLQ = pll_q;
 
   ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-  if(ret != HAL_OK){
-      while(1) { ; }
+  if ( ret != HAL_OK ) {
+    while ( 1 ) {
+      ;
+    }
   }
 
   SystemCoreClock = src_clk;
@@ -156,13 +168,13 @@ static rtems_status_code set_system_clk(
   // Activate the OverDrive in case it is necessary to achieve desired frequency
 #if defined(ENABLE_PROCESSOR_OVERDRIVE)
   ret = HAL_PWREx_EnableOverDrive();
-  if(ret != HAL_OK){
-      while(1) { ; }
+  if(ret != HAL_OK) {
+    while(1) {;}
   }
 #endif
 
-  // APB1 prescaler, APB1 clock must be < 42MHz
-  apbpre1 = ( sys_clk * 100 ) / HZ_TO_MHZ(APB1_CLK);
+  // APB1 prescaler, APB1 clock must be < 45MHz
+  apbpre1 = (sys_clk * 100) / HZ_TO_MHZ(APB1_CLK);
 
   if ( apbpre1 <= 100 ) {
     apbpre1 = RCC_HCLK_DIV1;
@@ -176,8 +188,8 @@ static rtems_status_code set_system_clk(
     apbpre1 = RCC_HCLK_DIV16;
   }
 
-  // APB2 prescaler, APB2 clock must be < 84MHz
-  apbpre2 = ( sys_clk * 100 ) / HZ_TO_MHZ(APB2_CLK);
+  // APB2 prescaler, APB2 clock must be < 90MHz
+  apbpre2 = (sys_clk * 100) / HZ_TO_MHZ(APB2_CLK);
 
   if ( apbpre2 <= 100 ) {
     apbpre2 = RCC_HCLK_DIV1;
@@ -192,32 +204,40 @@ static rtems_status_code set_system_clk(
   }
 
   // Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers
-  RCC_ClkInitStruct.ClockType      = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-  RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider  = ahbpre;
+  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK
+    | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = ahbpre;
   RCC_ClkInitStruct.APB1CLKDivider = apbpre1;
   RCC_ClkInitStruct.APB2CLKDivider = apbpre2;
 
   ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, STM32F_FLASH_LATENCY);
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
+  if ( ret != HAL_OK )
+    {
+    while ( 1 ) {
+      ;
+    }
   }
 
   return RTEMS_SUCCESSFUL;
 }
 
-void configure_external_memories( void ) {
+void configure_external_memories(
+  void
+)
+{
 
 #ifdef EXTERNAL_SDRAM
-    BSP_SDRAM_Config();
+  MPU_Config();
+  BSP_SDRAM_Config();
 #endif
 
 }
 
-void bsp_start( void )
+void bsp_start(
+  void
+)
 {
-
   // enable the CPU Cache (if available)
   CPU_CACHE_Enable();
 
@@ -226,8 +246,8 @@ void bsp_start( void )
 
   // configure all system clocks
   (void) set_system_clk(HZ_TO_MHZ(SYSCLK_FREQUENCY),
-                        HZ_TO_MHZ(HSE_VALUE),
-                        HSE_AVAILABLE);
+    HZ_TO_MHZ(HSE_VALUE),
+    HSE_AVAILABLE);
 
   // configure external memories (if available)
   configure_external_memories();
@@ -236,5 +256,9 @@ void bsp_start( void )
   bsp_interrupt_initialize();
 }
 
-
-
+void bsp_predriver_hook(
+  void
+)
+{
+  stm32f_uarts_initialize();
+}

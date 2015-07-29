@@ -1,15 +1,18 @@
-/*
- * Copyright (c) 2012 Sebastian Huber.  All rights reserved.
+/**
+ * @file hal-bsp-starthook.c
  *
- *  embedded brains GmbH
- *  Obere Lagerstr. 30
- *  82178 Puchheim
- *  Germany
- *  <rtems@embedded-brains.de>
+ * @ingroup startup
+ *
+ * @brief A set of utility functions called during BSP startup.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
  *
  * The license and distribution terms for this file may be
  * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * http://www.rtems.com/license/LICENSE.
  */
 
 #include <bsp.h>

@@ -44,6 +44,7 @@ include_bsp_HEADERS += ../../shared/include/stackalloc.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
 include_bsp_HEADERS += include/irq.h
+include_bsp_HEADERS += include/stm32f-processor-specific.h
 
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
@@ -125,14 +126,11 @@ include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_sdmmc.h
 include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
 include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 
-# Discovery headers
-include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
-
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/vecna-utils.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
 
 ###############################################################################
 #                  LibBSP                                                     #
@@ -150,7 +148,6 @@ libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
 libbsp_a_SOURCES += ../../shared/bsplibc.c
 libbsp_a_SOURCES += ../../shared/bsppost.c
-libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
 libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += ../../shared/cpucounterread.c
 libbsp_a_SOURCES += ../../shared/cpucounterdiff.c
@@ -165,10 +162,13 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-starthook.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # SDRAM
-libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/sdram.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
+
+# Util
+libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
 
 # Error
-libbsp_a_SOURCES += ../shared/stm32fxxxx/error/error.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/error/hal-error.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c
@@ -182,11 +182,12 @@ libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq-dispatch.c
 
 # Console
 libbsp_a_SOURCES += ../../shared/console-termios.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/uart.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-interface.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-termios.c
 
 # RTC
-libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/rtc-config.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/hal-rtc.c
 libbsp_a_SOURCES += ../../shared/tod.c
 
 # Clock

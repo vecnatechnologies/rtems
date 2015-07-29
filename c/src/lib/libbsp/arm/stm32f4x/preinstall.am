@@ -393,13 +393,13 @@ $(PROJECT_INCLUDE)/bsp/stm32_hal_legacy.h: hal/STM32F4xx_HAL_Driver/Inc/Legacy/s
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32_hal_legacy.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32_hal_legacy.h
 
-$(PROJECT_INCLUDE)/bsp/stm32f4_discovery.h: hal/BSP/STM32F4-Discovery/stm32f4_discovery.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32f4_discovery.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32f4_discovery.h
-
 $(PROJECT_INCLUDE)/bsp/hal-can.h: ../shared/stm32fxxxx/include/hal-can.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-can.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-can.h
+
+$(PROJECT_INCLUDE)/bsp/hal-i2c.h: ../shared/stm32fxxxx/include/hal-i2c.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-i2c.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-i2c.h
 
 $(PROJECT_INCLUDE)/bsp/hal-error.h: ../shared/stm32fxxxx/include/hal-error.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-error.h
@@ -420,4 +420,8 @@ PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h
 $(PROJECT_INCLUDE)/bsp/hal-utils.h: ../shared/stm32fxxxx/include/hal-utils.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-utils.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-utils.h
+
+$(PROJECT_INCLUDE)/bsp/hal-i2c-init.h: include/hal-i2c-init.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-i2c-init.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-i2c-init.h
 

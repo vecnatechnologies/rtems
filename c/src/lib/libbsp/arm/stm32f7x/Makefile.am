@@ -19,7 +19,6 @@ project_lib_DATA += start.$(OBJEXT)
 project_lib_DATA += startup/linkcmds
 
 EXTRA_DIST = startup/linkcmds.stm32f7x
-EXTRA_DIST += startup/linkcmds.stm32f105rc
 
 ###############################################################################
 #                  Header                                                     #
@@ -44,6 +43,7 @@ include_bsp_HEADERS += ../../shared/include/stackalloc.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
 include_bsp_HEADERS += include/irq.h
+include_bsp_HEADERS += include/stm32f-processor-specific.h
 
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h
@@ -51,7 +51,7 @@ include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f746xx.h
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/system_stm32f7xx.h
 
 # CMSIS header
-include_bsp_HEADERS += hal/CMSIS/Include/core_cm4.h
+include_bsp_HEADERS += hal/CMSIS/Include/core_cm7.h
 include_bsp_HEADERS += hal/CMSIS/Include/core_cmFunc.h
 include_bsp_HEADERS += hal/CMSIS/Include/core_cmInstr.h
 include_bsp_HEADERS += hal/CMSIS/Include/core_cmSimd.h
@@ -133,7 +133,7 @@ include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/vecna-utils.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
 
 ###############################################################################
 #                  LibBSP                                                     #
@@ -151,7 +151,6 @@ libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
 libbsp_a_SOURCES += ../../shared/bsplibc.c
 libbsp_a_SOURCES += ../../shared/bsppost.c
-libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
 libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += ../../shared/cpucounterread.c
 libbsp_a_SOURCES += ../../shared/cpucounterdiff.c
@@ -166,10 +165,13 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-starthook.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # SDRAM
-libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/sdram.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
+
+# Util
+libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
 
 # Error
-libbsp_a_SOURCES += ../shared/stm32fxxxx/error/error.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/error/hal-error.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c
@@ -183,11 +185,12 @@ libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq-dispatch.c
 
 # Console
 libbsp_a_SOURCES += ../../shared/console-termios.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/uart.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-interface.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-termios.c
 
 # RTC
-libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/rtc-config.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/hal-rtc.c
 libbsp_a_SOURCES += ../../shared/tod.c
 
 # Clock
@@ -277,6 +280,7 @@ libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_ll_usb.c
 
 # Evaluation board bsp file
 libbsp_a_SOURCES += hal/BSP/STM32746G-Discovery/stm32746g_discovery.c
+
 
 ###############################################################################
 #                  Special Rules                                              #
