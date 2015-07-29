@@ -18,7 +18,7 @@
 
 //================== STMF32 Support Functions =================================
 #include <hal-uart-interface.h>
-#include <vecna-utils.h>
+#include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 
 extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS];

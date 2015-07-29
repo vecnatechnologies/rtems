@@ -20,7 +20,7 @@
 #include <rtems/system.h>
 #include <bsp.h>
 #include <libchip/rtc.h>
-#include <vecna-utils.h>
+#include <hal-utils.h>
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, rtc)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)

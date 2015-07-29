@@ -133,7 +133,7 @@ include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/vecna-utils.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
 
 ###############################################################################
 #                  LibBSP                                                     #

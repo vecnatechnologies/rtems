@@ -14,7 +14,7 @@
 
 #include <rtems.h>
 #include <bspopts.h>
-#include <vecna-utils.h>
+#include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)

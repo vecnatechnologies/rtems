@@ -409,7 +409,7 @@ $(PROJECT_INCLUDE)/bsp/hal-sdram-interface.h: ../shared/stm32fxxxx/include/hal-s
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-sdram-interface.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-sdram-interface.h
 
-$(PROJECT_INCLUDE)/bsp/vecna-utils.h: ../shared/stm32fxxxx/include/vecna-utils.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/vecna-utils.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/vecna-utils.h
+$(PROJECT_INCLUDE)/bsp/hal-utils.h: ../shared/stm32fxxxx/include/hal-utils.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-utils.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-utils.h
 

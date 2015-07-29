@@ -19,7 +19,7 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 
-#include <vecna-utils.h>
+#include <hal-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
@@ -144,8 +144,5 @@ int stm32f_uart_register_interrupt_handlers(
 stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 );
-
-void SystemInit(void);
-
 
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_ */
