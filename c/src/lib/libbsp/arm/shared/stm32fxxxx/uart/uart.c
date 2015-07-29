@@ -121,7 +121,6 @@ static void stm32f_uart_dma_rx_isr(
 )
 {
     stm32f_uart_driver_entry* pUART = (stm32f_uart_driver_entry*) argData;
-
     HAL_DMA_IRQHandler(pUART->handle->hdmarx);
 }
 
@@ -348,7 +347,7 @@ static void stm32f_uart_write(
 {
     stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
-    if(len > 0) {
+    if((len > 0) && (buf != NULL)){
         if(pUart->uartType == STM32F_UART_TYPE_POLLING){
             HAL_UART_Transmit(pUart->handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT);
         } else {
@@ -366,7 +365,6 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
     int i;
     int error = (int) HAL_OK;
     uint16_t txlen;
-    static int busyCount = 0UL;
 
     if((buf != NULL) || (len == 0)) {
 
@@ -375,7 +373,7 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
             Ring_buffer_Add_character(pUart->fifo, buf[i]);
         }
 
-        // if the uart is ready to transmit then as much
+        // if the uart is ready to transmit then transmit as much
         // data as possible into the tx buffer including any
         // data that was already in the ring buffer from previous
         // calls.
@@ -397,9 +395,8 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
             if(pUart->tx_buffer != NULL) { error = (int) HAL_UART_Transmit_IT(pUart->handle, (uint8_t*) pUart->tx_buffer, txlen);}
         }
 
-        if(error == HAL_BUSY) {
-            busyCount++;
-        } else {
+        // If the HAL Tx call was successful then dequeue characters from the termios queue
+        if(error != HAL_BUSY) {
             rtems_termios_dequeue_characters(pUart->tty, txlen);
         }
     } else {
@@ -414,12 +411,10 @@ void HAL_UART_TxCpltCallback(
   UART_HandleTypeDef *huart
 )
 {
-    stm32f_uart uartTxComplete = stm32f_get_driver_entry_from_handle(huart)->uart;
+    stm32f_uart_driver_entry* pEntry = stm32f_get_driver_entry_from_handle(huart);
 
     // If there are still characters in TX fifo start sending again...
-    if(uartTxComplete < COUNTOF(stm32f_uart_driver_table)){
-
-        stm32f_uart_driver_entry* pEntry = &(stm32f_uart_driver_table[uartTxComplete]);
+    if(pEntry != NULL){
 
         if(Ring_buffer_Is_empty(pEntry->fifo) == false) {
             stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
