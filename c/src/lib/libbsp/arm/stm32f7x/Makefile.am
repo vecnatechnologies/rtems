@@ -130,7 +130,6 @@ include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
 
 # Shared driver headers
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/console-config.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
@@ -190,7 +189,6 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-interface.c
 # RTC
 libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/rtc-config.c
 libbsp_a_SOURCES += ../../shared/tod.c
-
 
 # Clock
 libbsp_a_SOURCES += ../../shared/clockdrv_shell.h

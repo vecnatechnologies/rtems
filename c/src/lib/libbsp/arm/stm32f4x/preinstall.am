@@ -393,10 +393,6 @@ $(PROJECT_INCLUDE)/bsp/stm32f4_discovery.h: hal/BSP/STM32F4-Discovery/stm32f4_di
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/stm32f4_discovery.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/stm32f4_discovery.h
 
-$(PROJECT_INCLUDE)/bsp/console-config.h: ../shared/stm32fxxxx/include/console-config.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/console-config.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/console-config.h
-
 $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h: ../shared/stm32fxxxx/include/hal-uart-interface.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/hal-uart-interface.h

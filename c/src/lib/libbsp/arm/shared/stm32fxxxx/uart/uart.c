@@ -36,122 +36,78 @@
 #include <rtems/libio.h>
 #include <rtems/termiostypes.h>
 #include <rtems/irq-extension.h>
-#include <console-config.h>
+#include <hal-uart-interface.h>
 
 #define DMA_BUFFER_LENGTH 128
 #define POLLED_TX_TIMEOUT 1000
 
-static uint8_t dummy_char;
-
 //------------------ Forward declarations ------------------
-static int STM32FUartFirstOpen(
-  int major,
-  int minor,
-  void *arg
-);
-
-static int STM32FUartLastClose(
-  int major,
-  int minor,
-  void *arg
-);
-
-static int STM32FUartSetAttr(
-  int minor,
-  const struct termios *t
-);
-
-static int STM32FUartWrite(
-  int minor,
-  const char* buf,
-  size_t bufferSize
-);
-
-static int STM32FUartPollRead(
-  int minor
-);
-
-static bool STM32FUartFirstOpenTTY(
+static bool stm32f_uart_first_open(
   struct rtems_termios_tty      *tty,
   rtems_termios_device_context  *context,
   struct termios                *term,
   rtems_libio_open_close_args_t *args
 );
 
-static void STM32FUartLastCloseTTY(
+static void stm32f_uart_last_close(
   struct rtems_termios_tty *tty,
   rtems_termios_device_context *contex,
   rtems_libio_open_close_args_t *args
 );
 
-static bool STM32FUartSetAttrTTY(
+static bool stm32f_uart_set_attr(
   rtems_termios_device_context *context,
   const struct termios *term
 );
 
-static void STM32FUartWriteTTY(
+static void stm32f_uart_write(
   rtems_termios_device_context *base,
   const char *buf,
   size_t len
 );
 
-static int STM32FUartPollReadTTY(
+static int stm32f_uart_poll_read(
   rtems_termios_device_context *context
 );
 
+static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
+                                       uint8_t *buf,
+                                       size_t len
+);
 
 //--------------- Static data declarations -------------------------
-static rtems_device_minor_number m_consoleOuput = 0;
-static Ring_buffer_t uart_fifo[NUM_PROCESSOR_UARTS];
+static Ring_buffer_t      uart_fifo[NUM_PROCESSOR_UARTS];
 static UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
+
+//---------------
+BSP_output_char_function_type     BSP_output_char = NULL;
+BSP_polling_getchar_function_type BSP_poll_char   = NULL;
 
 //--------------- Processor specific UART configuration
 #include <uart-config.c>
 
-
-rtems_termios_callbacks stm32f_uart_callbacks = {
-    .firstOpen            = STM32FUartFirstOpen,
-    .lastClose            = STM32FUartLastClose,
-    .pollRead             = NULL,
-    .write                = STM32FUartWrite,
-    .setAttributes        = STM32FUartSetAttr,
-    .stopRemoteTx         = NULL,
-    .startRemoteTx        = NULL,
-    .outputUsesInterrupts = TERMIOS_IRQ_DRIVEN
+//--------------- termios handler functions
+const rtems_termios_device_handler stm32f_uart_handlers_interrupt = {
+  .first_open     = stm32f_uart_first_open,
+  .last_close     = stm32f_uart_last_close,
+  .poll_read      = stm32f_uart_poll_read,
+  .write          = stm32f_uart_write,
+  .set_attributes = stm32f_uart_set_attr,
+  .mode           = TERMIOS_IRQ_DRIVEN
 };
 
-const rtems_termios_device_handler stm32f_uart_interrupt_handlers = {
-  .first_open = STM32FUartFirstOpenTTY,
-  .last_close = STM32FUartLastCloseTTY,
-  .poll_read = STM32FUartPollReadTTY,
-  .write = STM32FUartWriteTTY,
-  .set_attributes = STM32FUartSetAttrTTY,
-  .mode = TERMIOS_IRQ_DRIVEN
-};
-
-rtems_termios_callbacks stm32f_uart_polling_callbacks = {
-    .firstOpen            = STM32FUartFirstOpen,
-    .lastClose            = STM32FUartLastClose,
-    .pollRead             = STM32FUartPollRead,
-    .write                = STM32FUartWrite,
-    .setAttributes        = STM32FUartSetAttr,
-    .stopRemoteTx         = NULL,
-    .startRemoteTx        = NULL,
-    .outputUsesInterrupts = TERMIOS_POLLED
-};
-
-const rtems_termios_device_handler stm32f_uart_polling_handlers = {
-  .first_open = STM32FUartFirstOpenTTY,
-  .last_close = STM32FUartLastCloseTTY,
-  .poll_read = STM32FUartPollReadTTY,
-  .write = STM32FUartWriteTTY,
-  .set_attributes = STM32FUartSetAttrTTY,
-  .mode = TERMIOS_POLLED
+const rtems_termios_device_handler stm32f_uart_handlers_polling = {
+  .first_open     = stm32f_uart_first_open,
+  .last_close     = stm32f_uart_last_close,
+  .poll_read      = stm32f_uart_poll_read,
+  .write          = stm32f_uart_write,
+  .set_attributes = stm32f_uart_set_attr,
+  .mode           = TERMIOS_POLLED
 };
 
 
 //============================== ISR Definitions ==========================================
-static void uart_dma_tx_handler(
+static void stm32f_uart_dma_tx_isr(
   void* argData
 )
 {
@@ -160,7 +116,7 @@ static void uart_dma_tx_handler(
 }
 
 
-static void uart_dma_rx_handler(
+static void stm32f_uart_dma_rx_isr(
   void* argData
 )
 {
@@ -170,7 +126,7 @@ static void uart_dma_rx_handler(
 }
 
 
-static void rtems_uart_handler(
+static void stm32f_uart_isr(
   void *arg
 )
 {
@@ -189,13 +145,37 @@ static void rtems_uart_handler(
   // the expected number of characters to receive.)
   if(u32_StartRxCount > pUART->handle->RxXferCount) {
 
-      int rxCount = u32_StartRxCount - pUART->handle->RxXferCount;
+      int rxCount    = u32_StartRxCount - pUART->handle->RxXferCount;
       char* pStartRx = (char*) pUART->handle->pRxBuffPtr;
-      pStartRx -= rxCount;
+      pStartRx       -= rxCount;
       rtems_termios_enqueue_raw_characters(pUART->tty, pStartRx, rxCount);
 
-      HAL_UART_Receive_IT(pUART->handle, &dummy_char, 1);
+      // re-enable interrupt to receive additional characters
+      HAL_UART_Receive_IT(pUART->handle, &pUART->rxChar, 1);
   }
+}
+
+
+int stm32f_uart_register_interrupt_handlers(stm32f_uart_driver_entry* pUart){
+
+    rtems_status_code ret = RTEMS_SUCCESSFUL;
+
+    // Register DMA interrupt handlers (if necessary)
+    if(pUart->uartType == STM32F_UART_TYPE_DMA){
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->RXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_rx_isr, pUart);}
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->TXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_tx_isr, pUart);}
+    }
+
+    // Register UART interrupt handler for either DMA or Interrupt modes
+    if(pUart->uartType != STM32F_UART_TYPE_POLLING){
+
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->UartInterruptNumber, NULL, 0, stm32f_uart_isr, pUart);}
+
+        //Enable RX interrupt
+        ret = (int) HAL_UART_Receive_IT(pUart->handle, &pUart->rxChar, 1);
+    }
+
+    return (ret == RTEMS_SUCCESSFUL);
 }
 
 
@@ -229,10 +209,20 @@ rtems_device_driver console_initialize(
 
         if(pNextEntry->uartType == STM32F_UART_TYPE_POLLING)
         {
-            ret = rtems_termios_device_install(pNextEntry->device_name, major, minor, &stm32f_uart_polling_handlers, NULL, (rtems_termios_device_context*) pNextEntry);
+            ret = rtems_termios_device_install(pNextEntry->device_name,
+                    major,
+                    minor,
+                    &stm32f_uart_handlers_polling,
+                    NULL,
+                    (rtems_termios_device_context*) pNextEntry);
 
         } else {
-            ret = rtems_termios_device_install(pNextEntry->device_name, major, minor, &stm32f_uart_interrupt_handlers, NULL, (rtems_termios_device_context*) pNextEntry);
+            ret = rtems_termios_device_install(pNextEntry->device_name,
+                    major,
+                    minor,
+                    &stm32f_uart_handlers_interrupt,
+                    NULL,
+                    (rtems_termios_device_context*) pNextEntry);
         }
     }
 
@@ -240,63 +230,14 @@ rtems_device_driver console_initialize(
 }
 
 
-static void output_char(
-  char c
-)
-{
-    stm32f_uart_driver_entry* pNextEntry = &stm32f_uart_driver_table[m_consoleOuput];
-
-    struct rtems_termios_callbacks* pcallbacks;
-
-    if((pNextEntry->uartType == STM32F_UART_TYPE_INT) ||
-       (pNextEntry->uartType == STM32F_UART_TYPE_DMA)){
-        pcallbacks = &stm32f_uart_callbacks;
-    } else if(pNextEntry->uartType == STM32F_UART_TYPE_POLLING){
-        pcallbacks = &stm32f_uart_polling_callbacks;
-    }
-
-  if (c == '\n') {
-      char CRChar = '\r';
-      pcallbacks->write(m_consoleOuput, &CRChar, 1);
-  }
-
-  pcallbacks->write(m_consoleOuput, &c, 1);
-}
-
-BSP_output_char_function_type BSP_output_char = output_char;
-BSP_polling_getchar_function_type BSP_poll_char = NULL;
-
-
-int STM32FUartRegisterInterruptHandlers(stm32f_uart_driver_entry* pUart){
-
-    rtems_status_code ret = RTEMS_SUCCESSFUL;
-
-    // Register DMA interrupt handlers (if necessary)
-    if(pUart->uartType == STM32F_UART_TYPE_DMA){
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->RXDMA.DMAStreamInterruptNumber, NULL, 0, uart_dma_rx_handler, pUart);}
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->TXDMA.DMAStreamInterruptNumber, NULL, 0, uart_dma_tx_handler, pUart);}
-    }
-
-    // Register UART interrupt handler for either DMA or Interrupt modes
-    if(pUart->uartType != STM32F_UART_TYPE_POLLING){
-
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->UartInterruptNumber, NULL, 0, rtems_uart_handler, pUart);}
-
-        //Enable RX interrupt
-        ret = (int) HAL_UART_Receive_IT(pUart->handle, &dummy_char, 1);
-    }
-
-    return (ret == RTEMS_SUCCESSFUL);
-}
-
-// =====================  TTY CALLBACK FUNCTIONS ===========================
-static bool STM32FUartFirstOpenTTY(
+// =====================  TERMIOS CALLBACK FUNCTIONS ===========================
+static bool stm32f_uart_first_open(
   struct rtems_termios_tty      *tty,
   rtems_termios_device_context  *context,
   struct termios                *term,
   rtems_libio_open_close_args_t *args){
 
-    rtems_status_code ret = RTEMS_SUCCESSFUL;
+    rtems_status_code           ret = RTEMS_SUCCESSFUL;
     stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
     // Initialize TTY
@@ -305,29 +246,13 @@ static bool STM32FUartFirstOpenTTY(
     // Configure initial baud rate
     rtems_termios_set_initial_baud(tty, pUart->initial_baud);
 
-    STM32FUartRegisterInterruptHandlers(pUart);
+    stm32f_uart_register_interrupt_handlers(pUart);
 
     return (ret == RTEMS_SUCCESSFUL);
 }
 
 
-static int STM32FUartFirstOpen(
-  int major,
-  int minor,
-  void *arg
-)
-{
-    stm32f_uart_driver_entry* pSelectedUart = &stm32f_uart_driver_table[minor];
-    struct rtems_termios_tty* tty = ((rtems_libio_open_close_args_t *) arg)->iop->data1;
-
-    // Connect TTY data structure
-    pSelectedUart->tty = tty;
-
-    return rtems_termios_set_initial_baud(tty, pSelectedUart->initial_baud);
-}
-
-
-static void STM32FUartLastCloseTTY(
+static void stm32f_uart_last_close(
   struct rtems_termios_tty *tty,
   rtems_termios_device_context *context,
   rtems_libio_open_close_args_t *args
@@ -338,41 +263,28 @@ static void STM32FUartLastCloseTTY(
     pUart->tty = NULL;
 
     if(pUart->uartType != STM32F_UART_TYPE_POLLING){
-        rtems_interrupt_handler_remove( pUart->UartInterruptNumber, rtems_uart_handler, tty);
+        rtems_interrupt_handler_remove( pUart->UartInterruptNumber, stm32f_uart_isr, tty);
     }
 }
 
 
-static int STM32FUartLastClose(
-  int major,
-  int minor,
-  void *arg
-)
-{
-    stm32f_uart_driver_entry* pSelectedUart = &stm32f_uart_driver_table[minor];
-
-    pSelectedUart->tty = NULL;
-
-    return 0;
-}
-
-
-static bool STM32FUartSetAttrTTY(
+static bool stm32f_uart_set_attr(
   rtems_termios_device_context *context,
   const struct termios *term
 )
 {
     stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
-    uint32_t parity    = UART_PARITY_NONE;
-    uint32_t stop_bits = UART_STOPBITS_1;
-    uint32_t char_size = UART_WORDLENGTH_8B;
+    // initialize uart configuration with default values
+    uint32_t parity       = UART_PARITY_NONE;
+    uint32_t stop_bits    = UART_STOPBITS_1;
+    uint32_t char_size    = UART_WORDLENGTH_8B;
     rtems_status_code ret = RTEMS_NOT_CONFIGURED;
 
-    // Determine baud rate
+    // determine baud rate
     int baud = rtems_termios_baud_to_number(term->c_cflag & CBAUD);
 
-    // Determine parity
+    // determine parity
     if(term->c_cflag & PARENB){
         if(term->c_cflag & PARODD) {
             parity = UART_PARITY_ODD;
@@ -381,23 +293,13 @@ static bool STM32FUartSetAttrTTY(
         }
     }
 
-    // Determine if two stops bits are requested
+    // determine if two stops bits are requested
     if(term->c_cflag & CSTOPB){
         stop_bits = UART_STOPBITS_2;
     }
 
-    // Determine character size
-    switch(term->c_cflag & CSIZE){
-    case CS5:
-    case CS6:
-    case CS7:
-        // not supported
-        break;
-
-    case CS8:
-        char_size = UART_WORDLENGTH_8B;
-        break;
-    }
+    // HAL only supports 8-bit characters
+    char_size = UART_WORDLENGTH_8B;
 
     //##-1- Configure the UART peripheral ######################################
     pUart->handle->Instance          = stmf32_uart_get_registers(pUart->uart);
@@ -416,73 +318,16 @@ static bool STM32FUartSetAttrTTY(
 }
 
 
-static int STM32FUartSetAttr(
-  int minor,
-  const struct termios *t
-)
-{
-    uint32_t parity    = UART_PARITY_NONE;
-    uint32_t stop_bits = UART_STOPBITS_1;
-    uint32_t char_size = UART_WORDLENGTH_8B;
-    rtems_status_code ret = RTEMS_NOT_CONFIGURED;
-
-    // Determine baud rate
-    int baud = rtems_termios_baud_to_number(t->c_cflag & CBAUD);
-
-    // Determine parity
-    if(t->c_cflag & PARENB){
-        if(t->c_cflag & PARODD) {
-            parity = UART_PARITY_ODD;
-        } else {
-            parity = UART_PARITY_EVEN;
-        }
-    }
-
-    // Determine if two stops bits are requested
-    if(t->c_cflag & CSTOPB){
-        stop_bits = UART_STOPBITS_2;
-    }
-
-    // Determine character size
-    switch(t->c_cflag & CSIZE){
-    case CS5:
-    case CS6:
-    case CS7:
-        // not supported
-        break;
-
-    case CS8:
-        char_size = UART_WORDLENGTH_8B;
-        break;
-    }
-
-    stm32f_uart_driver_entry* pNextEntry = &stm32f_uart_driver_table[minor];
-
-    //##-1- Configure the UART peripheral ######################################
-    pNextEntry->handle->Instance          = stmf32_uart_get_registers(pNextEntry->uart);
-    pNextEntry->handle->Init.BaudRate     = baud;
-    pNextEntry->handle->Init.WordLength   = char_size;
-    pNextEntry->handle->Init.StopBits     = stop_bits;
-    pNextEntry->handle->Init.Parity       = parity;
-    pNextEntry->handle->Init.HwFlowCtl    = UART_HWCONTROL_NONE;
-    pNextEntry->handle->Init.Mode         = UART_MODE_TX_RX;
-    pNextEntry->handle->Init.OverSampling = UART_OVERSAMPLING_16;
-
-    // Initialize UART pins, clocks, and DMA controllers
-    if(HAL_UART_Init(pNextEntry->handle) != HAL_OK) { ret = RTEMS_UNSATISFIED;}
-
-    return (int) ret;
-}
-
-
-static int STM32FUartPollReadTTY(
+static int stm32f_uart_poll_read(
   rtems_termios_device_context *context
 )
 {
     HAL_StatusTypeDef ret;
     uint8_t next_char;
+
     stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
+    // poll for a single character
     ret = (int) HAL_UART_Receive(pUart->handle, &next_char, 1, 0);
 
     if(ret == HAL_OK){
@@ -495,17 +340,21 @@ static int STM32FUartPollReadTTY(
 }
 
 
-static int STM32FUartPollRead(
-  int minor
+static void stm32f_uart_write(
+  rtems_termios_device_context *context,
+  const char *buf,
+  size_t len
 )
 {
+    stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
 
-    uint8_t ret = -1;
-    stm32f_uart_driver_entry* pSelectedUart = &stm32f_uart_driver_table[minor];
-
-    ret = (int) HAL_UART_Receive(pSelectedUart->handle, &ret, 1, 0UL);
-
-    return ret;
+    if(len > 0) {
+        if(pUart->uartType == STM32F_UART_TYPE_POLLING){
+            HAL_UART_Transmit(pUart->handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT);
+        } else {
+            stm32f_uart_get_next_tx_buf(pUart, (uint8_t*) buf, len);
+        }
+    }
 }
 
 
@@ -560,12 +409,11 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
     return error;
 }
 
+
 void HAL_UART_TxCpltCallback(
   UART_HandleTypeDef *huart
 )
 {
-    static int final = 0;
-
     stm32f_uart uartTxComplete = stm32f_get_driver_entry_from_handle(huart)->uart;
 
     // If there are still characters in TX fifo start sending again...
@@ -575,73 +423,8 @@ void HAL_UART_TxCpltCallback(
 
         if(Ring_buffer_Is_empty(pEntry->fifo) == false) {
             stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
-        } else {
-            final++;
         }
     }
-}
-
-
-static void STM32FUartWriteTTY(
-  rtems_termios_device_context *context,
-  const char *buf,
-  size_t len
-)
-{
-    stm32f_uart_driver_entry* pUart = (stm32f_uart_driver_entry*) context;
-
-    if(len > 0) {
-        if(pUart->uartType == STM32F_UART_TYPE_POLLING){
-            HAL_UART_Transmit(pUart->handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT);
-        } else {
-            stm32f_uart_get_next_tx_buf(pUart, (uint8_t*) buf, len);
-        }
-    }
-}
-
-
-static int STM32FUartWrite(
-  int minor,
-  const char* buf,
-  size_t bufferSize
-)
-{
-    int error = (int) HAL_OK;
-
-    // There is no need to check the value of minor number since it is derived
-    // from the file descriptor.  The upper layer takes care that it is in a
-    // valid range.
-    stm32f_uart_driver_entry* pSelectedUart = &stm32f_uart_driver_table[minor];
-
-    // Copy write request contents to TX buffer???
-
-    switch(pSelectedUart->uartType){
-
-    case STM32F_UART_TYPE_DMA:
-        // Initiate DMA transfer
-        error = (int) HAL_UART_Transmit_DMA(pSelectedUart->handle, (uint8_t*) buf, bufferSize);
-
-        // Immediately dequeue from termios
-        if(error == (int) HAL_OK) {
-            rtems_termios_dequeue_characters(pSelectedUart->tty, bufferSize);
-        }
-    break;
-
-    case STM32F_UART_TYPE_INT:
-        error = (int) HAL_UART_Transmit_IT(pSelectedUart->handle, (uint8_t*) buf, bufferSize);
-        break;
-
-    case STM32F_UART_TYPE_POLLING:
-        error = (int) HAL_UART_Transmit(pSelectedUart->handle, (uint8_t*) buf, bufferSize, POLLED_TX_TIMEOUT);
-        break;
-
-    default:
-        error = -1;
-        break;
-
-    }
-
-    return (int) error;
 }
 
 

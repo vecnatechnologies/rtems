@@ -52,6 +52,8 @@ typedef enum {
    STM32F_UART4,
    STM32F_UART5,
    STM32F_UART6,
+   STM32F_UART7,
+   STM32F_UART8,
    STM32F_INVALID_UART
 } stm32f_uart;
 
@@ -102,34 +104,21 @@ typedef struct {
     stm32f_dma_config            RXDMA;
     uint8_t                      altFuncConfg;
     stm32f_uart                  uart;
+    uint8_t                      rxChar;
 } stm32f_uart_driver_entry;
+
+rtems_device_driver console_initialize(
+  rtems_device_major_number major,
+  rtems_device_minor_number minor,
+  void* arg
+);
+
+int stm32f_uart_register_interrupt_handlers(
+        stm32f_uart_driver_entry* pUart
+);
 
 stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
-);
-
-void stm32f_init_uart_clock(
-  const stm32f_uart Uart
-);
-
-void stmf32_uart_reset(
-  const stm32f_uart Uart
-);
-
-void stmf32_init_gpio_clock(
-  const stm32f_gpio_port port
-);
-
-GPIO_TypeDef* stmf32_get_gpio(
-  const stm32f_gpio_port port
-);
-
-USART_TypeDef* stmf32_uart_get_registers(
-  const stm32f_uart Uart
-);
-
-void stmf32_init_dma_clock(
-  const stm32f_dma_controller controller
 );
 
 void SystemInit(void);

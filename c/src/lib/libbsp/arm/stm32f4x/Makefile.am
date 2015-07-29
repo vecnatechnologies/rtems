@@ -129,7 +129,6 @@ include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
 
 # Shared driver headers
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/console-config.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
