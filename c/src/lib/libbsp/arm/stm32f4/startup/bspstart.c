@@ -305,5 +305,5 @@ void bsp_start( void )
 
 
 void bsp_predriver_hook(void) {
-  bsp_register_can(); 
+  stm32_bsp_register_can(); 
 }

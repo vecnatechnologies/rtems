@@ -7,20 +7,31 @@
 #include <math.h>
 #include <rtems/irq-extension.h>
 
-void stm32_can_gpio_init(CAN_Instance canInstance);
-CAN_Timing_Values rtems_can_get_timing_values(uint32_t desired_baud);
-CAN_Status stm32_can_transmit(CAN_HandleTypeDef* hCanHandle, can_msg * msg);
 
+// Internal functions to perform RX and TX
+static int                stm32_can_init              (can_bus * self, long baudRate);
+static int                stm32_can_de_init           (can_bus * self);
+static void               stm32_can_gpio_init         (CAN_Instance canInstance);
+static CAN_Timing_Values  rtems_can_get_timing_values (uint32_t desired_baud);
+static CAN_Status         stm32_can_start_tx          (CAN_HandleTypeDef* hCanHandle, can_msg * msg);
+static CAN_Status         stm32_can_start_rx          (CAN_HandleTypeDef *hCanHandle);
+// Tasks
+static rtems_task         stm32_rx_task               (rtems_task_argument arg);
+static rtems_task         stm32_tx_task               (rtems_task_argument arg);
+// ISRs
+static void               stm32_can_isr               (void * arg);
+static void               stm32_can_rx0_isr           (void * arg);
+static void               stm32_can_rx1_isr           (void * arg);
 
 typedef struct stm32_can_bus stm32_can_bus;
 typedef struct HandleWrapper HandleWrapper;
 
-struct HandleWrapper{
+struct HandleWrapper {
   CAN_HandleTypeDef handle;
   stm32_can_bus * bus;
 };
 
-struct stm32_can_bus{
+struct stm32_can_bus {
   can_bus base;
   HandleWrapper wrapper;
   CAN_Instance instance;
@@ -44,8 +55,11 @@ struct stm32_can_bus{
 
 
 
-CAN_Status stm32_can_transmit(CAN_HandleTypeDef* hCanHandle, can_msg * msg)
-{
+CAN_Status stm32_can_start_tx
+(
+  CAN_HandleTypeDef* hCanHandle, 
+  can_msg * msg
+){
   //TODO refactor this to not have so much STM32 stuff
   CAN_Status Status;
 
@@ -60,33 +74,42 @@ CAN_Status stm32_can_transmit(CAN_HandleTypeDef* hCanHandle, can_msg * msg)
   return Status;
 }
 
-CAN_Status stm32_start_rx(CAN_HandleTypeDef *hCanHandle)
-{
+
+CAN_Status stm32_can_start_rx
+(
+  CAN_HandleTypeDef *hCanHandle
+){
   static uint8_t fifoNum = 0;
   CAN_Status Status;
   //TODO use real fifo numbers
   if (fifoNum == 0) {
-    //Status = HAL_CAN_Receive_IT(hCanHandle, 0);
+    Status = HAL_CAN_Receive_IT(hCanHandle, 0);
   } else {
-    //Status = HAL_CAN_Receive_IT(hCanHandle, 0);
+    Status = HAL_CAN_Receive_IT(hCanHandle, 0);
   }
   fifoNum = !fifoNum;
 
   return Status;
 }
 
-void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef *hCanHandle) {
+
+void HAL_CAN_RxCpltCallback
+(
+  CAN_HandleTypeDef *hCanHandle
+){
   // Wakeup RX Task
   rtems_status_code sc;
   stm32_can_bus * bus = (((HandleWrapper *) hCanHandle)->bus);
   volatile int a;
   sc = rtems_event_transient_send(bus->base.rx_task_id);
   a++;
-
 }
 
 
-rtems_task stm32_rx_task(rtems_task_argument arg) {
+rtems_task stm32_rx_task
+(
+  rtems_task_argument arg
+){
   rtems_status_code sc;
   can_msg msg;
   size_t len;
@@ -96,7 +119,7 @@ rtems_task stm32_rx_task(rtems_task_argument arg) {
 
   while (1) {
     // Schedule a read
-    stm32_start_rx(hCanHandle);
+    stm32_can_start_rx(hCanHandle);
 
 
 
@@ -111,11 +134,13 @@ rtems_task stm32_rx_task(rtems_task_argument arg) {
     // Pass message along to stack
     rtems_message_queue_send(bus->base.rx_msg_queue, &msg, sizeof(msg));
   }
-
 }
 
 
-rtems_task stm32_tx_task(rtems_task_argument arg) {
+rtems_task stm32_tx_task
+(
+  rtems_task_argument arg
+){
   rtems_status_code sc;
   can_msg msg;
   size_t len;
@@ -125,24 +150,24 @@ rtems_task stm32_tx_task(rtems_task_argument arg) {
   while (1) {
     //TODO abstract away into
     // can_msg_queue_receive
-    sc = rtems_message_queue_receive(bus->base.tx_msg_queue, 
+    sc = rtems_message_queue_receive( 
+        bus->base.tx_msg_queue, 
         &msg,
         &len,
         RTEMS_WAIT,
-        RTEMS_NO_TIMEOUT);
+        RTEMS_NO_TIMEOUT
+      );
     _Assert(len == sizeof(msg));
 
-    stm32_can_transmit(hCanHandle, &msg);
-
-
-    // Is it okay to send?
-    // Schedule a TX
+    stm32_can_start_tx(hCanHandle, &msg);
   }
 }
 
 
-void stm32_can_gpio_init(CAN_Instance canInstance)
-{
+void stm32_can_gpio_init
+(
+  CAN_Instance canInstance
+){
   GPIO_InitTypeDef GPIO_InitStructure;
 
   // Enable the clock CAN Core //
@@ -178,9 +203,10 @@ void stm32_can_gpio_init(CAN_Instance canInstance)
 }
 
 
-CAN_Timing_Values rtems_can_get_timing_values(
-    uint32_t desired_baud
-){
+CAN_Timing_Values rtems_can_get_timing_values
+(
+  uint32_t desired_baud
+    ){
 
   //TODO:: Determine best value.
 
@@ -229,28 +255,58 @@ CAN_Timing_Values rtems_can_get_timing_values(
   return s_timeValues;
 }
 
-void stm32_can_isr(void * arg) {
-
+void stm32_can_isr
+(
+  void * arg
+){
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
 }
 
-void stm32_can_rx0_isr(void * arg) {
-
+void stm32_can_rx0_isr
+(
+ void * arg
+){
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
 }
 
-void stm32_can_rx1_isr(void * arg) {
-
+void stm32_can_rx1_isr 
+( 
+  void * arg
+){
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
 }
 
-int stm32_can_init(
+int stm32_can_set_filter
+(
+  can_bus * self,
+  can_filter * filter
+){
+  stm32_can_bus * bus = (stm32_can_bus * ) self;
+  CAN_HandleTypeDef * hCanHandle = (CAN_HandleTypeDef *) &(bus->wrapper);
+
+
+  CAN_FilterConfTypeDef sFilterConfig;
+  sFilterConfig.FilterNumber = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh = 0x0000;
+  sFilterConfig.FilterIdLow = 0x0000;
+  sFilterConfig.FilterMaskIdHigh = 0x0000;
+  sFilterConfig.FilterMaskIdLow = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = 0;
+  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.BankNumber = 14;
+  
+}
+
+int stm32_can_init
+(
     can_bus * self,
     long baudRate
 ){
 
   stm32_can_bus * bus = (stm32_can_bus * ) self;
-  CAN_HandleTypeDef * hCanHandle = &(bus->wrapper);
+  CAN_HandleTypeDef * hCanHandle = (CAN_HandleTypeDef *) &(bus->wrapper);
   bus->wrapper.bus = bus;
   CAN_Instance canInstance = bus->instance;
   //CAN_HandleTypeDef hCanHandle = *hnCanHandle;
@@ -287,12 +343,14 @@ int stm32_can_init(
   const uint32_t BS2_MAX = 8;
 
   if (   s_timeValues.s1 > BS1_MAX 
-      || s_timeValues.s1 < 1) {
+      || s_timeValues.s1 < 1) 
+  {
     return CAN_ERROR;
   }
 
   if (   s_timeValues.s2 > BS2_MAX 
-      || s_timeValues.s2 < 1) {
+      || s_timeValues.s2 < 1) 
+  {
     return CAN_ERROR;
   }
 
@@ -323,24 +381,37 @@ int stm32_can_init(
 
   }
 
-  CAN_FilterConfTypeDef sFilter2Config;
-  sFilter2Config.FilterNumber = 1;
-  sFilter2Config.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilter2Config.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilter2Config.FilterIdHigh = 0x0000;
-  sFilter2Config.FilterIdLow = 0x0000;
-  sFilter2Config.FilterMaskIdHigh = 0x0000;
-  sFilter2Config.FilterMaskIdLow = 0x0000;
-  sFilter2Config.FilterFIFOAssignment = 1;
-  sFilter2Config.FilterActivation = ENABLE;
-  sFilter2Config.BankNumber = 14;
-  if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) {
-
-  }
   rtems_status_code sc;
-  sc = rtems_interrupt_handler_install(19, "Info", RTEMS_INTERRUPT_UNIQUE, stm32_can_isr, hCanHandle);
-  sc = rtems_interrupt_handler_install(27, "Info", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
-  sc = rtems_interrupt_handler_install(28, "Info", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx1_isr, hCanHandle);
+
+  if (CAN_ONE == canInstance)
+  {
+    sc = rtems_interrupt_handler_install(
+        19,
+        "CAN1 TX Interrupt",
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32_can_isr,
+        hCanHandle);
+    sc = rtems_interrupt_handler_install(
+        27,
+        "CAN1 RX Interrupt 0",
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32_can_rx0_isr,
+        hCanHandle);
+    sc = rtems_interrupt_handler_install(
+        28,
+        "CAN1 RX Interrupt 1",
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32_can_rx1_isr,
+        hCanHandle);
+  } else 
+  {
+    /* 
+     * TODO figure out CAN 2 interrupts
+    sc = rtems_interrupt_handler_install(19, "CAN2 TX Interrupt",   RTEMS_INTERRUPT_UNIQUE, stm32_can_isr,     hCanHandle);
+    sc = rtems_interrupt_handler_install(27, "CAN2 RX Interrupt 0", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
+    sc = rtems_interrupt_handler_install(28, "CAN2 RX Interrupt 1", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx1_isr, hCanHandle);
+    */
+  }
   return CAN_OK;
 }
 
@@ -350,6 +421,45 @@ int stm32_can_de_init(
 ){
   stm32_can_bus * bus = (stm32_can_bus * ) self;
   CAN_HandleTypeDef * hCanHandle = &(bus->wrapper.handle);
+  rtems_status_code sc;
+
+  if (CAN_ONE == hCanHandle->Instance)
+  {
+    sc = rtems_interrupt_handler_remove(
+        19, 
+        stm32_can_isr,     
+        hCanHandle
+        );
+    sc = rtems_interrupt_handler_remove(
+        27, 
+        stm32_can_rx0_isr, 
+        hCanHandle
+        );
+    sc = rtems_interrupt_handler_remove(
+        28, 
+        stm32_can_rx1_isr,
+        hCanHandle);
+  } else 
+  {
+    /* 
+     * TODO figure out CAN 2 interrupts
+    sc = rtems_interrupt_handler_remove(
+        19, 
+        stm32_can_isr,     
+        hCanHandle
+        );
+    sc = rtems_interrupt_handler_install(
+        27, 
+        stm32_can_rx0_isr, 
+        hCanHandle
+        );
+    sc = rtems_interrupt_handler_install(
+        28, 
+        stm32_can_rx1_isr,
+        hCanHandle);
+    */
+  }
+
   HAL_CAN_DeInit(hCanHandle);
   // TODO error codes
   return 0;
@@ -359,8 +469,9 @@ stm32_can_bus * bus1;
 stm32_can_bus * bus2;
 
 
-int stm32_init_can(
-    void
+int stm32_bsp_register_can
+(
+  void
 ){
   int error;
 
@@ -370,15 +481,17 @@ int stm32_init_can(
   //
   bus1->base.init     = stm32_can_init;
   bus1->base.de_init  = stm32_can_de_init;
-  bus1->base.tx_task = stm32_tx_task;
-  bus1->base.rx_task = stm32_rx_task;
-
-  bus1->instance = CAN_ONE;
+  bus1->base.tx_task  = stm32_tx_task;
+  bus1->base.rx_task  = stm32_rx_task;
+  bus1->instance      = CAN_ONE;
 
   bus2->base.init     = stm32_can_init;
   bus2->base.de_init  = stm32_can_de_init;
-  bus2->base.tx_task = stm32_tx_task;
-  bus2->instance = CAN_TWO;
+  bus2->base.tx_task  = stm32_tx_task;
+  bus2->base.rx_task  = stm32_rx_task;
+  bus2->instance      = CAN_TWO;
+
+
 
   if (bus1 == NULL) {
     return -ENOMEM;

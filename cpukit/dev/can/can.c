@@ -58,8 +58,8 @@ int can_bus_change_baudrate(
 ) 
 {
   can_bus_obtain(bus);
-  rtems_task_restart(bus->rx_task_id, (uint32_t) bus);
-  rtems_task_restart(bus->tx_task_id, (uint32_t) bus);
+  bus->de_init(bus);
+  bus->init(bus, baud);
   can_bus_release(bus);
   return 0;
 }
@@ -104,6 +104,14 @@ int can_bus_set_filter_default(
 {
   (void) bus;
   (void) filter;
+  return -EIO;
+}
+
+int can_bus_get_num_filters_default(  
+  can_bus * bus
+)
+{
+  (void) bus;
   return -EIO;
 }
 
@@ -241,23 +249,17 @@ static int can_bus_ioctl(
   void *arg
 )
 {
-  //can_bus *bus = IMFS_generic_get_context_by_iop(iop);
+  can_bus *bus = IMFS_generic_get_context_by_iop(iop);
   can_filter * filter;
   int err;
-  /*
-  if (_IOC_TYPE(command) !- IOCTL_CAN_TYPE) {
-    err = ENOTTY;
-    rtems_set_errno_and_return_minus_one(-err);
-  }
-  */
 
   switch (command) {
-    case CAN_FILTER:
+    case CAN_SET_FILTER:
       filter = arg;
       break;
 
-    case CAN_BAUDRATE:
-      //can_bus_change_baudrate(arg);
+    case CAN_GET_NUM_FILTERS:
+      return bus->get_num_filters(bus);
       break;
 
     default:
@@ -411,13 +413,16 @@ static int can_bus_do_init(
   bus->set_filter = can_bus_set_filter_default;
   bus->init = can_bus_init_default;
   bus->de_init = can_bus_de_init_default;
-
+  bus->set_filter = can_bus_set_filter_default;
+  bus->get_num_filters = can_bus_get_num_filters_default;
   return 0;
 }
 
 void can_bus_destroy(can_bus *bus)
 {
   rtems_status_code sc;
+
+  bus->de_init(bus);
 
   sc = rtems_semaphore_delete(bus->mutex);
   _Assert(sc == RTEMS_SUCCESSFUL);

@@ -42,7 +42,9 @@ typedef struct {
 } can_msg;
 
 struct can_filter{
-  unsigned long mask;
+  uint16_t filter_number;
+  uint32_t mask;
+  uint32_t filter;
 };
 
 typedef struct can_filter can_filter;
@@ -77,7 +79,9 @@ struct can_bus {
    */
   void (*destroy)(can_bus *bus);
 
-  int (*set_filter)(can_bus * bus, can_filter * filter);
+  int (*set_filter)       (can_bus * bus, can_filter * filter);
+
+  int (*get_num_filters)  (can_bus * bus);
 
   rtems_id tx_task_id;
 
@@ -204,9 +208,9 @@ int can_bus_transfer(can_bus *bus, can_msg *msgs, uint32_t msg_count);
  */
 #define IOCTL_CAN_TYPE 72
 
-#define CAN_BAUDRATE  _IOW(IOCTL_CAN_TYPE, 1, unsigned long)
-#define CAN_FILTER    _IOW(IOCTL_CAN_TYPE, 2, can_filter)
-
+#define CAN_SET_BAUDRATE        _IOW(IOCTL_CAN_TYPE, 1, unsigned long)
+#define CAN_GET_NUM_FILTERS     _IOR(IOCTL_CAN_TYPE, 2, void )
+#define CAN_SET_FILTER          _IOW(IOCTL_CAN_TYPE, 3, can_filter)
 /**
  * @brief can slave device control.
  */
@@ -226,14 +230,8 @@ struct can_dev {
    * @retval negative Negative error number in case of an error.
    */
   ssize_t (*write)(can_dev *dev, const void *buf, size_t n, off_t offset);
-
-  /**
-   * @brief Device IO control.
-   *
-   * @retval 0 Successful operation.
-   * @retval negative Negative error number in case of an error.
-   */
-  int (*iocts)(can_dev *dev, ioctl_command_t command, void *arg);
+  
+  size_t (*num_can_filters) (can_dev *);
 
   /**
    * emud.org/jelson/software/fusd/docs/nbrief Gets the file size.

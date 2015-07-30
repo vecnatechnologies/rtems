@@ -37,8 +37,6 @@ typedef enum
 
 } CAN_FIFO;
 
-
-
 typedef struct
 {
   uint32_t s1;
@@ -56,8 +54,6 @@ typedef struct
 
 } CAN_MessageFrame;
 
-
-void bsp_register_can(void);
+int stm32_bsp_register_can(void);
 
 #endif
-
