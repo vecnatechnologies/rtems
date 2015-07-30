@@ -16,6 +16,11 @@
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
 
 #include <rtems/imfs.h>
+
+//--- Include processor specfic uart configurations
+#include <uart-config.c>
+
+
 //============================== ISR Definitions ==========================================
 static void stm32f_uart_dma_tx_isr(
   void* argData
@@ -436,6 +441,13 @@ static int uart_de_init(
   return ret;
 }
 
+static void uart_destroy(
+  stm32_uart * pUart
+)
+{
+    (void) uart_de_init(pUart);
+}
+
 
 static const IMFS_node_control uart_node_control = IMFS_GENERIC_INITIALIZER(
   &uart_handler,
@@ -444,15 +456,14 @@ static const IMFS_node_control uart_node_control = IMFS_GENERIC_INITIALIZER(
 );
 
 int uart_register(
-        stm32_uart_device * pUartDevice,
-  const char *uart_path
+    stm32_uart_device * pUartDevice
 )
 {
   int rv;
   rtems_status_code sc;
 
   rv = IMFS_make_generic_node(
-          uart_path,
+          pUartDevice->pUart->device_name,
           S_IFCHR | S_IRWXU | S_IRWXG | S_IRWXO,
           &uart_node_control,
           pUartDevice
@@ -483,8 +494,7 @@ int uart_register(
 
 
 static int uart_do_init(
-        stm32_uart_device *pUartDevice,
-  void (*destroy)(stm32_uart *pUart)
+  stm32_uart_device *pUartDevice
 )
 {
   rtems_status_code sc;
@@ -500,7 +510,7 @@ static int uart_do_init(
   );
 
   if (sc != RTEMS_SUCCESSFUL) {
-    (*destroy)(pUartDevice->pUart);
+    uart_destroy(pUartDevice->pUart);
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
 
@@ -513,7 +523,7 @@ static int uart_do_init(
   );
 
   if (sc != RTEMS_SUCCESSFUL) {
-    (*destroy)(pUartDevice->pUart);
+    uart_destroy(pUartDevice->pUart);
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
 
@@ -526,7 +536,7 @@ static int uart_do_init(
   );
 
   if (sc != RTEMS_SUCCESSFUL) {
-    (*destroy)(pUartDevice->pUart);
+    uart_destroy(pUartDevice->pUart);
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
 
@@ -540,7 +550,7 @@ static int uart_do_init(
   );
 
   if (sc != RTEMS_SUCCESSFUL) {
-    (*destroy)(pUartDevice->pUart);
+    uart_destroy(pUartDevice->pUart);
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
 
@@ -556,15 +566,31 @@ static int uart_do_init(
   );
 
   if (sc != RTEMS_SUCCESSFUL) {
-    (*destroy)(pUartDevice->pUart);
+    uart_destroy(pUartDevice->pUart);
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
 
   pUartDevice->pUart->tx_task = stm32_uart_tx_task;
-  pUartDevice->destroy        = destroy;
+  pUartDevice->destroy        = uart_destroy;
   pUartDevice->init           = uart_init;
   pUartDevice->de_init        = uart_de_init;
 
   return 0;
+}
+
+
+void uarts_initialize(
+        void
+)
+{
+  int i;
+
+  for( i = 0 ; i < COUNTOF(stm32f_uart_driver_table_new); i++) {
+
+      stm32f_uart_driver_table_new[i].handle = &UartHandles[i];
+      uart_device_table[i].pUart =  &stm32f_uart_driver_table_new[i];
+      uart_do_init(&uart_device_table[i]);
+      uart_register(&uart_device_table[i]);
+  }
 }
 

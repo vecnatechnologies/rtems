@@ -75,14 +75,14 @@ static int stm32f_uart_get_next_tx_buf(stm32f_uart_driver_entry* pUart,
 
 //--------------- Static data declarations -------------------------
 static Ring_buffer_t      uart_fifo[NUM_PROCESSOR_UARTS];
-static UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
+
 
 //---------------
 BSP_output_char_function_type     BSP_output_char = NULL;
 BSP_polling_getchar_function_type BSP_poll_char   = NULL;
 
 //--------------- Processor specific UART configuration
-#include <uart-config.c>
+#include <console-config.c>
 
 //--------------- termios handler functions
 const rtems_termios_device_handler stm32f_uart_handlers_interrupt = {

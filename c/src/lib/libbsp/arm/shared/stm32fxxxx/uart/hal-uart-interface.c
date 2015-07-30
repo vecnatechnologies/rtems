@@ -21,6 +21,7 @@
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 
+
 extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS];
 
 stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(

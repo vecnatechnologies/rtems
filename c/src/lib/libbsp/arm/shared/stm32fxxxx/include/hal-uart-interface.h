@@ -145,8 +145,8 @@ typedef struct  {
 typedef struct  {
     stm32_uart* pUart;
 
-    int (*init)(stm32_uart * pUart, uint32_t baud);
-    int (*de_init)(stm32_uart * pUart);
+    int  (*init)(stm32_uart * pUart, uint32_t baud);
+    int  (*de_init)(stm32_uart * pUart);
     void (*destroy)(stm32_uart * pUart);
 } stm32_uart_device;
 
