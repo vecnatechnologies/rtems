@@ -38,8 +38,6 @@
 #include <rtems/irq-extension.h>
 #include <hal-uart-interface.h>
 
-#define DMA_BUFFER_LENGTH 128
-#define POLLED_TX_TIMEOUT 1000
 
 //------------------ Forward declarations ------------------
 static bool stm32f_uart_first_open(
@@ -349,7 +347,7 @@ static void stm32f_uart_write(
 
     if((len > 0) && (buf != NULL)){
         if(pUart->uartType == STM32F_UART_TYPE_POLLING){
-            HAL_UART_Transmit(pUart->handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT);
+            HAL_UART_Transmit(pUart->handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT_ms);
         } else {
             stm32f_uart_get_next_tx_buf(pUart, (uint8_t*) buf, len);
         }

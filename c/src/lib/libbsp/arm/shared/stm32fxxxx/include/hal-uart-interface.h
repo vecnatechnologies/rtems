@@ -32,7 +32,13 @@
 #include <rtems/irq-extension.h>
 #include <rtems/ringbuf.h>
 
-#define SERIAL_FIFO_SIZE 256
+#define SERIAL_FIFO_SIZE     256
+#define MAX_UART_TX_MSG_SIZE 1024
+#define MAX_UART_RX_MSG_SIZE MAX_UART_TX_MSG_SIZE
+#define UART_QUEUE_LEN       4
+#define UART_TASK_PRIORITY   100
+#define DMA_BUFFER_LENGTH    128
+#define POLLED_TX_TIMEOUT_ms 1000
 
 typedef enum {
     UartErrorNone = 0,
@@ -106,6 +112,50 @@ typedef struct {
     stm32f_uart                  uart;
     uint8_t                      rxChar;
 } stm32f_uart_driver_entry;
+
+
+typedef struct  {
+
+    UART_HandleTypeDef*          handle;
+    const char*                  device_name;
+    IRQn_Type                    UartInterruptNumber;
+    DMA_Stream_TypeDef*          RXDMAStream;
+    DMA_Stream_TypeDef*          TXDMAStream;
+    stm32f_uart_type             uartType;
+    stm32f_gpio_pin              TXPin;
+    stm32f_gpio_pin              RXPin;
+    stm32f_dma_config            TXDMA;
+    stm32f_dma_config            RXDMA;
+    uint8_t                      altFuncConfg;
+    stm32f_uart                  uart;
+    uint32_t                     baud;
+
+    rtems_task_entry             rx_task;
+    rtems_task_entry             tx_task;
+
+    rtems_id                     tx_task_id;
+    rtems_id                     rx_task_id;
+    rtems_id                     rx_msg_queue;
+    rtems_id                     tx_msg_queue;
+    rtems_id                     mutex;
+
+} stm32_uart;
+
+
+typedef struct  {
+    stm32_uart* pUart;
+
+    int (*init)(stm32_uart * pUart, uint32_t baud);
+    int (*de_init)(stm32_uart * pUart);
+    void (*destroy)(stm32_uart * pUart);
+} stm32_uart_device;
+
+/**
+ * IOCTL Commands
+ */
+#define IOCTL_UART_TYPE 73
+
+#define UART_BAUDRATE  _IOW(IOCTL_UART_TYPE, 1, uint32_t)
 
 rtems_device_driver console_initialize(
   rtems_device_major_number major,

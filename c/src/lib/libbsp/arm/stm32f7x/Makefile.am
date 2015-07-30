@@ -185,6 +185,7 @@ libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq-dispatch.c
 libbsp_a_SOURCES += ../../shared/console-termios.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/uart.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-interface.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/uart-ioctl.c
 
 # RTC
 libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/rtc-config.c
