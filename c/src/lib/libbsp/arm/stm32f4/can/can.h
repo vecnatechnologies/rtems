@@ -41,8 +41,8 @@ typedef enum
 
 typedef struct
 {
-  uint8_t s1;
-  uint8_t s2;
+  uint32_t s1;
+  uint32_t s2;
   uint8_t prescaler;
   bool error;
 

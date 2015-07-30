@@ -110,8 +110,6 @@ int can_bus_set_filter_default(
 int can_bus_transfer(can_bus *bus, can_msg *msgs, uint32_t msg_count)
 {
   int err;
-  uint32_t i;
-  uint32_t j;
 
   _Assert(msg_count > 0);
   
@@ -132,8 +130,27 @@ static ssize_t can_bus_read(
   can_bus *bus = IMFS_generic_get_context_by_iop(iop);
   int err;
   rtems_status_code sc;
+  can_msg msg;
+  size_t len;
 
-  return 0;
+
+  if (count != sizeof(msg)) {
+    return 0; 
+  }
+
+  sc = rtems_message_queue_receive(bus->rx_msg_queue, 
+      &msg,
+      &len,
+      RTEMS_WAIT,
+      RTEMS_NO_TIMEOUT);
+  
+  if (RTEMS_SUCCESSFUL != sc) {
+    return 0;
+  }
+
+  _Assert(len == sizeof(msg));
+  memcpy(buffer, &msg, sizeof(msg));
+  return sizeof(msg);
 
   if (err == 0) {
     return 0;
@@ -194,11 +211,18 @@ static int can_bus_open(
   mode_t         mode
 )
 {
+  rtems_status_code sc;
   can_bus *bus = IMFS_generic_get_context_by_iop(iop);
   int err;
   can_bus_obtain(bus);
   err = bus->init(bus, bus->default_baud);
   can_bus_release(bus);
+
+  sc = rtems_task_start(
+      bus->rx_task_id,
+      bus->rx_task,
+      (rtems_task_argument) bus
+      );
   if (err == 0) {
     return 0;
   } else {
@@ -212,7 +236,7 @@ static int can_bus_ioctl(
   void *arg
 )
 {
-  can_bus *bus = IMFS_generic_get_context_by_iop(iop);
+  //can_bus *bus = IMFS_generic_get_context_by_iop(iop);
   can_filter * filter;
   int err;
   /*
@@ -417,7 +441,6 @@ void can_bus_destroy_and_free(can_bus *bus)
 int can_bus_init(can_bus *bus)
 {
   memset(bus, 0, sizeof(*bus));
-  rtems_status_code sc;
 
   int err = can_bus_do_init(bus, can_bus_destroy);
 
