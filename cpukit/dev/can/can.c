@@ -32,7 +32,7 @@
 #include <string.h>
 
 #define CAN_QUEUE_LEN 10
-#define CAN_TASK_PRIORITY 100
+#define CAN_TASK_PRIORITY 70
 
 void can_bus_obtain(can_bus *bus)
 {
@@ -171,12 +171,17 @@ static ssize_t can_bus_write(
 
   can_msg  * msg = (can_msg * ) buffer;
 
+  _Assert(count % sizeof(can_msg) == 0);
   _Assert(msg->len <= 8);
-  _Assert(count == sizeof(can_msg));
 
-  sc = rtems_message_queue_send(bus->tx_msg_queue,
-                                buffer,
-                                count);
+  size_t msg_count = count / sizeof(can_msg);
+  int i;
+  for (i = 0; i < msg_count; i++) {
+      sc = rtems_message_queue_send(bus->tx_msg_queue,
+                                    buffer + sizeof(can_msg) * i,
+                                    sizeof(can_msg));
+  }
+
   if (RTEMS_SUCCESSFUL != sc) {
     err = EIO; 
   }
@@ -375,7 +380,7 @@ static int can_bus_do_init(
 
   sc = rtems_task_create(
     rtems_build_name('C', 'A', 'N', 'r'),
-    CAN_TASK_PRIORITY,
+    CAN_TASK_PRIORITY - 1,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_PREEMPT,
     RTEMS_NO_FLOATING_POINT,

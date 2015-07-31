@@ -20,7 +20,7 @@ struct HandleWrapper{
   stm32_can_bus * bus;
 };
 
- struct stm32_can_bus{
+struct stm32_can_bus{
   can_bus base;
   HandleWrapper wrapper;
   CAN_Instance instance;
@@ -62,9 +62,15 @@ CAN_Status stm32_can_transmit(CAN_HandleTypeDef* hCanHandle, can_msg * msg)
 
 CAN_Status stm32_start_rx(CAN_HandleTypeDef *hCanHandle)
 {
+  static uint8_t fifoNum = 0;
   CAN_Status Status;
   //TODO use real fifo numbers
-  Status = HAL_CAN_Receive_IT(hCanHandle, 0);
+  if (fifoNum == 0) {
+    //Status = HAL_CAN_Receive_IT(hCanHandle, 0);
+  } else {
+    //Status = HAL_CAN_Receive_IT(hCanHandle, 0);
+  }
+  fifoNum = !fifoNum;
 
   return Status;
 }
@@ -99,9 +105,9 @@ rtems_task stm32_rx_task(rtems_task_argument arg) {
     _Assert(sc == RTEMS_SUCCESSFUL);
 
     //TODO consider 29 bit ids
-     msg.id = hCanHandle->pRxMsg->StdId;
-     msg.len = hCanHandle->pRxMsg->DLC;
-     memcpy(&msg.data, &hCanHandle->pRxMsg->Data, msg.len);
+    msg.id = hCanHandle->pRxMsg->StdId;
+    msg.len = hCanHandle->pRxMsg->DLC;
+    memcpy(&msg.data, &hCanHandle->pRxMsg->Data, msg.len);
     // Pass message along to stack
     rtems_message_queue_send(bus->base.rx_msg_queue, &msg, sizeof(msg));
   }
@@ -218,7 +224,7 @@ CAN_Timing_Values rtems_can_get_timing_values(
   s_timeValues.s1 = 6;//s1;
   s_timeValues.s2 = 1;//  s2;
 
-  s_timeValues.prescaler = 10; //best_p; //10; // best_p;
+  s_timeValues.prescaler = 5; //best_p; //10; // best_p;
   s_timeValues.error = best_error;
   return s_timeValues;
 }
@@ -301,22 +307,36 @@ int stm32_can_init(
     //TODO::
     return CAN_ERROR;
   }
-    CAN_FilterConfTypeDef sFilterConfig;
-    sFilterConfig.FilterNumber = 0;
-    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-    sFilterConfig.FilterIdHigh = 0x0000;
-    sFilterConfig.FilterIdLow = 0x0000;
-    sFilterConfig.FilterMaskIdHigh = 0x0000;
-    sFilterConfig.FilterMaskIdLow = 0x0000;
-    sFilterConfig.FilterFIFOAssignment = 0;
-    sFilterConfig.FilterActivation = ENABLE;
-    sFilterConfig.BankNumber = 14;
+  CAN_FilterConfTypeDef sFilterConfig;
+  sFilterConfig.FilterNumber = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh = 0x0000;
+  sFilterConfig.FilterIdLow = 0x0000;
+  sFilterConfig.FilterMaskIdHigh = 0x0000;
+  sFilterConfig.FilterMaskIdLow = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = 0;
+  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.BankNumber = 14;
 
-    if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) {
+  if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) {
 
-    }
+  }
 
+  CAN_FilterConfTypeDef sFilter2Config;
+  sFilter2Config.FilterNumber = 1;
+  sFilter2Config.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilter2Config.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilter2Config.FilterIdHigh = 0x0000;
+  sFilter2Config.FilterIdLow = 0x0000;
+  sFilter2Config.FilterMaskIdHigh = 0x0000;
+  sFilter2Config.FilterMaskIdLow = 0x0000;
+  sFilter2Config.FilterFIFOAssignment = 1;
+  sFilter2Config.FilterActivation = ENABLE;
+  sFilter2Config.BankNumber = 14;
+  if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) {
+
+  }
   rtems_status_code sc;
   sc = rtems_interrupt_handler_install(19, "Info", RTEMS_INTERRUPT_UNIQUE, stm32_can_isr, hCanHandle);
   sc = rtems_interrupt_handler_install(27, "Info", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
