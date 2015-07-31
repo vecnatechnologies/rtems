@@ -22,7 +22,7 @@
 #include <console-config.h>
 #include <stm32f-processor-specific.h>
 
-extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS];
+extern stm32f_console_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS];
 
 stm32f_uart stm32f_uart_get_uart_from_handle(
   const UART_HandleTypeDef *huart

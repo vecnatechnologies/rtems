@@ -22,25 +22,42 @@
 #include <stm32f-processor-specific.h>
 
 
-extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS];
-
-stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(
+stm32f_base_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 )
 {
    uint32_t i;
-   stm32f_uart_driver_entry* ret = NULL;
 
-   for(i = 0UL; i < COUNTOF(stm32f_uart_driver_table) ; i++){
-       if(stm32f_uart_driver_table[i].handle == huart){
-           ret = (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[i]);
-           break;
+   for(i = 0UL; i < COUNTOF(stm32f_console_driver_table) ; i++){
+       if(stm32f_console_driver_table[i].base_driver_info.handle == huart){
+           return (stm32f_base_uart_driver_entry*) &(stm32f_console_driver_table[i].base_driver_info);
        }
    }
 
-   return ret;
+   for(i = 0UL; i < COUNTOF(stm32f_uart_driver_table) ; i++){
+       if(stm32f_uart_driver_table[i].base_driver_info.handle == huart){
+           return (stm32f_base_uart_driver_entry*) &(stm32f_uart_driver_table[i].base_driver_info);
+       }
+   }
+
+   return NULL;
 }
 
+
+stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart
+)
+{
+   uint32_t i;
+
+   for(i = 0UL; i < COUNTOF(stm32f_console_driver_table) ; i++){
+       if(stm32f_console_driver_table[i].base_driver_info.handle == huart){
+           return (stm32f_console_driver_entry*) &(stm32f_console_driver_table[i]);
+       }
+   }
+
+   return NULL;
+}
 
 void stm32f_init_uart_clock(
   const stm32f_uart Uart
@@ -72,17 +89,18 @@ void stm32f_init_uart_clock(
         __HAL_RCC_USART6_CLK_ENABLE();
         break;
 
-#if defined(STM32F4_ENABLE_USART_7)
+#if defined(STM32F7_ENABLE_USART_7)
     case STM32F_UART7:
         __HAL_RCC_UART7_CLK_ENABLE();
         break;
 #endif
 
-#if defined(STM32F4_ENABLE_USART_8)
+#if defined(STM32F7_ENABLE_USART_8)
     case STM32F_UART8:
         __HAL_RCC_USART8_CLK_ENABLE();
         break;
 #endif
+    default:
     case STM32F_INVALID_UART:
         return;
         break;
@@ -126,19 +144,21 @@ void stmf32_uart_reset(
         __HAL_RCC_USART6_RELEASE_RESET();
         break;
 
-#if defined(STM32F4_ENABLE_USART_7)
+#if defined(STM32F7_ENABLE_USART_7)
     case STM32F_UART7:
         __HAL_RCC_UART7_FORCE_RESET();
         __HAL_RCC_UART7_RELEASE_RESET();
         break;
 #endif
 
-#if defined(STM32F4_ENABLE_USART_8)
+#if defined(STM32F7_ENABLE_USART_8)
     case STM32F_UART8:
         __HAL_RCC_USART8_FORCE_RESET();
         __HAL_RCC_USART8_RELEASE_RESET();
         break;
 #endif
+
+    default:
     case STM32F_INVALID_UART:
         return;
         break;
@@ -262,18 +282,19 @@ USART_TypeDef* stmf32_uart_get_registers(
         ret = USART6;
         break;
 
-#if defined(STM32F4_ENABLE_USART_7)
+#if defined(STM32F7_ENABLE_USART_7)
     case STM32F_UART7:
         ret = UART7;
         break;
 #endif
 
-#if defined(STM32F4_ENABLE_USART_8)
+#if defined(STM32F7_ENABLE_USART_8)
     case STM32F_UART8:
         ret = USART8;
         break;
 #endif
 
+    default:
     case STM32F_INVALID_UART:
         break;
     }

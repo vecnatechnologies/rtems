@@ -56,7 +56,7 @@ typedef struct {
     stm32f_dma_config            TXDMA;
     stm32f_dma_config            RXDMA;
     uint8_t                      altFuncConfg;
-} stm32f_uart_driver_entry;
+} stm32f_console_driver_entry;
 
 
 rtems_device_driver console_initialize(

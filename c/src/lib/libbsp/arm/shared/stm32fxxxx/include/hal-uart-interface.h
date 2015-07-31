@@ -31,6 +31,8 @@
 #include <rtems/termiostypes.h>
 #include <rtems/irq-extension.h>
 #include <rtems/ringbuf.h>
+#include <bspopts.h>
+#include <stm32f-processor-specific.h>
 
 #define SERIAL_FIFO_SIZE     256
 #define MAX_UART_TX_MSG_SIZE 1024
@@ -93,61 +95,51 @@ typedef struct {
 } stm32f_dma_config;
 
 typedef struct {
-    rtems_termios_device_context base;
-    const char*                  device_name;
-    struct rtems_termios_tty*    tty;
-    UART_HandleTypeDef*          handle;
-    Ring_buffer_t*               fifo;
-    uint8_t                      tx_buffer[SERIAL_FIFO_SIZE];
-    IRQn_Type                    UartInterruptNumber;
-    DMA_Stream_TypeDef*          RXDMAStream;
-    DMA_Stream_TypeDef*          TXDMAStream;
-    uint32_t                     initial_baud;
-    stm32f_uart_type             uartType;
-    stm32f_gpio_pin              TXPin;
-    stm32f_gpio_pin              RXPin;
-    stm32f_dma_config            TXDMA;
-    stm32f_dma_config            RXDMA;
-    uint8_t                      altFuncConfg;
-    stm32f_uart                  uart;
-    uint8_t                      rxChar;
-} stm32f_uart_driver_entry;
-
-
-typedef struct  {
-
     UART_HandleTypeDef*          handle;
     const char*                  device_name;
     IRQn_Type                    UartInterruptNumber;
     DMA_Stream_TypeDef*          RXDMAStream;
     DMA_Stream_TypeDef*          TXDMAStream;
-    stm32f_uart_type             uartType;
-    stm32f_gpio_pin              TXPin;
-    stm32f_gpio_pin              RXPin;
-    stm32f_dma_config            TXDMA;
-    stm32f_dma_config            RXDMA;
-    uint8_t                      altFuncConfg;
-    stm32f_uart                  uart;
     uint32_t                     baud;
+    stm32f_uart_type             uartType;
+    stm32f_gpio_pin              TXPin;
+    stm32f_gpio_pin              RXPin;
+    stm32f_dma_config            TXDMA;
+    stm32f_dma_config            RXDMA;
+    uint8_t                      altFuncConfg;
+    stm32f_uart                  uart;
+} stm32f_base_uart_driver_entry;
 
-    rtems_task_entry             rx_task;
-    rtems_task_entry             tx_task;
-
-    rtems_id                     tx_task_id;
-    rtems_id                     rx_task_id;
-    rtems_id                     rx_msg_queue;
-    rtems_id                     tx_msg_queue;
-    rtems_id                     mutex;
-
-} stm32_uart;
+typedef struct {
+    rtems_termios_device_context  base;
+    stm32f_base_uart_driver_entry base_driver_info;
+    uint8_t                       rxChar;
+    struct rtems_termios_tty*     tty;
+    Ring_buffer_t*                fifo;
+    uint8_t                       tx_buffer[SERIAL_FIFO_SIZE];
+} stm32f_console_driver_entry;
 
 
 typedef struct  {
-    stm32_uart* pUart;
+    stm32f_base_uart_driver_entry base_driver_info;
+    rtems_task_entry              rx_task;
+    rtems_task_entry              tx_task;
 
-    int  (*init)(stm32_uart * pUart, uint32_t baud);
-    int  (*de_init)(stm32_uart * pUart);
-    void (*destroy)(stm32_uart * pUart);
+    rtems_id                      tx_task_id;
+    rtems_id                      rx_task_id;
+    rtems_id                      rx_msg_queue;
+    rtems_id                      tx_msg_queue;
+    rtems_id                      mutex;
+
+} stm32_uart_driver_entry;
+
+
+typedef struct  {
+    stm32_uart_driver_entry* pUart;
+
+    int  (*init)(stm32_uart_driver_entry * pUart, uint32_t baud);
+    int  (*de_init)(stm32_uart_driver_entry * pUart);
+    void (*destroy)(stm32_uart_driver_entry * pUart);
 } stm32_uart_device;
 
 /**
@@ -188,11 +180,25 @@ void stmf32_init_dma_clock(
 );
 
 int stm32f_uart_register_interrupt_handlers(
-        stm32f_uart_driver_entry* pUart
+        stm32f_console_driver_entry* pUart
 );
 
-stm32f_uart_driver_entry* stm32f_get_driver_entry_from_handle(
+stm32f_base_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 );
+
+stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart
+);
+
+int uart_register_interrupt_handlers(stm32_uart_driver_entry* pUart);
+
+int uart_remove_interrupt_handlers(stm32_uart_driver_entry* pUart);
+
+void __uarts_initialize(void);
+
+extern UART_HandleTypeDef          UartHandles                [NUM_PROCESSOR_CONSOLE_UARTS+NUM_PROCESSOR_UARTS];
+extern stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CONSOLE_UARTS];
+extern stm32_uart_driver_entry     stm32f_uart_driver_table   [NUM_PROCESSOR_UARTS];
 
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_ */

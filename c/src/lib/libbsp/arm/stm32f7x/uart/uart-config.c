@@ -7,23 +7,24 @@
 
 
 
-UART_HandleTypeDef UartHandles[NUM_PROCESSOR_UARTS];
-stm32_uart stm32f_uart_driver_table_new[NUM_PROCESSOR_UARTS] = {
+stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
 
-//          UART1
-[0] .device_name         = "/dev/ttyS0",
-[0] .handle              = &(UartHandles[0]),
-[0] .UartInterruptNumber = USART1_IRQn,
-[0] .uartType            = STM32F_UART_TYPE_DMA,
-[0] .TXDMAStream         = DMA2_Stream7,
-[0] .RXDMAStream         = DMA2_Stream5,
-[0] .TXPin               = {STM32F_GOIO_PORTB, 6},
-[0] .RXPin               = {STM32F_GOIO_PORTB, 7},
-[0] .TXDMA               = {STM32F_DMA2_CONTROLLER, DMA2_Stream7_IRQn, DMA_CHANNEL_4, 7},
-[0] .RXDMA               = {STM32F_DMA2_CONTROLLER, DMA2_Stream5_IRQn, DMA_CHANNEL_4, 5},
-[0] .baud                = 115200,
-[0] .altFuncConfg        = GPIO_AF7_USART1,
-[0] .uart                = STM32F_UART1,
+//          UART6
+[0] .base_driver_info = {
+        .device_name         = "/dev/ttyS5",
+        .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS]),
+        .UartInterruptNumber = USART6_IRQn,
+        .uartType            = STM32F_UART_TYPE_INT,
+        .TXDMAStream         = DMA2_Stream6,
+        .RXDMAStream         = DMA2_Stream2,
+        .TXPin               = {STM32F_GOIO_PORTC, 6},
+        .RXPin               = {STM32F_GOIO_PORTC, 7},
+        .TXDMA               = {STM32F_DMA2_CONTROLLER, DMA2_Stream6_IRQn, DMA_CHANNEL_5, 6},
+        .RXDMA               = {STM32F_DMA2_CONTROLLER, DMA2_Stream2_IRQn, DMA_CHANNEL_5, 2},
+        .baud                = 115200,
+        .altFuncConfg        = GPIO_AF8_USART6,
+        .uart                = STM32F_UART6,
+},
 
 };
 

@@ -44,6 +44,7 @@ include_bsp_HEADERS += ../../shared/include/stackalloc.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
 include_bsp_HEADERS += include/irq.h
+include_bsp_HEADERS += include/stm32f-processor-specific.h
 
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h
@@ -51,7 +52,7 @@ include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f746xx.h
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/system_stm32f7xx.h
 
 # CMSIS header
-include_bsp_HEADERS += hal/CMSIS/Include/core_cm4.h
+include_bsp_HEADERS += hal/CMSIS/Include/core_cm7.h
 include_bsp_HEADERS += hal/CMSIS/Include/core_cmFunc.h
 include_bsp_HEADERS += hal/CMSIS/Include/core_cmInstr.h
 include_bsp_HEADERS += hal/CMSIS/Include/core_cmSimd.h
@@ -151,7 +152,7 @@ libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
 libbsp_a_SOURCES += ../../shared/bsplibc.c
 libbsp_a_SOURCES += ../../shared/bsppost.c
-libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
+#libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
 libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += ../../shared/cpucounterread.c
 libbsp_a_SOURCES += ../../shared/cpucounterdiff.c

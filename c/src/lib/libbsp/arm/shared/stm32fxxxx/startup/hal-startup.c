@@ -22,6 +22,7 @@
 
 #include <hal-startup-interface.h>
 #include <hal-sdram-interface.h>
+#include <hal-uart-interface.h>
 
 #define HZ_TO_MHZ(x) (x/1000000)
 #define USB_OTG_CLK  48000000
@@ -234,7 +235,9 @@ void bsp_start( void )
 
   // initialize interrupt vectors with default handler
   bsp_interrupt_initialize();
+
 }
 
-
-
+void bsp_predriver_hook(void) {
+    __uarts_initialize();
+}

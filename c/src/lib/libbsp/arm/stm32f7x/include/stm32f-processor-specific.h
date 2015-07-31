@@ -46,7 +46,7 @@
 
 // Clock Configuration
 #define SYSCLK_FREQUENCY        STM32F7_SYSCLK
-#define HSE_VALUE               STM32F7_HSE_OSCILLATOR
+//#define HSE_VALUE               STM32F7_HSE_OSCILLATOR
 #define HSI_FREQUENCY           16000000
 #define STM32F_FLASH_LATENCY    FLASH_LATENCY_7
 #define HSE_AVAILABLE           1
