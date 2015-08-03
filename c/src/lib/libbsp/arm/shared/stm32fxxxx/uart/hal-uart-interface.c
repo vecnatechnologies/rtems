@@ -20,6 +20,7 @@
 #include <hal-uart-interface.h>
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
+#include <bspopts.h>
 
 
 stm32f_base_uart_driver_entry* stm32f_get_driver_entry_from_handle(
@@ -95,9 +96,9 @@ void stm32f_init_uart_clock(
         break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_8)
+#if defined(STM32F7_ENABLE_UART_8)
     case STM32F_UART8:
-        __HAL_RCC_USART8_CLK_ENABLE();
+        __HAL_RCC_UART8_CLK_ENABLE();
         break;
 #endif
     default:
@@ -153,8 +154,8 @@ void stmf32_uart_reset(
 
 #if defined(STM32F7_ENABLE_USART_8)
     case STM32F_UART8:
-        __HAL_RCC_USART8_FORCE_RESET();
-        __HAL_RCC_USART8_RELEASE_RESET();
+        __HAL_RCC_UART8_FORCE_RESET();
+        __HAL_RCC_UART8_RELEASE_RESET();
         break;
 #endif
 
@@ -290,7 +291,7 @@ USART_TypeDef* stmf32_uart_get_registers(
 
 #if defined(STM32F7_ENABLE_USART_8)
     case STM32F_UART8:
-        ret = USART8;
+        ret = UART8;
         break;
 #endif
 

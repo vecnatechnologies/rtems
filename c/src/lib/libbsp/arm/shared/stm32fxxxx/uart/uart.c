@@ -427,15 +427,6 @@ void HAL_UART_MspInit(
   static DMA_HandleTypeDef hdma_tx;
   static DMA_HandleTypeDef hdma_rx;
 
-  /*
-  RCC_PeriphCLKInitTypeDef  PeriphClkInitStruct;
-
-  // TODO: Make generic
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_UART7;
-  PeriphClkInitStruct.Uart7ClockSelection  = RCC_UART7CLKSOURCE_PCLK1;
-  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
-*/
-
   GPIO_InitTypeDef  GPIO_InitStruct;
   stm32f_base_uart_driver_entry* pUart;
 
