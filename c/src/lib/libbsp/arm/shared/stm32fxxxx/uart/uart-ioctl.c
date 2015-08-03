@@ -20,7 +20,7 @@
 //--- Include processor specfic uart configurations
 #include <uart-config.c>
 
-static uint8_t tx_msg[3][MAX_UART_TX_MSG_SIZE];
+static uint8_t tx_msg[MAX_UART_TX_MSG_SIZE];
 //============================== ISR Definitions ==========================================
 static void stm32f_uart_dma_tx_isr(
   void* argData
@@ -112,6 +112,7 @@ static HAL_StatusTypeDef stm32_uart_receive(
 
 
 static rtems_task stm32_uart_tx_task(rtems_task_argument arg) {
+
 
   size_t len;
   rtems_status_code sc;
