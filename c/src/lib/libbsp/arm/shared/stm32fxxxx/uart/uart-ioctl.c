@@ -116,22 +116,20 @@ static rtems_task stm32_uart_tx_task(rtems_task_argument arg) {
 
   size_t len;
   rtems_status_code sc;
-  uint32_t tx_count = 0UL;
 
   stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
 
   while (1) {
 
     sc = rtems_message_queue_receive(pUart->tx_msg_queue,
-                                     (void*) &tx_msg[tx_count % COUNTOF(tx_msg)],
+                                     (void*) &tx_msg,
                                      &len,
                                      RTEMS_WAIT,
                                      RTEMS_NO_TIMEOUT);
-    tx_count++;
     _Assert(len <= sizeof(msg));
 
     if(sc == RTEMS_SUCCESSFUL) {
-        (void) stm32_uart_transmit(pUart->base_driver_info.handle, pUart->base_driver_info.uartType, (uint8_t*) &tx_msg[tx_count % COUNTOF(tx_msg)], len);
+        (void) stm32_uart_transmit(pUart->base_driver_info.handle, pUart->base_driver_info.uartType, (uint8_t*) tx_msg, len);
     }
 
     while((pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_RX) &&
