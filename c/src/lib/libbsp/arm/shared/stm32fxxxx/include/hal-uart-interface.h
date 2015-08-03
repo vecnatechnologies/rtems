@@ -123,13 +123,9 @@ typedef struct {
 typedef struct  {
     stm32f_base_uart_driver_entry base_driver_info;
     uint32_t                      instance;
-    rtems_task_entry              rx_task;
     rtems_task_entry              tx_task;
 
     rtems_id                      tx_task_id;
-    rtems_id                      rx_task_id;
-    rtems_id                      rx_req_queue;
-    rtems_id                      rx_msg_queue;
     rtems_id                      tx_msg_queue;
     rtems_id                      mutex;
 

@@ -148,48 +148,6 @@ static rtems_task stm32_uart_tx_task(rtems_task_argument arg) {
 }
 
 
-static rtems_task stm32_uart_rx_task(rtems_task_argument arg) {
-
-  size_t len;
-  rtems_status_code sc;
-  HAL_StatusTypeDef ret;
-  uart_rx_request rx_req;
-
-  stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
-
-  while (1) {
-
-      // wait for a receive request
-      sc = rtems_message_queue_receive(pUart->rx_req_queue,
-                                       (void*) &rx_req,
-                                       &len,
-                                       RTEMS_WAIT,
-                                       RTEMS_NO_TIMEOUT);
-
-    // collect the requested number of characters from the UART
-    ret = stm32_uart_receive(pUart->base_driver_info.handle,
-            pUart->base_driver_info.uartType,
-            (uint8_t*) &(rx_msg[pUart->instance]),
-            rx_req.len,
-            rx_req.max_wait_time);
-
-    // Post the result on the rx message queue
-    if(ret == HAL_OK) {
-
-        while((pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_TX) &&
-              (pUart->base_driver_info.handle->State != HAL_UART_STATE_READY)) {
-            (void) rtems_task_wake_after( 1 );
-        }
-
-        sc = rtems_message_queue_send(pUart->rx_msg_queue,
-                (uint8_t*) &(rx_msg[pUart->instance]),
-                rx_req.len);
-    }
-    _Assert(len <= sizeof(msg));
-  }
-}
-
-
 static void uart_obtain(stm32_uart_driver_entry *pUart)
 {
   rtems_status_code sc;
@@ -216,7 +174,6 @@ static int uart_change_baudrate(
 )
 {
   uart_obtain(pUart);
-  rtems_task_restart(pUart->rx_task_id, (uint32_t) pUart);
   rtems_task_restart(pUart->tx_task_id, (uint32_t) pUart);
   uart_release(pUart);
   return 0;
@@ -330,6 +287,7 @@ static int stm32_uart_open(
     rtems_set_errno_and_return_minus_one(-err);
   }
 }
+
 
 static int stm32_uart_ioctl(
   rtems_libio_t *iop,
@@ -495,6 +453,7 @@ static const IMFS_node_control uart_node_control = IMFS_GENERIC_INITIALIZER(
   uart_node_destroy
 );
 
+
 int uart_register(
     stm32_uart_device * pUartDevice
 )
@@ -520,14 +479,6 @@ int uart_register(
               pUartDevice->pUart->tx_task,
           (rtems_task_argument) pUartDevice->pUart
           );
-
-      if(sc == RTEMS_SUCCESSFUL) {
-          sc = rtems_task_start(
-                  pUartDevice->pUart->rx_task_id,
-                  pUartDevice->pUart->rx_task,
-              (rtems_task_argument) pUartDevice->pUart
-              );
-      }
   }
   return sc;
 }
@@ -541,45 +492,6 @@ static int uart_do_init(
 
   char uart_num = '1'+ (char) pUartDevice->pUart->base_driver_info.uart;
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('U', 'A', 'R', uart_num),
-    1,
-    RTEMS_BINARY_SEMAPHORE | RTEMS_INHERIT_PRIORITY | RTEMS_PRIORITY,
-    0,
-    &pUartDevice->pUart->mutex
-  );
-
-  if (sc != RTEMS_SUCCESSFUL) {
-    uart_destroy(pUartDevice->pUart);
-    rtems_set_errno_and_return_minus_one(ENOMEM);
-  }
-
-  sc = rtems_message_queue_create(
-    rtems_build_name('U', 'R', 'X', uart_num),
-    UART_QUEUE_LEN,
-    MAX_UART_RX_MSG_SIZE,
-    RTEMS_FIFO | RTEMS_LOCAL,
-    &pUartDevice->pUart->rx_msg_queue
-  );
-
-  if (sc != RTEMS_SUCCESSFUL) {
-    uart_destroy(pUartDevice->pUart);
-    rtems_set_errno_and_return_minus_one(ENOMEM);
-  }
-
-  sc = rtems_message_queue_create(
-    rtems_build_name('U', 'R', 'Q', uart_num),
-    UART_QUEUE_LEN,
-    sizeof(uart_rx_request),
-    RTEMS_FIFO | RTEMS_LOCAL,
-    &pUartDevice->pUart->rx_req_queue
-  );
-
-  if (sc != RTEMS_SUCCESSFUL) {
-    uart_destroy(pUartDevice->pUart);
-    rtems_set_errno_and_return_minus_one(ENOMEM);
-  }
-
   sc = rtems_message_queue_create(
     rtems_build_name('U', 'T', 'X', uart_num),
     UART_QUEUE_LEN,
@@ -592,22 +504,6 @@ static int uart_do_init(
     uart_destroy(pUartDevice->pUart);
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
-
-  sc = rtems_task_create(
-    rtems_build_name('U', 'R', 'X', uart_num),
-    UART_TASK_PRIORITY,
-    RTEMS_MINIMUM_STACK_SIZE,
-    RTEMS_PREEMPT,
-    RTEMS_NO_FLOATING_POINT,
-    &pUartDevice->pUart->rx_task_id
-  );
-
-  if (sc != RTEMS_SUCCESSFUL) {
-    uart_destroy(pUartDevice->pUart);
-    rtems_set_errno_and_return_minus_one(ENOMEM);
-  }
-
-  pUartDevice->pUart->rx_task = stm32_uart_rx_task;
 
   sc = rtems_task_create(
     rtems_build_name('U', 'T', 'X', uart_num),
