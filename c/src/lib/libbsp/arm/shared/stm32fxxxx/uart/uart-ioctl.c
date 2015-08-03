@@ -168,18 +168,6 @@ static void uart_release(stm32_uart_driver_entry * pUart)
 }
 
 
-static int uart_change_baudrate(
-        stm32_uart_driver_entry * pUart,
-        uint32_t baud
-)
-{
-  uart_obtain(pUart);
-  rtems_task_restart(pUart->tx_task_id, (uint32_t) pUart);
-  uart_release(pUart);
-  return 0;
-}
-
-
 static ssize_t stm32_uart_read(
   rtems_libio_t *iop,
   void *buffer,
@@ -302,8 +290,15 @@ static int stm32_uart_ioctl(
   switch (command) {
 
     case UART_BAUDRATE:
+
+        // TODO: something is wrong with this cast...
       baudrate = *((uint32_t*) arg);
-      uart_change_baudrate(pUartDevice->pUart, baudrate);
+
+      uart_obtain(pUartDevice->pUart);
+      pUartDevice->pUart->base_driver_info.baud = baudrate;
+      err = pUartDevice->init(pUartDevice->pUart, pUartDevice->pUart->base_driver_info.baud);
+      uart_release(pUartDevice->pUart);
+
       break;
 
     default:
