@@ -20,7 +20,14 @@
 //--- Include processor specfic uart configurations
 #include <uart-config.c>
 
-static uint8_t tx_msg[MAX_UART_TX_MSG_SIZE];
+typedef struct {
+  uint32_t len;
+  rtems_interval max_wait_time;
+} uart_rx_request;
+
+static uint8_t tx_msg[NUM_PROCESSOR_UARTS][MAX_UART_TX_MSG_SIZE];
+static uint8_t rx_msg[NUM_PROCESSOR_UARTS][MAX_UART_RX_MSG_SIZE];
+
 //============================== ISR Definitions ==========================================
 static void stm32f_uart_dma_tx_isr(
   void* argData
@@ -84,7 +91,8 @@ static HAL_StatusTypeDef stm32_uart_receive(
         UART_HandleTypeDef* hUartHandle,
         const stm32f_uart_type uartType,
         uint8_t * buf,
-        size_t    len
+        size_t    len,
+        rtems_interval timeout
 )
 {
     HAL_StatusTypeDef ret = HAL_ERROR;
@@ -94,7 +102,7 @@ static HAL_StatusTypeDef stm32_uart_receive(
         switch(uartType) {
 
         case STM32F_UART_TYPE_POLLING:
-            ret = HAL_UART_Receive(hUartHandle, buf, (uint16_t) len, POLLED_TX_TIMEOUT_ms);
+            ret = HAL_UART_Receive(hUartHandle, buf, (uint16_t) len, timeout);
             break;
 
         case STM32F_UART_TYPE_INT:
@@ -116,20 +124,20 @@ static rtems_task stm32_uart_tx_task(rtems_task_argument arg) {
 
   size_t len;
   rtems_status_code sc;
-
   stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
 
   while (1) {
 
     sc = rtems_message_queue_receive(pUart->tx_msg_queue,
-                                     (void*) &tx_msg,
+                                     (void*) &tx_msg[pUart->instance],
                                      &len,
                                      RTEMS_WAIT,
                                      RTEMS_NO_TIMEOUT);
     _Assert(len <= sizeof(msg));
 
     if(sc == RTEMS_SUCCESSFUL) {
-        (void) stm32_uart_transmit(pUart->base_driver_info.handle, pUart->base_driver_info.uartType, (uint8_t*) tx_msg, len);
+        (void) stm32_uart_transmit(pUart->base_driver_info.handle,
+                pUart->base_driver_info.uartType, (uint8_t*) tx_msg[pUart->instance], len);
     }
 
     while((pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_RX) &&
@@ -142,34 +150,42 @@ static rtems_task stm32_uart_tx_task(rtems_task_argument arg) {
 
 static rtems_task stm32_uart_rx_task(rtems_task_argument arg) {
 
-  //rtems_status_code sc;
-  //uint8_t msg[MAX_UART_TX_MSG_SIZE];
-  //size_t len;
-  //HAL_StatusTypeDef ret;
+  size_t len;
+  rtems_status_code sc;
+  HAL_StatusTypeDef ret;
+  uart_rx_request rx_req;
 
-  rtems_interval    ticks;
-
-  ticks = 5 * rtems_clock_get_ticks_per_second();
-
-  //stm32_uart * pUart = (stm32_uart *) arg;
+  stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
 
   while (1) {
 
-    /*
-    ret = stm32_uart_receive(pUart->base_driver_info.handle, pUart->base_driver_info.uartType, &msg, len);
+      // wait for a receive request
+      sc = rtems_message_queue_receive(pUart->rx_req_queue,
+                                       (void*) &rx_req,
+                                       &len,
+                                       RTEMS_WAIT,
+                                       RTEMS_NO_TIMEOUT);
 
+    // collect the requested number of characters from the UART
+    ret = stm32_uart_receive(pUart->base_driver_info.handle,
+            pUart->base_driver_info.uartType,
+            (uint8_t*) &(rx_msg[pUart->instance]),
+            rx_req.len,
+            rx_req.max_wait_time);
+
+    // Post the result on the rx message queue
     if(ret == HAL_OK) {
-        sc = rtems_message_queue_send(pUart->tx_msg_queue,
-                                      &msg,
-                                      len,
-                                      RTEMS_WAIT,
-                                      RTEMS_NO_TIMEOUT);
+
+        while((pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_TX) &&
+              (pUart->base_driver_info.handle->State != HAL_UART_STATE_READY)) {
+            (void) rtems_task_wake_after( 1 );
+        }
+
+        sc = rtems_message_queue_send(pUart->rx_msg_queue,
+                (uint8_t*) &(rx_msg[pUart->instance]),
+                rx_req.len);
     }
     _Assert(len <= sizeof(msg));
-
-
-*/
-      (void) rtems_task_wake_after( ticks );
   }
 }
 
@@ -213,17 +229,43 @@ static ssize_t stm32_uart_read(
   size_t count
 )
 {
-  //stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
-  //int err;
+    stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+    int err;
+    rtems_status_code sc;
+    uart_rx_request read_req;
+
+
+    if(count <= MAX_UART_RX_MSG_SIZE) {
+
+        read_req.len = count;
+        read_req.max_wait_time = POLLED_TX_TIMEOUT_ms;
+
+        sc = rtems_message_queue_send(pUartDevice->pUart->rx_req_queue,
+                                      &read_req,
+                                      sizeof(read_req));
+
+        if (RTEMS_SUCCESSFUL != sc) {
+          err = EIO;
+        }
+
+        sc = rtems_message_queue_receive(pUartDevice->pUart->rx_msg_queue,
+                                         buffer,
+                                         &count,
+                                         RTEMS_WAIT,
+                                         RTEMS_NO_TIMEOUT);
+
+    } else {
+        //TODO: What error code should this be
+        err = EIO;
+    }
+
+    if (err == 0) {
+      return 0;
+    } else {
+      rtems_set_errno_and_return_minus_one(-err);
+    }
 
   return 0;
-/*
-  if (err == 0) {
-    return 0;
-  } else {
-    rtems_set_errno_and_return_minus_one(-err);
-  }
-  */
 }
 
 
@@ -233,7 +275,7 @@ static ssize_t stm32_uart_write(
   size_t count
 )
 {
-    stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
   int err;
   rtems_status_code sc;
 
@@ -376,7 +418,7 @@ int uart_register_interrupt_handlers(stm32_uart_driver_entry* pUart){
         //ret = (int) HAL_UART_Receive_IT(pUart->handle, &pUart->rxChar, 1);
     }
 
-    return (ret == RTEMS_SUCCESSFUL);
+    return ret;
 }
 
 int uart_remove_interrupt_handlers(stm32_uart_driver_entry* pUart){
@@ -418,12 +460,12 @@ static int uart_init(
   pUart->base_driver_info.handle->Init.OverSampling = UART_OVERSAMPLING_16;
 
   // Initialize UART pins, clocks, and DMA controllers
-  if(HAL_UART_Init(pUart->base_driver_info.handle) != HAL_OK) {
+  if(HAL_UART_Init(pUart->base_driver_info.handle) == HAL_OK) {
 
       ret = uart_register_interrupt_handlers(pUart);
   }
   else {
-      ret = RTEMS_SUCCESSFUL;
+      ret = RTEMS_UNSATISFIED;
   }
 
   return ret;
@@ -533,6 +575,19 @@ static int uart_do_init(
   }
 
   sc = rtems_message_queue_create(
+    rtems_build_name('U', 'R', 'Q', uart_num),
+    UART_QUEUE_LEN,
+    sizeof(uart_rx_request),
+    RTEMS_FIFO | RTEMS_LOCAL,
+    &pUartDevice->pUart->rx_req_queue
+  );
+
+  if (sc != RTEMS_SUCCESSFUL) {
+    uart_destroy(pUartDevice->pUart);
+    rtems_set_errno_and_return_minus_one(ENOMEM);
+  }
+
+  sc = rtems_message_queue_create(
     rtems_build_name('U', 'T', 'X', uart_num),
     UART_QUEUE_LEN,
     MAX_UART_TX_MSG_SIZE,
@@ -592,6 +647,7 @@ void __uarts_initialize(
 
   for( i = 0 ; i < COUNTOF(stm32f_uart_driver_table); i++) {
       stm32f_uart_driver_table[i].base_driver_info.handle = &(UartHandles[i+NUM_PROCESSOR_CONSOLE_UARTS]);
+      stm32f_uart_driver_table[i].instance = i;
       uart_device_table[i].pUart =  &stm32f_uart_driver_table[i];
       uart_do_init(&uart_device_table[i]);
       uart_register(&uart_device_table[i]);
