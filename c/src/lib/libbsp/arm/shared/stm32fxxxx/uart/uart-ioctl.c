@@ -231,41 +231,31 @@ static ssize_t stm32_uart_read(
 {
     stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
     int err;
-    rtems_status_code sc;
-    uart_rx_request read_req;
-
+    ssize_t ret_size = 0;
+    HAL_StatusTypeDef ret;
 
     if(count <= MAX_UART_RX_MSG_SIZE) {
 
-        read_req.len = count;
-        read_req.max_wait_time = POLLED_TX_TIMEOUT_ms;
+        // collect the requested number of characters from the UART
+        ret = stm32_uart_receive(pUartDevice->pUart->base_driver_info.handle,
+                pUartDevice->pUart->base_driver_info.uartType,
+                (uint8_t*) &(rx_msg[pUartDevice->pUart->instance]),
+                count,
+                POLLED_TX_TIMEOUT_ms);
 
-        sc = rtems_message_queue_send(pUartDevice->pUart->rx_req_queue,
-                                      &read_req,
-                                      sizeof(read_req));
+        if(ret == HAL_OK) {
 
-        if (RTEMS_SUCCESSFUL != sc) {
-          err = EIO;
+            while((pUartDevice->pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_TX) &&
+                  (pUartDevice->pUart->base_driver_info.handle->State != HAL_UART_STATE_READY)) {
+                (void) rtems_task_wake_after( 1 );
+            }
+
+            memcpy(buffer, (void*) &(rx_msg[pUartDevice->pUart->instance]), count);
+
+            ret_size = count;
         }
-
-        sc = rtems_message_queue_receive(pUartDevice->pUart->rx_msg_queue,
-                                         buffer,
-                                         &count,
-                                         RTEMS_WAIT,
-                                         RTEMS_NO_TIMEOUT);
-
-    } else {
-        //TODO: What error code should this be
-        err = EIO;
     }
-
-    if (err == 0) {
-      return 0;
-    } else {
-      rtems_set_errno_and_return_minus_one(-err);
-    }
-
-  return 0;
+  return ret_size;
 }
 
 
@@ -405,8 +395,13 @@ int uart_register_interrupt_handlers(stm32_uart_driver_entry* pUart){
 
     // Register DMA interrupt handlers (if necessary)
     if(pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA){
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_rx_isr, &(pUart->base_driver_info));}
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_tx_isr, &(pUart->base_driver_info));}
+        if(ret == RTEMS_SUCCESSFUL) {
+            ret = rtems_interrupt_handler_install( pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_rx_isr, &(pUart->base_driver_info));
+        }
+
+        if(ret == RTEMS_SUCCESSFUL) {
+            ret = rtems_interrupt_handler_install( pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_tx_isr, &(pUart->base_driver_info));
+        }
     }
 
     // Register UART interrupt handler for either DMA or Interrupt modes
@@ -414,8 +409,6 @@ int uart_register_interrupt_handlers(stm32_uart_driver_entry* pUart){
 
         if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.UartInterruptNumber, NULL, 0, stm32f_uart_isr, &(pUart->base_driver_info));}
 
-        //Enable RX interrupt
-        //ret = (int) HAL_UART_Receive_IT(pUart->handle, &pUart->rxChar, 1);
     }
 
     return ret;
