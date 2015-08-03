@@ -392,13 +392,13 @@ int stm32_can_init
         stm32_can_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        27,
+        20,
         "CAN1 RX Interrupt 0",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx0_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        28,
+        21,
         "CAN1 RX Interrupt 1",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx1_isr,
