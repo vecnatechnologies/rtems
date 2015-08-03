@@ -56,7 +56,7 @@
 
 // Uart configuration
 #define NUM_PROCESSOR_CONSOLE_UARTS 1
-#define NUM_PROCESSOR_UARTS         1
+#define NUM_PROCESSOR_UARTS         2
 
 #else
 #error "Unspecified processor type!!"
