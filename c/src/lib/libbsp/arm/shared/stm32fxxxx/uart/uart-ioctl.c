@@ -175,7 +175,6 @@ static ssize_t stm32_uart_read(
 )
 {
     stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
-    int err;
     ssize_t ret_size = 0;
     HAL_StatusTypeDef ret;
 
@@ -195,6 +194,7 @@ static ssize_t stm32_uart_read(
                 (void) rtems_task_wake_after( 1 );
             }
 
+            // copy received data to the destination buffer
             memcpy(buffer, (void*) &(rx_msg[pUartDevice->pUart->instance]), count);
 
             ret_size = count;
@@ -221,18 +221,13 @@ static ssize_t stm32_uart_write(
                                     count);
 
       if (RTEMS_SUCCESSFUL != sc) {
-        err = EIO;
+        sc = EIO;
       }
   } else {
-      //TODO: What error code should this be
-      err = EIO;
+      sc = EIO;
   }
 
-  if (err == 0) {
-    return 0;
-  } else {
-    rtems_set_errno_and_return_minus_one(-err);
-  }
+  return sc;
 }
 
 
@@ -262,26 +257,22 @@ static int stm32_uart_open(
   mode_t         mode
 )
 {
-  (void) iop;
   (void) path;
   (void) oflag;
   (void) mode;
 
-  return RTEMS_SUCCESSFUL;
-    /*
-  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
-  int err;
+    stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+    rtems_status_code err;
 
-  uart_obtain(pUartDevice->pUart);
-  err = pUartDevice->init(pUartDevice->pUart, pUartDevice->pUart->base_driver_info.baud);
-  uart_release(pUartDevice->pUart);
+    uart_obtain(pUartDevice->pUart);
+    err = pUartDevice->init(pUartDevice->pUart, pUartDevice->pUart->base_driver_info.baud);
+    uart_release(pUartDevice->pUart);
 
-  if (err == 0) {
-    return 0;
-  } else {
-    rtems_set_errno_and_return_minus_one(-err);
-  }
-  */
+    if (err == RTEMS_SUCCESSFUL) {
+      return RTEMS_SUCCESSFUL;
+    } else {
+      rtems_set_errno_and_return_minus_one(-err);
+    }
 }
 
 
@@ -549,7 +540,6 @@ void __uarts_initialize(
       uart_device_table[i].pUart =  &stm32f_uart_driver_table[i];
       uart_create_rtems_objects(&uart_device_table[i]);
       uart_register_device_driver(&uart_device_table[i]);
-      uart_device_table[i].init(uart_device_table[i].pUart, uart_device_table[i].pUart->base_driver_info.baud);
   }
 }
 
