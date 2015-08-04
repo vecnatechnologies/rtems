@@ -239,5 +239,5 @@ void bsp_start( void )
 }
 
 void bsp_predriver_hook(void) {
-    __uarts_initialize();
+    stm32f_uarts_initialize();
 }

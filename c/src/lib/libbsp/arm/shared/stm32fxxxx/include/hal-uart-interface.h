@@ -193,7 +193,7 @@ int uart_register_interrupt_handlers(stm32_uart_driver_entry* pUart);
 
 int uart_remove_interrupt_handlers(stm32_uart_driver_entry* pUart);
 
-void __uarts_initialize(void);
+void stm32f_uarts_initialize(void);
 
 extern UART_HandleTypeDef          UartHandles                [NUM_PROCESSOR_CONSOLE_UARTS+NUM_PROCESSOR_UARTS];
 extern stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CONSOLE_UARTS];

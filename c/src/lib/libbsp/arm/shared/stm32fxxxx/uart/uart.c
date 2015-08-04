@@ -15,537 +15,594 @@
  * found in the file LICENSE in this distribution or at
  * http://www.rtems.com/license/LICENSE.
  */
-
 #include <rtems.h>
-#include <rtems/system.h>
-#include <rtems/rtems/status.h>
-#include <rtems/score/isr.h>
-#include <rtems/rtems/intr.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <hal-utils.h>
+#include <hal-uart-interface.h>
 #include <stm32f-processor-specific.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio_ex)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc_ex)
 
-#include <termios.h>
-#include <rtems/irq.h>
-#include <rtems/libio.h>
-#include <rtems/termiostypes.h>
-#include <rtems/irq-extension.h>
-#include <hal-uart-interface.h>
+#include <rtems/imfs.h>
 
+//--- Include processor specfic uart configurations
+#include <uart-config.c>
 
-//------------------ Forward declarations ------------------
-static bool stm32f_uart_first_open(
-  struct rtems_termios_tty      *tty,
-  rtems_termios_device_context  *context,
-  struct termios                *term,
-  rtems_libio_open_close_args_t *args
-);
+typedef struct {
+  uint32_t len;
+  rtems_interval max_wait_time;
+}uart_rx_request;
 
-static void stm32f_uart_last_close(
-  struct rtems_termios_tty *tty,
-  rtems_termios_device_context *contex,
-  rtems_libio_open_close_args_t *args
-);
-
-static bool stm32f_uart_set_attr(
-  rtems_termios_device_context *context,
-  const struct termios *term
-);
-
-static void stm32f_uart_write(
-  rtems_termios_device_context *base,
-  const char *buf,
-  size_t len
-);
-
-static int stm32f_uart_poll_read(
-  rtems_termios_device_context *context
-);
-
-static int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
-                                       uint8_t *buf,
-                                       size_t len
-);
-
-
-//---------------
-BSP_output_char_function_type     BSP_output_char = NULL;
-BSP_polling_getchar_function_type BSP_poll_char   = NULL;
-
-//--------------- Processor specific UART configuration
-#include <console-config.c>
-
-//--------------- termios handler functions
-const rtems_termios_device_handler stm32f_uart_handlers_interrupt = {
-  .first_open     = stm32f_uart_first_open,
-  .last_close     = stm32f_uart_last_close,
-  .poll_read      = stm32f_uart_poll_read,
-  .write          = stm32f_uart_write,
-  .set_attributes = stm32f_uart_set_attr,
-  .mode           = TERMIOS_IRQ_DRIVEN
-};
-
-const rtems_termios_device_handler stm32f_uart_handlers_polling = {
-  .first_open     = stm32f_uart_first_open,
-  .last_close     = stm32f_uart_last_close,
-  .poll_read      = stm32f_uart_poll_read,
-  .write          = stm32f_uart_write,
-  .set_attributes = stm32f_uart_set_attr,
-  .mode           = TERMIOS_POLLED
-};
-
+static uint8_t tx_msg[NUM_PROCESSOR_UARTS][MAX_UART_TX_MSG_SIZE];
+static uint8_t rx_msg[NUM_PROCESSOR_UARTS][MAX_UART_RX_MSG_SIZE];
 
 //============================== ISR Definitions ==========================================
 static void stm32f_uart_dma_tx_isr(
   void* argData
 )
 {
-    stm32f_console_driver_entry* pUART = (stm32f_console_driver_entry*) argData;
-    HAL_DMA_IRQHandler(pUART->base_driver_info.handle->hdmatx);
-}
+  stm32f_base_uart_driver_entry* pUART =
+    (stm32f_base_uart_driver_entry*) argData;
 
+  HAL_DMA_IRQHandler(pUART->handle->hdmatx);
+}
 
 static void stm32f_uart_dma_rx_isr(
   void* argData
 )
 {
-    stm32f_console_driver_entry* pUART = (stm32f_console_driver_entry*) argData;
-    HAL_DMA_IRQHandler(pUART->base_driver_info.handle->hdmarx);
-}
+  stm32f_base_uart_driver_entry* pUART =
+    (stm32f_base_uart_driver_entry*) argData;
 
+  HAL_DMA_IRQHandler(pUART->handle->hdmarx);
+}
 
 static void stm32f_uart_isr(
   void *arg
 )
 {
-    stm32f_console_driver_entry* pUART = (stm32f_console_driver_entry*) arg;
+  stm32f_base_uart_driver_entry* pUART = (stm32f_base_uart_driver_entry*) arg;
 
-  uint32_t u32_StartRxCount;
+  HAL_UART_IRQHandler(pUART->handle);
+}
 
-  // Remember how many TX and RX bytes we had before processing the
-  // interrupt so that we can determine what happened in the HAL ISR
-  u32_StartRxCount = pUART->base_driver_info.handle->RxXferCount;
+static HAL_StatusTypeDef stm32_uart_transmit(
+  UART_HandleTypeDef* hUartHandle,
+  const stm32f_uart_type uartType,
+  uint8_t * buf,
+  uint16_t len
+)
+{
+  HAL_StatusTypeDef ret = HAL_ERROR;
 
-  HAL_UART_IRQHandler(pUART->base_driver_info.handle);
+  if ( (len > 0) && (buf != NULL) && (hUartHandle != NULL) ) {
 
-  // Check to see if we received any characters, if so then
-  // enqueue them in termios.  (The RxXferCount counts down from
-  // the expected number of characters to receive.)
-  if(u32_StartRxCount > pUART->base_driver_info.handle->RxXferCount) {
+    switch ( uartType ) {
 
-      int rxCount    = u32_StartRxCount - pUART->base_driver_info.handle->RxXferCount;
-      char* pStartRx = (char*) pUART->base_driver_info.handle->pRxBuffPtr;
-      pStartRx       -= rxCount;
-      rtems_termios_enqueue_raw_characters(pUART->tty, pStartRx, rxCount);
+    case STM32F_UART_TYPE_POLLING:
+      ret = HAL_UART_Transmit(hUartHandle, buf, len, POLLED_TX_TIMEOUT_ms);
+      break;
 
-      // re-enable interrupt to receive additional characters
-      HAL_UART_Receive_IT(pUART->base_driver_info.handle, &pUART->rxChar, 1);
+    case STM32F_UART_TYPE_INT:
+      ret = HAL_UART_Transmit_IT(hUartHandle, buf, len);
+      break;
+
+    case STM32F_UART_TYPE_DMA:
+      ret = HAL_UART_Transmit_DMA(hUartHandle, buf, len);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static HAL_StatusTypeDef stm32_uart_receive(
+  UART_HandleTypeDef* hUartHandle,
+  const stm32f_uart_type uartType,
+  uint8_t * buf,
+  size_t len,
+  rtems_interval timeout
+)
+{
+  HAL_StatusTypeDef ret = HAL_ERROR;
+
+  if ( (len > 0) && (buf != NULL) && (hUartHandle != NULL) ) {
+
+    switch ( uartType ) {
+
+    case STM32F_UART_TYPE_POLLING:
+      ret = HAL_UART_Receive(hUartHandle, buf, (uint16_t) len, timeout);
+      break;
+
+    case STM32F_UART_TYPE_INT:
+      ret = HAL_UART_Receive_IT(hUartHandle, buf, (uint16_t) len);
+      break;
+
+    case STM32F_UART_TYPE_DMA:
+      ret = HAL_UART_Receive_DMA(hUartHandle, buf, (uint16_t) len);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static rtems_task stm32_uart_tx_task(
+  rtems_task_argument arg
+)
+{
+
+  size_t len;
+  rtems_status_code sc;
+  stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
+
+  while ( 1 ) {
+
+    sc = rtems_message_queue_receive(pUart->tx_msg_queue,
+      (void*) &tx_msg[pUart->instance],
+      &len,
+      RTEMS_WAIT,
+      RTEMS_NO_TIMEOUT);
+    _Assert(len <= sizeof(msg));
+
+    if ( sc == RTEMS_SUCCESSFUL ) {
+      (void) stm32_uart_transmit(pUart->base_driver_info.handle,
+        pUart->base_driver_info.uartType, (uint8_t*) tx_msg[pUart->instance],
+        len);
+    }
+
+    while ( (pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_RX) &&
+      (pUart->base_driver_info.handle->State != HAL_UART_STATE_READY) ) {
+      (void) rtems_task_wake_after(1);
+    }
   }
 }
 
-
-int stm32f_uart_register_interrupt_handlers(stm32f_console_driver_entry* pUart){
-
-    rtems_status_code ret = RTEMS_SUCCESSFUL;
-
-    // Register DMA interrupt handlers (if necessary)
-    if(pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA){
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_rx_isr, pUart);}
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_tx_isr, pUart);}
-    }
-
-    // Register UART interrupt handler for either DMA or Interrupt modes
-    if(pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING){
-
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.UartInterruptNumber, NULL, 0, stm32f_uart_isr, pUart);}
-
-        //Enable RX interrupt
-        ret = (int) HAL_UART_Receive_IT(pUart->base_driver_info.handle, &pUart->rxChar, 1);
-    }
-
-    return (ret == RTEMS_SUCCESSFUL);
-}
-
-
-//============================== CONSOLE API FUNCTION ==========================================
-rtems_device_driver console_initialize(
-  rtems_device_major_number major,
-  rtems_device_minor_number minor,
-  void* arg
+static void uart_obtain(
+  stm32_uart_driver_entry *pUart
 )
 {
-    rtems_status_code ret = RTEMS_SUCCESSFUL;
+  rtems_status_code sc;
 
-    rtems_termios_initialize();
-
-    for(minor = 0; minor < COUNTOF(stm32f_console_driver_table); minor++){
-
-        stm32f_console_driver_entry* pNextEntry = &stm32f_console_driver_table[minor];
-
-        //Configure the UART peripheral
-        pNextEntry->base_driver_info.handle->Instance          = stmf32_uart_get_registers(pNextEntry->base_driver_info.uart);
-        pNextEntry->base_driver_info.handle->Init.BaudRate     = pNextEntry->base_driver_info.baud;
-        pNextEntry->base_driver_info.handle->Init.WordLength   = UART_WORDLENGTH_8B;
-        pNextEntry->base_driver_info.handle->Init.StopBits     = UART_STOPBITS_1;
-        pNextEntry->base_driver_info.handle->Init.Parity       = UART_PARITY_NONE;
-        pNextEntry->base_driver_info.handle->Init.HwFlowCtl    = UART_HWCONTROL_NONE;
-        pNextEntry->base_driver_info.handle->Init.Mode         = UART_MODE_TX_RX;
-        pNextEntry->base_driver_info.handle->Init.OverSampling = UART_OVERSAMPLING_16;
-
-        // Initialize UART pins, clocks, and DMA controllers
-        if(HAL_UART_Init(pNextEntry->base_driver_info.handle) != HAL_OK) { ret = RTEMS_UNSATISFIED;}
-
-        if(pNextEntry->base_driver_info.uartType == STM32F_UART_TYPE_POLLING)
-        {
-            ret = rtems_termios_device_install(pNextEntry->base_driver_info.device_name,
-                    major,
-                    minor,
-                    &stm32f_uart_handlers_polling,
-                    NULL,
-                    (rtems_termios_device_context*) pNextEntry);
-
-        } else {
-            ret = rtems_termios_device_install(pNextEntry->base_driver_info.device_name,
-                    major,
-                    minor,
-                    &stm32f_uart_handlers_interrupt,
-                    NULL,
-                    (rtems_termios_device_context*) pNextEntry);
-        }
-    }
-
-    return ret;
+  sc = rtems_semaphore_obtain(pUart->mutex, RTEMS_WAIT, RTEMS_NO_TIMEOUT);
+  _Assert(sc == RTEMS_SUCCESSFUL);
+  (void) sc;
 }
 
-
-// =====================  TERMIOS CALLBACK FUNCTIONS ===========================
-static bool stm32f_uart_first_open(
-  struct rtems_termios_tty      *tty,
-  rtems_termios_device_context  *context,
-  struct termios                *term,
-  rtems_libio_open_close_args_t *args){
-
-    rtems_status_code            ret = RTEMS_SUCCESSFUL;
-    stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
-
-    // Initialize TTY
-    pUart->tty = tty;
-
-    // Configure initial baud rate
-    rtems_termios_set_initial_baud(tty, pUart->base_driver_info.baud);
-
-    stm32f_uart_register_interrupt_handlers(pUart);
-
-    return (ret == RTEMS_SUCCESSFUL);
-}
-
-
-static void stm32f_uart_last_close(
-  struct rtems_termios_tty *tty,
-  rtems_termios_device_context *context,
-  rtems_libio_open_close_args_t *args
+static void uart_release(
+  stm32_uart_driver_entry * pUart
 )
 {
-    stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
+  rtems_status_code sc;
 
-    pUart->tty = NULL;
-
-    if(pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING){
-        rtems_interrupt_handler_remove( pUart->base_driver_info.UartInterruptNumber, stm32f_uart_isr, tty);
-    }
+  sc = rtems_semaphore_release(pUart->mutex);
+  _Assert(sc == RTEMS_SUCCESSFUL);
+  (void) sc;
 }
 
-
-static bool stm32f_uart_set_attr(
-  rtems_termios_device_context *context,
-  const struct termios *term
+static ssize_t stm32_uart_read(
+  rtems_libio_t *iop,
+  void *buffer,
+  size_t count
 )
 {
-    stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
+  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  ssize_t ret_size = 0;
+  HAL_StatusTypeDef ret;
 
-    // initialize uart configuration with default values
-    uint32_t parity       = UART_PARITY_NONE;
-    uint32_t stop_bits    = UART_STOPBITS_1;
-    uint32_t char_size    = UART_WORDLENGTH_8B;
-    rtems_status_code ret = RTEMS_NOT_CONFIGURED;
+  if ( count <= MAX_UART_RX_MSG_SIZE ) {
 
-    // determine baud rate
-    int baud = rtems_termios_baud_to_number(term->c_cflag & CBAUD);
+    // collect the requested number of characters from the UART
+    ret = stm32_uart_receive(pUartDevice->pUart->base_driver_info.handle,
+      pUartDevice->pUart->base_driver_info.uartType,
+      (uint8_t*) &(rx_msg[pUartDevice->pUart->instance]),
+      count,
+      POLLED_TX_TIMEOUT_ms);
 
-    // determine parity
-    if(term->c_cflag & PARENB){
-        if(term->c_cflag & PARODD) {
-            parity = UART_PARITY_ODD;
-        } else {
-            parity = UART_PARITY_EVEN;
-        }
+    if ( ret == HAL_OK ) {
+
+      while ( (pUartDevice->pUart->base_driver_info.handle->State
+        != HAL_UART_STATE_BUSY_TX)
+        &&
+        (pUartDevice->pUart->base_driver_info.handle->State
+          != HAL_UART_STATE_READY) ) {
+        (void) rtems_task_wake_after(1);
+      }
+
+      // copy received data to the destination buffer
+      memcpy(buffer, (void*) &(rx_msg[pUartDevice->pUart->instance]), count);
+
+      ret_size = count;
     }
-
-    // determine if two stops bits are requested
-    if(term->c_cflag & CSTOPB){
-        stop_bits = UART_STOPBITS_2;
-    }
-
-    // HAL only supports 8-bit characters
-    char_size = UART_WORDLENGTH_8B;
-
-    //##-1- Configure the UART peripheral ######################################
-    pUart->base_driver_info.handle->Instance          = stmf32_uart_get_registers(pUart->base_driver_info.uart);
-    pUart->base_driver_info.handle->Init.BaudRate     = baud;
-    pUart->base_driver_info.handle->Init.WordLength   = char_size;
-    pUart->base_driver_info.handle->Init.StopBits     = stop_bits;
-    pUart->base_driver_info.handle->Init.Parity       = parity;
-    pUart->base_driver_info.handle->Init.HwFlowCtl    = UART_HWCONTROL_NONE;
-    pUart->base_driver_info.handle->Init.Mode         = UART_MODE_TX_RX;
-    pUart->base_driver_info.handle->Init.OverSampling = UART_OVERSAMPLING_16;
-
-    // Initialize UART pins, clocks, and DMA controllers
-    if(HAL_UART_Init(pUart->base_driver_info.handle) != HAL_OK) { ret = RTEMS_UNSATISFIED;}
-
-    return (int) ret;
+  }
+  return ret_size;
 }
 
-
-static int stm32f_uart_poll_read(
-  rtems_termios_device_context *context
+static ssize_t stm32_uart_write(
+  rtems_libio_t *iop,
+  const void *buffer,
+  size_t count
 )
 {
-    HAL_StatusTypeDef ret;
-    uint8_t next_char;
+  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  int err;
+  rtems_status_code sc;
 
-    stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
+  if ( count <= MAX_UART_TX_MSG_SIZE ) {
 
-    // poll for a single character
-    ret = (int) HAL_UART_Receive(pUart->base_driver_info.handle, &next_char, 1, 0);
+    sc = rtems_message_queue_send(
+      pUartDevice->pUart->tx_msg_queue,
+      buffer,
+      count
+      );
 
-    if(ret == HAL_OK){
-        return (int) next_char;
-    } else {
-        return -1;
+    if ( RTEMS_SUCCESSFUL != sc ) {
+      sc = EIO;
     }
-
-    return ret;
-}
-
-
-static void stm32f_uart_write(
-  rtems_termios_device_context *context,
-  const char *buf,
-  size_t len
-)
-{
-    stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
-
-    if((len > 0) && (buf != NULL)){
-        if(pUart->base_driver_info.uartType == STM32F_UART_TYPE_POLLING){
-            HAL_UART_Transmit(pUart->base_driver_info.handle, (uint8_t*) buf, len, POLLED_TX_TIMEOUT_ms);
-        } else {
-            stm32f_uart_get_next_tx_buf(pUart, (uint8_t*) buf, len);
-        }
-    }
-}
-
-
-static int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
-                                       uint8_t *buf,
-                                       size_t len
-)
-{
-    int i;
-    int error = (int) HAL_OK;
-    uint16_t txlen;
-
-    if((buf != NULL) || (len == 0)) {
-
-        // First add in any new data
-        for(i = 0; i < len; i++) {
-            Ring_buffer_Add_character(pUart->fifo, buf[i]);
-        }
-
-        // if the uart is ready to transmit then transmit as much
-        // data as possible into the tx buffer including any
-        // data that was already in the ring buffer from previous
-        // calls.
-        if((pUart->base_driver_info.handle->State == HAL_UART_STATE_READY) ||
-           (pUart->base_driver_info.handle->State == HAL_UART_STATE_BUSY_RX)){
-            txlen = 0;
-
-            while((Ring_buffer_Is_empty(pUart->fifo) == false) && (txlen < sizeof(pUart->tx_buffer))) {
-                Ring_buffer_Remove_character(pUart->fifo, pUart->tx_buffer[txlen]);
-                txlen++;
-            }
-        }
-
-        // Check to see if it is busy transmitting.
-        if(pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA) {
-            if(pUart->tx_buffer != NULL) { error = (int) HAL_UART_Transmit_DMA(pUart->base_driver_info.handle, (uint8_t*) pUart->tx_buffer, txlen);}
-
-        } else if (pUart->base_driver_info.uartType == STM32F_UART_TYPE_INT) {
-            if(pUart->tx_buffer != NULL) { error = (int) HAL_UART_Transmit_IT(pUart->base_driver_info.handle, (uint8_t*) pUart->tx_buffer, txlen);}
-        }
-
-        // If the HAL Tx call was successful then dequeue characters from the termios queue
-        if(error != HAL_BUSY) {
-            rtems_termios_dequeue_characters(pUart->tty, txlen);
-        }
-    } else {
-        error = -1;
-    }
-
-    return error;
-}
-
-
-void HAL_UART_TxCpltCallback(
-  UART_HandleTypeDef *huart
-)
-{
-    stm32f_console_driver_entry* pEntry = stm32f_get_console_driver_entry_from_handle(huart);
-
-    // If there are still characters in TX fifo start sending again...
-    if(pEntry != NULL){
-
-        if(Ring_buffer_Is_empty(pEntry->fifo) == false) {
-            stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
-        }
-    }
-}
-
-
-//=================== HAL UART weak symbol override functions =====================
-void HAL_UART_MspInit(
-  UART_HandleTypeDef *huart
-)
-{
-  static DMA_HandleTypeDef hdma_tx;
-  static DMA_HandleTypeDef hdma_rx;
-
-  GPIO_InitTypeDef  GPIO_InitStruct;
-  stm32f_base_uart_driver_entry* pUart;
-
-  pUart = stm32f_get_driver_entry_from_handle(huart);
-
-  //##-1- Enable peripherals and GPIO Clocks #################################
-
-  // Enable Uart clocks
-  stm32f_init_uart_clock(pUart->uart);
-
-  // Enable GPIO clocks
-  stmf32_init_gpio_clock(pUart->TXPin.port);
-  stmf32_init_gpio_clock(pUart->RXPin.port);
-
-  // Enable DMA clocks
-  if(pUart->uartType == STM32F_UART_TYPE_DMA){
-      stmf32_init_dma_clock(pUart->TXDMA.controller);
-      stmf32_init_dma_clock(pUart->RXDMA.controller);
+  } else {
+    sc = EIO;
   }
 
-  //##-2- Configure peripheral GPIO ##########################################
+  return sc;
+}
 
-  // UART TX GPIO pin configuration
-  GPIO_InitStruct.Pin       = (1 << pUart->TXPin.pin);
-  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull      = GPIO_NOPULL;
-  GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
-  GPIO_InitStruct.Alternate = pUart->altFuncConfg;
+static int stm32_uart_close(
+  rtems_libio_t *iop
+)
+{
+  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  int err;
 
-  HAL_GPIO_Init(stmf32_get_gpio(pUart->TXPin.port), &GPIO_InitStruct);
+  uart_obtain(pUartDevice->pUart);
+  err = pUartDevice->de_init(pUartDevice->pUart);
+  uart_release(pUartDevice->pUart);
 
-  // UART RX GPIO pin configuration
-  GPIO_InitStruct.Pin       = (1 << pUart->RXPin.pin);
-  GPIO_InitStruct.Alternate = pUart->altFuncConfg;
-
-  HAL_GPIO_Init(stmf32_get_gpio(pUart->RXPin.port), &GPIO_InitStruct);
-
-  //##-3- Configure the DMA streams ##########################################
-
-  if(pUart->uartType == STM32F_UART_TYPE_DMA){
-
-      /* Configure the DMA handler for Transmission process */
-      hdma_tx.Instance                 = pUart->TXDMAStream;
-      hdma_tx.Init.Channel             = pUart->TXDMA.channel;
-
-      hdma_tx.Init.Direction           = DMA_MEMORY_TO_PERIPH;
-      hdma_tx.Init.PeriphInc           = DMA_PINC_DISABLE;
-      hdma_tx.Init.MemInc              = DMA_MINC_ENABLE;
-      hdma_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-      hdma_tx.Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
-      hdma_tx.Init.Mode                = DMA_NORMAL;
-      hdma_tx.Init.Priority            = DMA_PRIORITY_LOW;
-      hdma_tx.Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
-      hdma_tx.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
-      hdma_tx.Init.MemBurst            = DMA_MBURST_INC4;
-      hdma_tx.Init.PeriphBurst         = DMA_PBURST_INC4;
-
-      HAL_DMA_Init(&hdma_tx);
-
-      /* Associate the initialized DMA handle to the the UART handle */
-      __HAL_LINKDMA(huart, hdmatx, hdma_tx);
-
-      /* Configure the DMA handler for Transmission process */
-      hdma_rx.Instance                 = pUart->RXDMAStream; ;
-      hdma_rx.Init.Channel             = pUart->RXDMA.channel;
-
-      hdma_rx.Init.Direction           = DMA_PERIPH_TO_MEMORY;
-      hdma_rx.Init.PeriphInc           = DMA_PINC_DISABLE;
-      hdma_rx.Init.MemInc              = DMA_MINC_ENABLE;
-      hdma_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-      hdma_rx.Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
-      hdma_rx.Init.Mode                = DMA_NORMAL;
-      hdma_rx.Init.Priority            = DMA_PRIORITY_HIGH;
-      hdma_rx.Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
-      hdma_rx.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
-      hdma_rx.Init.MemBurst            = DMA_MBURST_INC4;
-      hdma_rx.Init.PeriphBurst         = DMA_PBURST_INC4;
-
-      HAL_DMA_Init(&hdma_rx);
-
-      // Associate the initialized DMA handle to the the UART handle
-      __HAL_LINKDMA(huart, hdmarx, hdma_rx);
+  if ( err == 0 ) {
+    return 0;
+  } else {
+    rtems_set_errno_and_return_minus_one(-err);
   }
 }
 
-/**
-  * @brief UART MSP De-Initialization
-  *        This function frees the hardware resources used in this example:
-  *          - Disable the Peripheral's clock
-  *          - Revert GPIO, DMA and NVIC configuration to their default state
-  * @param huart: UART handle pointer
-  * @retval None
-  */
-void HAL_UART_MspDeInit(
-  UART_HandleTypeDef *huart
+static int stm32_uart_open(
+  rtems_libio_t *iop,
+  const char *path,
+  int oflag,
+  mode_t mode
 )
 {
-  static DMA_HandleTypeDef hdma_tx;
-  static DMA_HandleTypeDef hdma_rx;
+  (void) path;
+  (void) oflag;
+  (void) mode;
 
-  stm32f_base_uart_driver_entry* pUart;
+  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  rtems_status_code err;
 
-  pUart = stm32f_get_driver_entry_from_handle(huart);
+  uart_obtain(pUartDevice->pUart);
+  err = pUartDevice->init(
+    pUartDevice->pUart,
+    pUartDevice->pUart->base_driver_info.baud
+    );
+  uart_release(pUartDevice->pUart);
 
-  /*##-1- Reset peripherals ##################################################*/
-  stmf32_uart_reset(pUart->uart);
+  if ( err == RTEMS_SUCCESSFUL ) {
+    return RTEMS_SUCCESSFUL;
+  } else {
+    rtems_set_errno_and_return_minus_one(-err);
+  }
+}
 
-  /*##-2- Disable peripherals and GPIO Clocks ################################*/
-  /* Configure UART Tx as alternate function  */
-  HAL_GPIO_DeInit(stmf32_get_gpio(pUart->TXPin.port), (1 << pUart->TXPin.pin));
-  /* Configure UART Rx as alternate function  */
-  HAL_GPIO_DeInit(stmf32_get_gpio(pUart->RXPin.port), (1 << pUart->RXPin.pin));
+static int stm32_uart_ioctl(
+  rtems_libio_t *iop,
+  ioctl_command_t command,
+  void *arg
+)
+{
+  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  int err;
+  uint32_t baudrate;
 
-  /*##-3- Disable the DMA Streams ############################################*/
-  if(pUart->uartType == STM32F_UART_TYPE_DMA){
-      /* De-Initialize the DMA Stream associate to transmission process */
-      HAL_DMA_DeInit(&hdma_tx);
-      /* De-Initialize the DMA Stream associate to reception process */
-      HAL_DMA_DeInit(&hdma_rx);
+  switch ( command ) {
+
+  case UART_BAUDRATE:
+    baudrate = (uint32_t) arg;
+
+    uart_obtain(pUartDevice->pUart);
+    pUartDevice->pUart->base_driver_info.baud = baudrate;
+    err = pUartDevice->init(
+      pUartDevice->pUart,
+      pUartDevice->pUart->base_driver_info.baud
+      );
+    uart_release(pUartDevice->pUart);
+
+    break;
+
+  default:
+    err = -ENOTTY;
+    break;
+  }
+
+  if ( err == 0 ) {
+    return 0;
+  } else {
+    rtems_set_errno_and_return_minus_one(-err);
+  }
+}
+
+static const rtems_filesystem_file_handlers_r uart_handler = {
+  .open_h = stm32_uart_open,
+  .close_h = stm32_uart_close,
+  .read_h = stm32_uart_read,
+  .write_h = stm32_uart_write,
+  .ioctl_h = stm32_uart_ioctl,
+  .lseek_h = rtems_filesystem_default_lseek,
+  .fstat_h = IMFS_stat,
+  .ftruncate_h = rtems_filesystem_default_ftruncate,
+  .fsync_h = rtems_filesystem_default_fsync_or_fdatasync,
+  .fdatasync_h = rtems_filesystem_default_fsync_or_fdatasync,
+  .fcntl_h = rtems_filesystem_default_fcntl,
+  .kqfilter_h = rtems_filesystem_default_kqfilter,
+  .poll_h = rtems_filesystem_default_poll,
+  .readv_h = rtems_filesystem_default_readv,
+  .writev_h = rtems_filesystem_default_writev
+};
+
+static void uart_node_destroy(
+  IMFS_jnode_t *node
+)
+{
+  stm32_uart_device *pUartDevice;
+
+  pUartDevice = IMFS_generic_get_context_by_node(node);
+  (*pUartDevice->destroy)(pUartDevice->pUart);
+
+  IMFS_node_destroy_default(node);
+}
+
+int uart_register_interrupt_handlers(
+  stm32_uart_driver_entry* pUart
+)
+{
+  rtems_status_code ret = RTEMS_SUCCESSFUL;
+
+  // Register DMA interrupt handlers (if necessary).  If they have been
+  // previously installed then update the status to successful.
+  if ( pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA ) {
+    if ( ret == RTEMS_SUCCESSFUL ) {
+      ret = rtems_interrupt_handler_install(
+        pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber,
+        NULL,
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32f_uart_dma_rx_isr,
+        &(pUart->base_driver_info)
+        );
+
+      if ( ret == RTEMS_TOO_MANY ) {
+        ret = RTEMS_SUCCESSFUL;
+      }
+    }
+
+    if ( ret == RTEMS_SUCCESSFUL ) {
+      ret = rtems_interrupt_handler_install(
+        pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber,
+        NULL,
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32f_uart_dma_tx_isr,
+        &(pUart->base_driver_info)
+        );
+
+      if ( ret == RTEMS_TOO_MANY ) {
+        ret = RTEMS_SUCCESSFUL;
+      }
+    }
+  }
+
+  // Register UART interrupt handler for either DMA or Interrupt modes.  If it has been
+  // previously installed then update the status to successful.
+  if ( pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING ) {
+
+    if ( ret == RTEMS_SUCCESSFUL ) {
+      ret = rtems_interrupt_handler_install(
+        pUart->base_driver_info.UartInterruptNumber,
+        NULL,
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32f_uart_isr,
+        &(pUart->base_driver_info)
+        );
+    }
+
+    if ( ret == RTEMS_TOO_MANY ) {
+      ret = RTEMS_SUCCESSFUL;
+    }
+  }
+
+  return ret;
+}
+
+int uart_remove_interrupt_handlers(
+  stm32_uart_driver_entry* pUart
+)
+{
+  rtems_status_code ret = RTEMS_SUCCESSFUL;
+
+  // Register DMA interrupt handlers (if necessary)
+  if ( pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA ) {
+    if ( ret == RTEMS_SUCCESSFUL ) {
+      ret = rtems_interrupt_handler_remove(
+        pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber,
+        stm32f_uart_dma_rx_isr,
+        &pUart->base_driver_info
+        );
+    }
+    if ( ret == RTEMS_SUCCESSFUL ) {
+      ret = rtems_interrupt_handler_remove(
+        pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber,
+        stm32f_uart_dma_tx_isr,
+        &pUart->base_driver_info
+        );
+    }
+  }
+
+  // Register UART interrupt handler for either DMA or Interrupt modes
+  if ( pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING ) {
+
+    if ( ret == RTEMS_SUCCESSFUL ) {
+      ret = rtems_interrupt_handler_remove(
+        pUart->base_driver_info.UartInterruptNumber,
+        stm32f_uart_isr,
+        &pUart->base_driver_info
+        );
+    }
+  }
+
+  return (ret == RTEMS_SUCCESSFUL);
+}
+
+static int uart_init(
+  stm32_uart_driver_entry * pUart,
+  uint32_t baud
+)
+{
+  rtems_status_code ret;
+
+  //Configure the UART peripheral
+  pUart->base_driver_info.handle->Instance =
+    stmf32_uart_get_registers(pUart->base_driver_info.uart);
+  pUart->base_driver_info.handle->Init.BaudRate = pUart->base_driver_info.baud;
+  pUart->base_driver_info.handle->Init.WordLength = UART_WORDLENGTH_8B;
+  pUart->base_driver_info.handle->Init.StopBits = UART_STOPBITS_1;
+  pUart->base_driver_info.handle->Init.Parity = UART_PARITY_NONE;
+  pUart->base_driver_info.handle->Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  pUart->base_driver_info.handle->Init.Mode = UART_MODE_TX_RX;
+  pUart->base_driver_info.handle->Init.OverSampling = UART_OVERSAMPLING_16;
+
+  // Initialize UART pins, clocks, and DMA controllers
+  if ( HAL_UART_Init(pUart->base_driver_info.handle) == HAL_OK ) {
+    ret = uart_register_interrupt_handlers(pUart);
+  }
+  else {
+    ret = RTEMS_UNSATISFIED;
+  }
+
+  return ret;
+}
+
+static int uart_de_init(
+  stm32_uart_driver_entry * pUart
+)
+{
+  rtems_status_code ret;
+
+  if ( HAL_UART_DeInit(pUart->base_driver_info.handle) != HAL_OK ) {
+    ret = uart_remove_interrupt_handlers(pUart);
+  }
+  else {
+    ret = RTEMS_SUCCESSFUL;
+  }
+
+  return ret;
+}
+
+static void uart_destroy(
+  stm32_uart_driver_entry * pUart
+)
+{
+  (void) uart_de_init(pUart);
+}
+
+static const IMFS_node_control uart_node_control =
+  IMFS_GENERIC_INITIALIZER(
+    &uart_handler,
+    IMFS_node_initialize_generic,
+    uart_node_destroy
+    );
+
+static int uart_register_device_driver(
+  stm32_uart_device * pUartDevice
+)
+{
+  int rv;
+  rtems_status_code sc;
+
+  rv = IMFS_make_generic_node(
+    pUartDevice->pUart->base_driver_info.device_name,
+    S_IFCHR | S_IRWXU | S_IRWXG | S_IRWXO,
+    &uart_node_control,
+    pUartDevice
+    );
+
+  if ( rv != 0 ) {
+
+    (*pUartDevice->destroy)(pUartDevice->pUart);
+
+  } else {
+
+    sc = rtems_task_start(
+      pUartDevice->pUart->tx_task_id,
+      pUartDevice->pUart->tx_task,
+      (rtems_task_argument) pUartDevice->pUart
+      );
+  }
+  return sc;
+}
+
+static int uart_create_rtems_objects(
+  stm32_uart_device *pUartDevice
+)
+{
+  rtems_status_code sc;
+
+  char uart_num = '1' + (char) pUartDevice->pUart->base_driver_info.uart;
+
+  sc = rtems_message_queue_create(
+    rtems_build_name('U', 'T', 'X', uart_num),
+    UART_QUEUE_LEN,
+    MAX_UART_TX_MSG_SIZE,
+    RTEMS_FIFO | RTEMS_LOCAL,
+    &pUartDevice->pUart->tx_msg_queue
+    );
+
+  if ( sc != RTEMS_SUCCESSFUL ) {
+    uart_destroy(pUartDevice->pUart);
+    rtems_set_errno_and_return_minus_one(ENOMEM);
+  }
+
+  sc = rtems_task_create(
+    rtems_build_name('U', 'T', 'X', uart_num),
+    UART_TASK_PRIORITY,
+    RTEMS_MINIMUM_STACK_SIZE,
+    RTEMS_PREEMPT,
+    RTEMS_NO_FLOATING_POINT,
+    &pUartDevice->pUart->tx_task_id
+    );
+
+  if ( sc != RTEMS_SUCCESSFUL ) {
+    uart_destroy(pUartDevice->pUart);
+    rtems_set_errno_and_return_minus_one(ENOMEM);
+  }
+
+  pUartDevice->pUart->tx_task = stm32_uart_tx_task;
+  pUartDevice->destroy = uart_destroy;
+  pUartDevice->init = uart_init;
+  pUartDevice->de_init = uart_de_init;
+
+  return 0;
+}
+
+void stm32f_uarts_initialize(
+  void
+)
+{
+  int i;
+
+  for ( i = 0; i < COUNTOF(stm32f_uart_driver_table); i++ ) {
+    stm32f_uart_driver_table[i].base_driver_info.handle =
+      &(UartHandles[i + NUM_PROCESSOR_CONSOLE_UARTS]);
+    stm32f_uart_driver_table[i].instance = i;
+    uart_device_table[i].pUart = &stm32f_uart_driver_table[i];
+    uart_create_rtems_objects(&uart_device_table[i]);
+    uart_register_device_driver(&uart_device_table[i]);
   }
 }
 
