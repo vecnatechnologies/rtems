@@ -38,7 +38,8 @@
 #define APB2_CLK                STM32F4_PCLK2
 
 // uart configuration
-#define NUM_PROCESSOR_UARTS     6
+#define NUM_PROCESSOR_NON_CONSOLE_UARTS     5
+#define NUM_PROCESSOR_CONSOLE_UARTS         1
 
 #else
 #error "Unspecified processor type!!"
