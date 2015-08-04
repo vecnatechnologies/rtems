@@ -1,7 +1,7 @@
 /**
  * @file
  *
- * @brief Inter-Integrated Circuit (can) Bus Implementation
+ * @brief Control Area Network (can) Bus Implementation
  *
  * @ingroup canBus
  */
@@ -24,7 +24,8 @@
   #include "config.h"
 #endif
 
-#include <dev/can/can.h>
+#include <dev/can/can-internal.h>
+
 
 #include <rtems/imfs.h>
 
@@ -255,7 +256,8 @@ static int can_bus_ioctl(
 
   switch (command) {
     case CAN_SET_FILTER:
-      filter = arg;
+      filter = (can_filter*) arg;
+      bus->set_filter(bus, filter);
       break;
 
     case CAN_GET_NUM_FILTERS:
@@ -475,4 +477,8 @@ can_bus *can_bus_alloc_and_init(size_t size)
   }
 
   return bus;
+}
+
+inline uint32_t can_filter_stdid(uint32_t id) {
+  return id << 21;
 }
