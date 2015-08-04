@@ -192,9 +192,13 @@ libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq.c
 libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq-dispatch.c
 
 # Console
-libbsp_a_SOURCES += ../../shared/console-termios.c
-libbsp_a_SOURCES += uart/uart.c
-libbsp_a_SOURCES += uart/hal-uart-interface.c
+libbsp_a_SOURCES += ../../shared/console.c
+libbsp_a_SOURCES += ../../shared/console_control.c
+libbsp_a_SOURCES += ../../shared/console_read.c
+libbsp_a_SOURCES += ../../shared/console_select.c
+libbsp_a_SOURCES += ../../shared/console_write.c
+libbsp_a_SOURCES += console/console-config.c
+libbsp_a_SOURCES += console/usart.c
 
 # RTC
 libbsp_a_SOURCES += rtc/rtc-config.c
