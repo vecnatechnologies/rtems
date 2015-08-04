@@ -246,7 +246,7 @@ typedef struct
   int datalen;
   int maxpayload;
   int s;
-  u_char outpackhdr[IP_MAXPACKET];
+  u_char outpackhdr[2048];
   u_char *outpack;
   char *hostname;
   char *shostname;
@@ -279,7 +279,7 @@ typedef struct
   volatile sig_atomic_t siginfo_p;
 
   /* main */
-  u_char packet[IP_MAXPACKET] __aligned(4);
+  u_char packet[2048] __aligned(4);
 
   /* pr_pack */
 	int old_rrlen;
@@ -375,6 +375,7 @@ rtems_shell_ping_exit (rtems_shell_globals_t* globals, int code)
 static int main_ping(int argc, char *const *argv, rtems_shell_globals_t* globals);
 static int rtems_shell_main_ping(int argc, char *argv[])
 {
+  printf("Ping allocating %d bytes.\r\n", sizeof(rtems_shell_globals_t));
   rtems_shell_globals_t* globals = malloc(sizeof(rtems_shell_globals_t));
   if (!globals)
   {
