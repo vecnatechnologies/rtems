@@ -1,11 +1,12 @@
-#include <can.h>
-#include <dev/can/can.h>
 #include <rtems.h>
 #include <stm32f4xx_hal_can.h>
 #include <stm32f4xx_hal_rcc.h>
 #include <stm32f4xx_hal_gpio.h>
 #include <math.h>
 #include <rtems/irq-extension.h>
+#include <can.h>
+#include <dev/can/can.h>
+#include <stm32f407xx.h>
 
 
 // Internal functions to perform RX and TX
@@ -386,19 +387,19 @@ int stm32_can_init
   if (CAN_ONE == canInstance)
   {
     sc = rtems_interrupt_handler_install(
-        19,
+    	CAN1_TX_IRQn,
         "CAN1 TX Interrupt",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        20,
+    	CAN1_RX0_IRQn,
         "CAN1 RX Interrupt 0",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx0_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        21,
+    	CAN1_RX0_IRQn,
         "CAN1 RX Interrupt 1",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx1_isr,
@@ -407,9 +408,9 @@ int stm32_can_init
   {
     /* 
      * TODO figure out CAN 2 interrupts
-    sc = rtems_interrupt_handler_install(19, "CAN2 TX Interrupt",   RTEMS_INTERRUPT_UNIQUE, stm32_can_isr,     hCanHandle);
-    sc = rtems_interrupt_handler_install(27, "CAN2 RX Interrupt 0", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
-    sc = rtems_interrupt_handler_install(28, "CAN2 RX Interrupt 1", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx1_isr, hCanHandle);
+    sc = rtems_interrupt_handler_install(CAN2_TX_IRQn, "CAN2 TX Interrupt",   RTEMS_INTERRUPT_UNIQUE, stm32_can_isr,     hCanHandle);
+    sc = rtems_interrupt_handler_install(CAN2_RX0_IRQn, "CAN2 RX Interrupt 0", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
+    sc = rtems_interrupt_handler_install(CAN2_RX1_IRQn, "CAN2 RX Interrupt 1", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx1_isr, hCanHandle);
     */
   }
   return CAN_OK;
