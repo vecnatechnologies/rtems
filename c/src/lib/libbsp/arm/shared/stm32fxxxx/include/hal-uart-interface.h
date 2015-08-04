@@ -440,9 +440,24 @@ rtems_device_driver console_initialize(
  * stm32f_console_driver_table that has the specified HAL UART handle.
  *
  * @param[in] huart A STM32F HAL UART handle
+ *
+ * @return The address of the specified UART in the stm32f_console_driver_table
+ *  if it exists.  If it doesn't exist, then NULL is returned.
  */
 stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
+);
+
+/**
+ * @brief Returns the location of the UART's hardware registers
+ *
+ * @param[in] Uart A specific STM32F UART
+ *
+ * @returns The starting address of the UART's hardware registers or
+ *  NULL if the processor does not implement the specified UART.
+ */
+USART_TypeDef* stmf32_uart_get_registers(
+  const stm32f_uart Uart
 );
 
 /**
@@ -452,7 +467,9 @@ stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
  * vector.  If the UART is configured for DMA operation then the DMA
  * TX and RX ISRs are also installed for the associated DMA streams.
  *
- * @para[in] pUart The UART whose interrupts should be enabled.
+ * @param[in] pUart The UART whose interrupts should be enabled.
+ *
+ * @returns 0 if successful, non 0 otherwise.
  */
 int uart_register_interrupt_handlers(
   stm32_uart_driver_entry* pUart
@@ -464,6 +481,10 @@ int uart_register_interrupt_handlers(
  * This function removes the generic UART ISR to UART interrupt
  * vector.  If the UART is configured for DMA operation then the DMA
  * TX and RX ISRs are also removed for the associated DMA streams.
+ *
+ * @param[in] pUart The UART whose interrupts should be enabled.
+ *
+ * @returns 0 if successful, non 0 otherwise.
  */
 int uart_remove_interrupt_handlers(
   stm32_uart_driver_entry* pUart

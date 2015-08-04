@@ -19,7 +19,16 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_
 
+/**
+ * A macro that can be used determine the size of any array
+ */
 #define COUNTOF(x) (sizeof(x)/sizeof(x[0]))
+
+// The following macros are used to include the correct HAL header files
+// based upon the specific type of STM32F processor used in the target
+// BSP.  The name of the HAL include files differs slightly between families
+// and these macros will ensure the correct header file for the target
+// processor are included.
 
 #define __stm_header(x) #x
 #define _stm_header(x, y) __stm_header(stm32f##x##_hal_##y.h)

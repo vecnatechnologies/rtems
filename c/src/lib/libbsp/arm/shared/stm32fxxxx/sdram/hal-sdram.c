@@ -260,19 +260,4 @@ void HAL_SDRAM_MspDeInit(SDRAM_HandleTypeDef *hsdram)
  GPIO_PIN_5 | GPIO_PIN_10);
 }
 
-//TODO: FIND A BETTER WAY!!!
-void HAL_Delay(__IO uint32_t Delay)
-{
-  volatile uint32_t i;
-  volatile uint32_t j;
-
-  for(i = 0; i < Delay; i++) {
-    for(j = 0; j < 10000; j++) {
-      asm("nop");
-    }
-  }
-}
-
-#else
-
 #endif

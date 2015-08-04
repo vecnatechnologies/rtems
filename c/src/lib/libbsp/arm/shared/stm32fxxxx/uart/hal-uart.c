@@ -132,13 +132,13 @@ static rtems_task stm32_uart_tx_task(
   rtems_task_argument arg
 )
 {
-
   size_t len;
   rtems_status_code sc;
   stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
 
   while ( 1 ) {
 
+    // wait until there is a TX request
     sc = rtems_message_queue_receive(pUart->tx_msg_queue,
       (void*) &tx_msg[pUart->instance],
       &len,
@@ -146,12 +146,15 @@ static rtems_task stm32_uart_tx_task(
       RTEMS_NO_TIMEOUT);
     _Assert(len <= sizeof(msg));
 
+    // send tx data to UART hardware
     if ( sc == RTEMS_SUCCESSFUL ) {
       (void) stm32_uart_transmit(pUart->base_driver_info.handle,
         pUart->base_driver_info.uart_mode, (uint8_t*) tx_msg[pUart->instance],
         len);
     }
 
+    // ensure that next TX request is only processed when the current
+    // request has been fully processed.
     while ( (pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_RX) &&
       (pUart->base_driver_info.handle->State != HAL_UART_STATE_READY) ) {
       (void) rtems_task_wake_after(1);
@@ -202,11 +205,8 @@ static ssize_t stm32_uart_read(
 
     if ( ret == HAL_OK ) {
 
-      while ( (pUartDevice->pUart->base_driver_info.handle->State
-        != HAL_UART_STATE_BUSY_TX)
-        &&
-        (pUartDevice->pUart->base_driver_info.handle->State
-          != HAL_UART_STATE_READY) ) {
+      while ( (pUartDevice->pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_TX) &&
+              (pUartDevice->pUart->base_driver_info.handle->State != HAL_UART_STATE_READY) ) {
         (void) rtems_task_wake_after(1);
       }
 

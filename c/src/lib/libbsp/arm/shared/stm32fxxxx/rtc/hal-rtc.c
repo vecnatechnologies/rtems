@@ -31,8 +31,9 @@
 size_t RTC_Count = STM32FXXXX_RTC_NUMBER;
 rtems_device_minor_number RTC_Minor = 0;
 
-// Use Asynch prescaler value of 128, and synch division factor or 256 to convert
-// an internal (LSI) or external (LSE) 32.768 kHz into a 1 Hz RTC clock source.
+// Use Asynch prescaler value of 128, and synch division factor or 256
+// to convert an internal (LSI) or external (LSE) 32.768 kHz into a
+// 1 Hz RTC clock source.
 static RTC_HandleTypeDef stm32fxxxx_rtc = {
   .Instance = RTC,
   .Init = {
@@ -57,7 +58,6 @@ static void stm32fxxxx_rtc_initialize(
   int minor
 )
 {
-
   HAL_StatusTypeDef ret;
   RTC_TimeTypeDef HALTime;
   RTC_DateTypeDef HALDate;

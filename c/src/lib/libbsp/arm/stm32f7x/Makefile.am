@@ -167,10 +167,13 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-starthook.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # SDRAM
-libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/sdram.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
+
+# Util
+libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
 
 # Error
-libbsp_a_SOURCES += ../shared/stm32fxxxx/error/error.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/error/hal-error.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c
@@ -184,12 +187,12 @@ libbsp_a_SOURCES += ../shared/armv7m/irq/armv7m-irq-dispatch.c
 
 # Console
 libbsp_a_SOURCES += ../../shared/console-termios.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/uart.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-interface.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/uart-termios.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/uart/hal-uart-termios.c
 
 # RTC
-libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/rtc-config.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/rtc/hal-rtc.c
 libbsp_a_SOURCES += ../../shared/tod.c
 
 # Clock

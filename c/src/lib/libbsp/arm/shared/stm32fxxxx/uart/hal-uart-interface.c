@@ -273,7 +273,7 @@ static GPIO_TypeDef* stmf32_get_gpio(
   return ret;
 }
 
-static USART_TypeDef* stmf32_uart_get_registers(
+USART_TypeDef* stmf32_uart_get_registers(
   const stm32f_uart Uart
 )
 {
