@@ -24,7 +24,7 @@
 #include <rtems/termiostypes.h>
 #include <hal-uart-interface.h>
 
-#define SERIAL_FIFO_SIZE 256
+#define SERIAL_TERMIOS_FIFO_SIZE 256
 
 typedef enum {
     SERIAL_FIFO_NO_ERROR,
@@ -34,7 +34,7 @@ typedef enum {
 } serial_fifo_error;
 
 typedef struct _serial_fifo {
-  uint8_t  buffer[SERIAL_FIFO_SIZE];
+  uint8_t  buffer[SERIAL_TERMIOS_FIFO_SIZE];
   uint32_t head;
   uint32_t count;
 } serial_fifo;
@@ -45,7 +45,7 @@ typedef struct {
     struct rtems_termios_tty*    tty;
     UART_HandleTypeDef*          handle;
     Ring_buffer_t*               fifo;
-    uint8_t                      tx_buffer[SERIAL_FIFO_SIZE];
+    uint8_t                      tx_buffer[SERIAL_TERMIOS_FIFO_SIZE];
     IRQn_Type                    UartInterruptNumber;
     DMA_Stream_TypeDef*          RXDMAStream;
     DMA_Stream_TypeDef*          TXDMAStream;

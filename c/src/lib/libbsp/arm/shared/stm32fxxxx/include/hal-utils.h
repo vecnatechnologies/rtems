@@ -1,5 +1,5 @@
 /**
- * @file vecna-utils.h
+ * @file hal-utils.h
  *
  * @ingroup misc
  *

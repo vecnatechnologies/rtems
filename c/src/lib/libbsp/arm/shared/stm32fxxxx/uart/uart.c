@@ -34,8 +34,8 @@ typedef struct {
   rtems_interval max_wait_time;
 }uart_rx_request;
 
-static uint8_t tx_msg[NUM_PROCESSOR_UARTS][MAX_UART_TX_MSG_SIZE];
-static uint8_t rx_msg[NUM_PROCESSOR_UARTS][MAX_UART_RX_MSG_SIZE];
+static uint8_t tx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_TX_MSG_SIZE];
+static uint8_t rx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_RX_MSG_SIZE];
 
 //============================== ISR Definitions ==========================================
 static void stm32f_uart_dma_tx_isr(
@@ -80,15 +80,15 @@ static HAL_StatusTypeDef stm32_uart_transmit(
 
     switch ( uartType ) {
 
-    case STM32F_UART_TYPE_POLLING:
+    case STM32F_UART_MODE_POLLING:
       ret = HAL_UART_Transmit(hUartHandle, buf, len, POLLED_TX_TIMEOUT_ms);
       break;
 
-    case STM32F_UART_TYPE_INT:
+    case STM32F_UART_MODE_INT:
       ret = HAL_UART_Transmit_IT(hUartHandle, buf, len);
       break;
 
-    case STM32F_UART_TYPE_DMA:
+    case STM32F_UART_MODE_DMA:
       ret = HAL_UART_Transmit_DMA(hUartHandle, buf, len);
       break;
     }
@@ -111,15 +111,15 @@ static HAL_StatusTypeDef stm32_uart_receive(
 
     switch ( uartType ) {
 
-    case STM32F_UART_TYPE_POLLING:
+    case STM32F_UART_MODE_POLLING:
       ret = HAL_UART_Receive(hUartHandle, buf, (uint16_t) len, timeout);
       break;
 
-    case STM32F_UART_TYPE_INT:
+    case STM32F_UART_MODE_INT:
       ret = HAL_UART_Receive_IT(hUartHandle, buf, (uint16_t) len);
       break;
 
-    case STM32F_UART_TYPE_DMA:
+    case STM32F_UART_MODE_DMA:
       ret = HAL_UART_Receive_DMA(hUartHandle, buf, (uint16_t) len);
       break;
     }
@@ -148,7 +148,7 @@ static rtems_task stm32_uart_tx_task(
 
     if ( sc == RTEMS_SUCCESSFUL ) {
       (void) stm32_uart_transmit(pUart->base_driver_info.handle,
-        pUart->base_driver_info.uartType, (uint8_t*) tx_msg[pUart->instance],
+        pUart->base_driver_info.uart_mode, (uint8_t*) tx_msg[pUart->instance],
         len);
     }
 
@@ -195,7 +195,7 @@ static ssize_t stm32_uart_read(
 
     // collect the requested number of characters from the UART
     ret = stm32_uart_receive(pUartDevice->pUart->base_driver_info.handle,
-      pUartDevice->pUart->base_driver_info.uartType,
+      pUartDevice->pUart->base_driver_info.uart_mode,
       (uint8_t*) &(rx_msg[pUartDevice->pUart->instance]),
       count,
       POLLED_TX_TIMEOUT_ms);
@@ -226,7 +226,6 @@ static ssize_t stm32_uart_write(
 )
 {
   stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
-  int err;
   rtems_status_code sc;
 
   if ( count <= MAX_UART_TX_MSG_SIZE ) {
@@ -368,10 +367,10 @@ int uart_register_interrupt_handlers(
 
   // Register DMA interrupt handlers (if necessary).  If they have been
   // previously installed then update the status to successful.
-  if ( pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA ) {
+  if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_DMA ) {
     if ( ret == RTEMS_SUCCESSFUL ) {
       ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber,
+        pUart->base_driver_info.rx_dma.DMAStreamInterruptNumber,
         NULL,
         RTEMS_INTERRUPT_UNIQUE,
         stm32f_uart_dma_rx_isr,
@@ -385,7 +384,7 @@ int uart_register_interrupt_handlers(
 
     if ( ret == RTEMS_SUCCESSFUL ) {
       ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber,
+        pUart->base_driver_info.tx_dma.DMAStreamInterruptNumber,
         NULL,
         RTEMS_INTERRUPT_UNIQUE,
         stm32f_uart_dma_tx_isr,
@@ -400,11 +399,11 @@ int uart_register_interrupt_handlers(
 
   // Register UART interrupt handler for either DMA or Interrupt modes.  If it has been
   // previously installed then update the status to successful.
-  if ( pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING ) {
+  if ( pUart->base_driver_info.uart_mode != STM32F_UART_MODE_POLLING ) {
 
     if ( ret == RTEMS_SUCCESSFUL ) {
       ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.UartInterruptNumber,
+        pUart->base_driver_info.interrupt_number,
         NULL,
         RTEMS_INTERRUPT_UNIQUE,
         stm32f_uart_isr,
@@ -427,17 +426,17 @@ int uart_remove_interrupt_handlers(
   rtems_status_code ret = RTEMS_SUCCESSFUL;
 
   // Register DMA interrupt handlers (if necessary)
-  if ( pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA ) {
+  if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_DMA ) {
     if ( ret == RTEMS_SUCCESSFUL ) {
       ret = rtems_interrupt_handler_remove(
-        pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber,
+        pUart->base_driver_info.rx_dma.DMAStreamInterruptNumber,
         stm32f_uart_dma_rx_isr,
         &pUart->base_driver_info
         );
     }
     if ( ret == RTEMS_SUCCESSFUL ) {
       ret = rtems_interrupt_handler_remove(
-        pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber,
+        pUart->base_driver_info.tx_dma.DMAStreamInterruptNumber,
         stm32f_uart_dma_tx_isr,
         &pUart->base_driver_info
         );
@@ -445,11 +444,11 @@ int uart_remove_interrupt_handlers(
   }
 
   // Register UART interrupt handler for either DMA or Interrupt modes
-  if ( pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING ) {
+  if ( pUart->base_driver_info.uart_mode != STM32F_UART_MODE_POLLING ) {
 
     if ( ret == RTEMS_SUCCESSFUL ) {
       ret = rtems_interrupt_handler_remove(
-        pUart->base_driver_info.UartInterruptNumber,
+        pUart->base_driver_info.interrupt_number,
         stm32f_uart_isr,
         &pUart->base_driver_info
         );
@@ -557,7 +556,7 @@ static int uart_create_rtems_objects(
 
   sc = rtems_message_queue_create(
     rtems_build_name('U', 'T', 'X', uart_num),
-    UART_QUEUE_LEN,
+    UART_TX_QUEUE_LEN,
     MAX_UART_TX_MSG_SIZE,
     RTEMS_FIFO | RTEMS_LOCAL,
     &pUartDevice->pUart->tx_msg_queue
@@ -570,7 +569,7 @@ static int uart_create_rtems_objects(
 
   sc = rtems_task_create(
     rtems_build_name('U', 'T', 'X', uart_num),
-    UART_TASK_PRIORITY,
+    UART_TX_TASK_PRIORITY,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_PREEMPT,
     RTEMS_NO_FLOATING_POINT,

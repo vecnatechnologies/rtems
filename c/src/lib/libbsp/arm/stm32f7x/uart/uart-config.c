@@ -6,44 +6,43 @@
  */
 
 
-stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_UARTS] = {
+stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS] = {
 
 //          UART4
 [0] .base_driver_info = {
         .device_name         = "/dev/ttyS3",
         .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS]),
-        .UartInterruptNumber = UART4_IRQn,
-        .uartType            = STM32F_UART_TYPE_INT,
-        .TXDMAStream         = DMA1_Stream4,
-        .RXDMAStream         = DMA2_Stream2,
-        .TXPin               = {STM32F_GOIO_PORTA, 0},
-        .RXPin               = {STM32F_GOIO_PORTA, 1},
-        .TXDMA               = {STM32F_DMA1_CONTROLLER, DMA1_Stream4_IRQn, DMA_CHANNEL_4, 4},
-        .RXDMA               = {STM32F_DMA1_CONTROLLER, DMA1_Stream2_IRQn, DMA_CHANNEL_4, 2},
+        .interrupt_number    = UART4_IRQn,
+        .uart_mode           = STM32F_UART_MODE_DMA,
+        .tx_dma_stream       = DMA1_Stream4,
+        .rx_dma_stream       = DMA2_Stream2,
+        .tx_pin              = {STM32F_GOIO_PORTA, 0},
+        .rx_pin              = {STM32F_GOIO_PORTA, 1},
+        .tx_dma              = {STM32F_DMA1_CONTROLLER, DMA1_Stream4_IRQn, DMA_CHANNEL_4, 4},
+        .rx_dma              = {STM32F_DMA1_CONTROLLER, DMA1_Stream2_IRQn, DMA_CHANNEL_4, 2},
         .baud                = 115200,
-        .altFuncConfg        = GPIO_AF8_UART4,
+        .alt_func_config     = GPIO_AF8_UART4,
         .uart                = STM32F_UART4,
 },
-
 
 //          UART7
 [1] .base_driver_info = {
         .device_name         = "/dev/ttyS6",
         .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+1]),
-        .UartInterruptNumber = UART7_IRQn,
-        .uartType            = STM32F_UART_TYPE_DMA,
-        .TXDMAStream         = DMA1_Stream1,
-        .RXDMAStream         = DMA1_Stream3,
-        .TXPin               = {STM32F_GOIO_PORTF, 6},
-        .RXPin               = {STM32F_GOIO_PORTF, 7},
-        .TXDMA               = {STM32F_DMA1_CONTROLLER, DMA1_Stream1_IRQn, DMA_CHANNEL_5, 1},
-        .RXDMA               = {STM32F_DMA1_CONTROLLER, DMA1_Stream3_IRQn, DMA_CHANNEL_5, 3},
+        .interrupt_number    = UART7_IRQn,
+        .uart_mode           = STM32F_UART_MODE_DMA,
+        .tx_dma_stream       = DMA1_Stream1,
+        .rx_dma_stream       = DMA1_Stream3,
+        .tx_pin              = {STM32F_GOIO_PORTF, 6},
+        .rx_pin              = {STM32F_GOIO_PORTF, 7},
+        .tx_dma              = {STM32F_DMA1_CONTROLLER, DMA1_Stream1_IRQn, DMA_CHANNEL_5, 1},
+        .rx_dma              = {STM32F_DMA1_CONTROLLER, DMA1_Stream3_IRQn, DMA_CHANNEL_5, 3},
         .baud                = 115200,
-        .altFuncConfg        = GPIO_AF8_UART7,
+        .alt_func_config     = GPIO_AF8_UART7,
         .uart                = STM32F_UART7,
 },
 
 };
 
-stm32_uart_device uart_device_table[NUM_PROCESSOR_UARTS];
+stm32_uart_device uart_device_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
 
