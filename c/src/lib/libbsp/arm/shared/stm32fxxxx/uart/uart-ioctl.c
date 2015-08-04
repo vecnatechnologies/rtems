@@ -262,6 +262,13 @@ static int stm32_uart_open(
   mode_t         mode
 )
 {
+  (void) iop;
+  (void) path;
+  (void) oflag;
+  (void) mode;
+
+  return RTEMS_SUCCESSFUL;
+    /*
   stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
   int err;
 
@@ -274,6 +281,7 @@ static int stm32_uart_open(
   } else {
     rtems_set_errno_and_return_minus_one(-err);
   }
+  */
 }
 
 
@@ -290,9 +298,7 @@ static int stm32_uart_ioctl(
   switch (command) {
 
     case UART_BAUDRATE:
-
-        // TODO: something is wrong with this cast...
-      baudrate = *((uint32_t*) arg);
+      baudrate = (uint32_t) arg;
 
       uart_obtain(pUartDevice->pUart);
       pUartDevice->pUart->base_driver_info.baud = baudrate;
@@ -346,26 +352,34 @@ int uart_register_interrupt_handlers(stm32_uart_driver_entry* pUart){
 
     rtems_status_code ret = RTEMS_SUCCESSFUL;
 
-    // Register DMA interrupt handlers (if necessary)
+    // Register DMA interrupt handlers (if necessary).  If they have been
+    // previously installed then update the status to successful.
     if(pUart->base_driver_info.uartType == STM32F_UART_TYPE_DMA){
         if(ret == RTEMS_SUCCESSFUL) {
-            ret = rtems_interrupt_handler_install( pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_rx_isr, &(pUart->base_driver_info));
+            ret = rtems_interrupt_handler_install( pUart->base_driver_info.RXDMA.DMAStreamInterruptNumber, NULL, RTEMS_INTERRUPT_UNIQUE, stm32f_uart_dma_rx_isr, &(pUart->base_driver_info));
+
+            if (ret == RTEMS_TOO_MANY) { ret = RTEMS_SUCCESSFUL; }
         }
 
         if(ret == RTEMS_SUCCESSFUL) {
-            ret = rtems_interrupt_handler_install( pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber, NULL, 0, stm32f_uart_dma_tx_isr, &(pUart->base_driver_info));
+            ret = rtems_interrupt_handler_install( pUart->base_driver_info.TXDMA.DMAStreamInterruptNumber, NULL, RTEMS_INTERRUPT_UNIQUE, stm32f_uart_dma_tx_isr, &(pUart->base_driver_info));
+
+            if (ret == RTEMS_TOO_MANY) { ret = RTEMS_SUCCESSFUL; }
         }
     }
 
-    // Register UART interrupt handler for either DMA or Interrupt modes
+    // Register UART interrupt handler for either DMA or Interrupt modes.  If it has been
+    // previously installed then update the status to successful.
     if(pUart->base_driver_info.uartType != STM32F_UART_TYPE_POLLING){
 
-        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.UartInterruptNumber, NULL, 0, stm32f_uart_isr, &(pUart->base_driver_info));}
+        if(ret == RTEMS_SUCCESSFUL) { ret = rtems_interrupt_handler_install( pUart->base_driver_info.UartInterruptNumber, NULL, RTEMS_INTERRUPT_UNIQUE, stm32f_uart_isr, &(pUart->base_driver_info));}
 
+        if (ret == RTEMS_TOO_MANY) { ret = RTEMS_SUCCESSFUL; }
     }
 
     return ret;
 }
+
 
 int uart_remove_interrupt_handlers(stm32_uart_driver_entry* pUart){
 
@@ -449,7 +463,7 @@ static const IMFS_node_control uart_node_control = IMFS_GENERIC_INITIALIZER(
 );
 
 
-int uart_register(
+static int uart_register_device_driver(
     stm32_uart_device * pUartDevice
 )
 {
@@ -479,7 +493,7 @@ int uart_register(
 }
 
 
-static int uart_do_init(
+static int uart_create_rtems_objects(
         stm32_uart_device *pUartDevice
 )
 {
@@ -533,8 +547,9 @@ void __uarts_initialize(
       stm32f_uart_driver_table[i].base_driver_info.handle = &(UartHandles[i+NUM_PROCESSOR_CONSOLE_UARTS]);
       stm32f_uart_driver_table[i].instance = i;
       uart_device_table[i].pUart =  &stm32f_uart_driver_table[i];
-      uart_do_init(&uart_device_table[i]);
-      uart_register(&uart_device_table[i]);
+      uart_create_rtems_objects(&uart_device_table[i]);
+      uart_register_device_driver(&uart_device_table[i]);
+      uart_device_table[i].init(uart_device_table[i].pUart, uart_device_table[i].pUart->base_driver_info.baud);
   }
 }
 
