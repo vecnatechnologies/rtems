@@ -247,6 +247,8 @@ rtems_device_driver console_initialize(
         &stm32f_uart_handlers_interrupt,
         NULL,
         (rtems_termios_device_context*) pNextEntry);
+
+      stm32f_uart_register_interrupt_handlers(pNextEntry);
     }
   }
 
@@ -270,8 +272,6 @@ static bool stm32f_uart_first_open(
 
   // Configure initial baud rate
   rtems_termios_set_initial_baud(tty, pUart->base_driver_info.baud);
-
-  stm32f_uart_register_interrupt_handlers(pUart);
 
   return (ret == RTEMS_SUCCESSFUL);
 }

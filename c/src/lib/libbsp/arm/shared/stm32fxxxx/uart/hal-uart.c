@@ -478,7 +478,7 @@ static int uart_init(
 
   // Initialize UART pins, clocks, and DMA controllers
   if ( HAL_UART_Init(pUart->base_driver_info.handle) == HAL_OK ) {
-    ret = uart_register_interrupt_handlers(pUart);
+    ret = RTEMS_SUCCESSFUL;
   }
   else {
     ret = RTEMS_UNSATISFIED;
@@ -494,7 +494,7 @@ static int uart_de_init(
   rtems_status_code ret;
 
   if ( HAL_UART_DeInit(pUart->base_driver_info.handle) != HAL_OK ) {
-    ret = uart_remove_interrupt_handlers(pUart);
+    ret = RTEMS_UNSATISFIED;
   }
   else {
     ret = RTEMS_SUCCESSFUL;
@@ -601,6 +601,7 @@ void stm32f_uarts_initialize(
     stm32f_uart_driver_table[i].instance = i;
     uart_device_table[i].pUart = &stm32f_uart_driver_table[i];
     uart_create_rtems_objects(&uart_device_table[i]);
+    uart_register_interrupt_handlers(uart_device_table[i].pUart);
     uart_register_device_driver(&uart_device_table[i]);
   }
 }
