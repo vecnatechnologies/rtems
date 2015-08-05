@@ -22,6 +22,11 @@
 #include <stm32f-processor-specific.h>
 #include <bspopts.h>
 
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc_ex)
+
 // A set of UART handle used in the HAL code.  These handles are used
 // for both the termios console uarts as well as the non-console uarts.
 UART_HandleTypeDef UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+NUM_PROCESSOR_NON_CONSOLE_UARTS];
@@ -86,13 +91,13 @@ static void stm32f_init_uart_clock(
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_4)
+#if defined(STM32F7_ENABLE_UART_4)
   case STM32F_UART4:
     __HAL_RCC_UART4_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_5)
+#if defined(STM32F7_ENABLE_UART_5)
   case STM32F_UART5:
     __HAL_RCC_UART5_CLK_ENABLE();
     break;
@@ -110,7 +115,7 @@ static void stm32f_init_uart_clock(
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_UART_8)
+#if defined(STM32F7_ENABLE_USART_8)
     case STM32F_UART8:
     __HAL_RCC_UART8_CLK_ENABLE();
     break;
@@ -149,14 +154,14 @@ static void stmf32_uart_reset(
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_4)
+#if defined(STM32F7_ENABLE_UART_4)
   case STM32F_UART4:
     __HAL_RCC_UART4_FORCE_RESET();
     __HAL_RCC_UART4_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_5)
+#if defined(STM32F7_ENABLE_UART_5)
   case STM32F_UART5:
     __HAL_RCC_UART5_FORCE_RESET();
     __HAL_RCC_UART5_RELEASE_RESET();
@@ -299,13 +304,13 @@ USART_TypeDef* stmf32_uart_get_registers(
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_4)
+#if defined(STM32F7_ENABLE_UART_4)
   case STM32F_UART4:
     ret = UART4;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_5)
+#if defined(STM32F7_ENABLE_UART_5)
   case STM32F_UART5:
     ret = UART5;
     break;

@@ -16,13 +16,13 @@
  * http://www.rtems.com/license/LICENSE.
  */
 #include <rtems.h>
-
 #include <hal-utils.h>
-#include <hal-uart-interface.h>
 #include <stm32f-processor-specific.h>
+#include <hal-uart-interface.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
 
 #include <rtems/imfs.h>
 

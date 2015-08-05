@@ -22,6 +22,7 @@
 #include <hal-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, dma)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
 
 #include <rtems.h>

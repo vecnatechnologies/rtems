@@ -15,15 +15,22 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
-#include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 
+#if defined(EXTERNAL_SDRAM)
+
+#include <hal-sdram-interface.h>
+#include <hal-error.h>
+#include <hal-utils.h>
+
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, dma)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, sdram)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, cortex)
 #include stm_ll_header(TARGET_STM_PROCESSOR_PREFIX, fmc)
-
-#if defined(EXTERNAL_SDRAM)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc_ex)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
 
 static SDRAM_HandleTypeDef hsdram;
 static FMC_SDRAM_TimingTypeDef SDRAM_Timing;

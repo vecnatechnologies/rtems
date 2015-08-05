@@ -1,14 +1,16 @@
-#include <can.h>
+#include <hal-can.h>
 #include <dev/can/can.h>
 #include <rtems.h>
-#include <stm32f4xx_hal_can.h>
-#include <stm32f4xx_hal_rcc.h>
-#include <stm32f4xx_hal_gpio.h>
+#include <hal-utils.h>
+#include <stm32f-processor-specific.h>
+
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, can)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
+
 #include <math.h>
 #include <rtems/irq-extension.h>
-
-// This is needed by the HAL code.
-uint32_t SystemCoreClock = 16000000;
 
 // Internal functions to perform RX and TX
 static int                stm32_can_init              (can_bus * self, long baudRate);
@@ -54,7 +56,6 @@ struct stm32_can_bus {
 #define CAN2_RX_PIN                    GPIO_PIN_5
 #define CAN2_GPIO_PORT                 GPIOB
 #define CAN2_AF                        GPIO_AF9_CAN2
-
 
 
 CAN_Status stm32_can_start_tx
@@ -506,6 +507,6 @@ int stm32_bsp_register_can
   error = can_bus_register(&bus1->base,
       "/dev/can1");
 
-  //error = can_bus_register(&bus2->base, "/dev/can2");
+  error = can_bus_register(&bus2->base, "/dev/can2");
   return error;
 }

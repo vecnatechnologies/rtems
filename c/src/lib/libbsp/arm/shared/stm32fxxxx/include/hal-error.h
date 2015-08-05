@@ -1,5 +1,5 @@
 /**
- * @file hal-error.c
+ * @file hal-error.h
  *
  * @ingroup error
  *
@@ -15,11 +15,14 @@
  * found in the file LICENSE in this distribution or at
  * http://www.rtems.com/license/LICENSE.
  */
-void Error_Handler(
-  void
-)
-{
-    while(1) {
-        ; // Stay here forever
-    }
-}
+
+#ifndef INCLUDE_HAL_ERROR_H_
+#define INCLUDE_HAL_ERROR_H_
+
+/**
+ * @brief HAL ST32F error handler function.
+ */
+void Error_Handler(void);
+
+
+#endif /* INCLUDE_HAL_ERROR_H_ */

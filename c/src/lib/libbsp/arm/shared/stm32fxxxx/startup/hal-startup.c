@@ -23,6 +23,7 @@
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, conf)
 
 #include <hal-startup-interface.h>
 #include <hal-sdram-interface.h>
@@ -260,4 +261,5 @@ void bsp_predriver_hook(
 )
 {
   stm32f_uarts_initialize();
+  stm32_bsp_register_can();
 }

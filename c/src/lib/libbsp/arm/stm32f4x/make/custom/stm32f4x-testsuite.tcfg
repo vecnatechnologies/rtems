@@ -5,6 +5,19 @@
 #
 
 fsdosfsname01
+fsnofs01
+complex
+devfs01
+devfs02
+devfs04
+math
+mathf
+mathl
+stringto01
+termios02
+spfatal26
+spinternalerror01
+sptimecounter01
 jffs2_fserror
 jffs2_fslink
 jffs2_fspatheval

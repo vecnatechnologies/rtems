@@ -19,6 +19,9 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_
 
+#include <stm32f-processor-specific.h>
+
+
 /**
  * A macro that can be used determine the size of any array
  */
@@ -45,5 +48,12 @@
 #define __stm_hal_header(x) #x
 #define _stm_hal_header(x) __stm_hal_header(stm32f##x##_hal.h)
 #define stm_hal_header(x) _stm_hal_header(x)
+
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+
+/**
+ * @brief A simple delay function reference throughout the HAL code.
+ */
+void HAL_Delay(uint32_t Delay);
 
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_ */

@@ -17,10 +17,8 @@
  */
 
 #include <hal-utils.h>
-#include <stm32f-processor-specific.h>
-#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 
-void HAL_Delay(__IO uint32_t Delay)
+void HAL_Delay(uint32_t Delay)
 {
   //TODO: FIND A BETTER WAY!!!
 

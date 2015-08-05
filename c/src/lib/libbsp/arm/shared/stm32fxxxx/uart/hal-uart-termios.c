@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
+#include <hal-uart-interface.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
@@ -37,7 +38,6 @@
 #include <rtems/libio.h>
 #include <rtems/termiostypes.h>
 #include <rtems/irq-extension.h>
-#include <hal-uart-interface.h>
 
 //------------------ Forward declarations ------------------
 static bool stm32f_uart_first_open(
