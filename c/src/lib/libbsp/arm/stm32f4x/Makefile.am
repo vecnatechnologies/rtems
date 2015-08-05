@@ -129,9 +129,11 @@ include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
 
 # Shared driver headers
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
 
 ###############################################################################
@@ -165,6 +167,9 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # SDRAM
 libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
+
+# CAN
+libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
@@ -213,7 +218,7 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/stm32fxxxx/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 
-libbsp_a_CPPFLAGS += -D STM32F407xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=4xx -DTARGET_STM_PROCESSOR=407
+libbsp_a_CPPFLAGS += -D STM32F407xx -D TARGET_STM_PROCESSOR_PREFIX=4xx -DTARGET_STM_PROCESSOR=407
 
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c

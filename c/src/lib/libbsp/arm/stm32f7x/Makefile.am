@@ -173,7 +173,6 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
 
 # CAN
 libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can-start.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
