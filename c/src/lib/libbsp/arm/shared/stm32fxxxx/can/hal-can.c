@@ -336,7 +336,7 @@ int stm32_can_init
   hCanHandle->Init.RFLM = DISABLE;
   hCanHandle->Init.TXFP = DISABLE;
   hCanHandle->Init.SJW = CAN_SJW_1TQ;
-  hCanHandle->Init.Mode = CAN_MODE_LOOPBACK;
+  hCanHandle->Init.Mode = CAN_MODE_NORMAL;
 
   s_timeValues = rtems_can_get_timing_values(baudRate);
 

@@ -44,6 +44,7 @@ include_bsp_HEADERS += ../../shared/include/stackalloc.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
 include_bsp_HEADERS += include/irq.h
+include_bsp_HEADERS += include/stm32f-processor-specific.h
 
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
