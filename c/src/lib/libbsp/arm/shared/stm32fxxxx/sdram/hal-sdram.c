@@ -70,7 +70,7 @@ void MPU_Config(
   /* Configure the MPU attributes as WT and WA for SDRAM */
   MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
   MPU_InitStruct.BaseAddress      = 0xC0000000;
-  MPU_InitStruct.Size             = MPU_REGION_SIZE_4MB;
+  MPU_InitStruct.Size             = MPU_REGION_SIZE_8MB;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;
   MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
