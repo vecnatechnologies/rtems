@@ -43,7 +43,7 @@ static FMC_SDRAM_CommandTypeDef command;
  * @param  None
  * @retval None
  */
-static void MPU_Config(
+void MPU_Config(
   void
 )
 {
@@ -53,17 +53,32 @@ static void MPU_Config(
   HAL_MPU_Disable();
 
   /* Configure the MPU attributes as WT for SRAM */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = 0x20010000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
+  MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress      = 0x20010000;
+  MPU_InitStruct.Size             = MPU_REGION_SIZE_256KB;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number           = MPU_REGION_NUMBER0;
+  MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL0;
   MPU_InitStruct.SubRegionDisable = 0x00;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /* Configure the MPU attributes as WT and WA for SDRAM */
+  MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress      = 0xC0000000;
+  MPU_InitStruct.Size             = MPU_REGION_SIZE_4MB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number           = MPU_REGION_NUMBER1;
+  MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x00;
+  MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
@@ -145,24 +160,25 @@ void BSP_SDRAM_Config(
   /* SDRAM device configuration */
   hsdram.Instance = FMC_SDRAM_DEVICE;
 
-  SDRAM_Timing.LoadToActiveDelay = 2;
-  SDRAM_Timing.ExitSelfRefreshDelay = 6;
-  SDRAM_Timing.SelfRefreshTime = 4;
-  SDRAM_Timing.RowCycleDelay = 6;
-  SDRAM_Timing.WriteRecoveryTime = 2;
-  SDRAM_Timing.RPDelay = 2;
-  SDRAM_Timing.RCDDelay = 2;
+  SDRAM_Timing.LoadToActiveDelay    = 2;
+  SDRAM_Timing.ExitSelfRefreshDelay = 7;
+  SDRAM_Timing.SelfRefreshTime      = 4;
+  SDRAM_Timing.RowCycleDelay        = 7;
+  SDRAM_Timing.WriteRecoveryTime    = 2;
+  SDRAM_Timing.RPDelay              = 2;
+  SDRAM_Timing.RCDDelay             = 2;
 
-  hsdram.Init.SDBank = FMC_SDRAM_BANK1;
-  hsdram.Init.ColumnBitsNumber = FMC_SDRAM_COLUMN_BITS_NUM_8;
-  hsdram.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_12;
-  hsdram.Init.MemoryDataWidth = SDRAM_MEMORY_WIDTH;
+
+  hsdram.Init.SDBank             = FMC_SDRAM_BANK1;
+  hsdram.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_8;
+  hsdram.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
+  hsdram.Init.MemoryDataWidth    = SDRAM_MEMORY_WIDTH;
   hsdram.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
-  hsdram.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;
-  hsdram.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
-  hsdram.Init.SDClockPeriod = SDCLOCK_PERIOD;
-  hsdram.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;
-  hsdram.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_0;
+  hsdram.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
+  hsdram.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
+  hsdram.Init.SDClockPeriod      = SDCLOCK_PERIOD;
+  hsdram.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
+  hsdram.Init.ReadPipeDelay      = FMC_SDRAM_RPIPE_DELAY_0;
 
   /* Initialize the SDRAM controller */
   if(HAL_SDRAM_Init(&hsdram, &SDRAM_Timing) != HAL_OK)
@@ -173,7 +189,6 @@ void BSP_SDRAM_Config(
 
   /* Program the SDRAM external device */
   BSP_SDRAM_Initialization_Sequence(&hsdram, &command);
-
 }
 
 /**

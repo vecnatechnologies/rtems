@@ -174,7 +174,7 @@ static rtems_status_code set_system_clk(
   }
 #endif
 
-  // APB1 prescaler, APB1 clock must be < 42MHz
+  // APB1 prescaler, APB1 clock must be < 45MHz
   apbpre1 = (sys_clk * 100) / HZ_TO_MHZ(APB1_CLK);
 
   if ( apbpre1 <= 100 ) {
@@ -189,7 +189,7 @@ static rtems_status_code set_system_clk(
     apbpre1 = RCC_HCLK_DIV16;
   }
 
-  // APB2 prescaler, APB2 clock must be < 84MHz
+  // APB2 prescaler, APB2 clock must be < 90MHz
   apbpre2 = (sys_clk * 100) / HZ_TO_MHZ(APB2_CLK);
 
   if ( apbpre2 <= 100 ) {
@@ -229,6 +229,7 @@ void configure_external_memories(
 {
 
 #ifdef EXTERNAL_SDRAM
+  MPU_Config();
   BSP_SDRAM_Config();
 #endif
 

@@ -29,4 +29,9 @@
  */
 void BSP_SDRAM_Config(void);
 
+/**
+ * @brief Configured ARM Cortex-M MPU (Memory Protection Unit)
+ */
+void MPU_Config(void);
+
 #endif /* INCLUDE_HAL_SDRAM_INTERFACE_H_ */
