@@ -1,11 +1,12 @@
-#include <can.h>
-#include <dev/can/can.h>
 #include <rtems.h>
 #include <stm32f4xx_hal_can.h>
 #include <stm32f4xx_hal_rcc.h>
 #include <stm32f4xx_hal_gpio.h>
 #include <math.h>
 #include <rtems/irq-extension.h>
+#include <can.h>
+#include <dev/can/can-internal.h>
+#include <stm32f407xx.h>
 
 // This is needed by the HAL code.
 uint32_t SystemCoreClock = 16000000;
@@ -43,17 +44,19 @@ struct stm32_can_bus {
 
 /* Definition for CAN1 Pins */
 //TODO Make this configurable and work for F7
-#define CAN1_TX_PIN                    GPIO_PIN_9
-#define CAN1_RX_PIN                    GPIO_PIN_8
-#define CAN1_GPIO_PORT                 GPIOB
-#define CAN1_AF                        GPIO_AF9_CAN1
+#define CAN1_TX_PIN                   GPIO_PIN_9
+#define CAN1_RX_PIN                   GPIO_PIN_8
+#define CAN1_GPIO_PORT                GPIOB
+#define CAN1_AF                       GPIO_AF9_CAN1
 
 
 /* Definition for CAN2 Pins */
-#define CAN2_TX_PIN                    GPIO_PIN_6
-#define CAN2_RX_PIN                    GPIO_PIN_5
-#define CAN2_GPIO_PORT                 GPIOB
-#define CAN2_AF                        GPIO_AF9_CAN2
+#define CAN2_TX_PIN                   GPIO_PIN_6
+#define CAN2_RX_PIN                   GPIO_PIN_5
+#define CAN2_GPIO_PORT                GPIOB
+#define CAN2_AF                       GPIO_AF9_CAN2
+
+#define MAX_FILTERS                   14  
 
 
 
@@ -208,7 +211,7 @@ void stm32_can_gpio_init
 CAN_Timing_Values rtems_can_get_timing_values
 (
   uint32_t desired_baud
-    ){
+){
 
   //TODO:: Determine best value.
 
@@ -286,25 +289,41 @@ int stm32_can_set_filter
   stm32_can_bus * bus = (stm32_can_bus * ) self;
   CAN_HandleTypeDef * hCanHandle = (CAN_HandleTypeDef *) &(bus->wrapper);
 
+  if (   filter->number < 0
+      || filter->number >= MAX_FILTERS) 
+  {
+    return -EINVAL; 
+  }
 
   CAN_FilterConfTypeDef sFilterConfig;
-  sFilterConfig.FilterNumber = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow = 0x0000;
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow = 0x0000;
-  sFilterConfig.FilterFIFOAssignment = 0;
-  sFilterConfig.FilterActivation = ENABLE;
-  sFilterConfig.BankNumber = 14;
+  sFilterConfig.FilterNumber          = filter->number;
+  // We are always going to use the filter banks in a simple
+  // 32 bit filter and mask mode
+  sFilterConfig.FilterMode            = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale           = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh          = (filter->filter >> 16) & 0xFFFF;
+  sFilterConfig.FilterIdLow           =  filter->filter & 0xFFFF;
+  sFilterConfig.FilterMaskIdHigh      = (filter->mask >> 16) & 0xFFFF;
+  sFilterConfig.FilterMaskIdLow       =  filter->mask & 0xFFFF;
+  sFilterConfig.FilterFIFOAssignment  = 0;
+  sFilterConfig.FilterActivation      = ENABLE;
+
+  // The BankNumber argument is used to determine 
+  // how many filters are available to CAN2. It is used as the 
+  // CAN2SB filed in the CAN_FMR. The name is misleading/wrong.
+  sFilterConfig.BankNumber            = MAX_FILTERS;
   
+  if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) 
+  {
+    return -EINVAL;
+  }
+  return RTEMS_SUCCESSFUL;
 }
 
 int stm32_can_init
 (
-    can_bus * self,
-    long baudRate
+  can_bus * self,
+  long baudRate
 ){
 
   stm32_can_bus * bus = (stm32_can_bus * ) self;
@@ -388,32 +407,44 @@ int stm32_can_init
   if (CAN_ONE == canInstance)
   {
     sc = rtems_interrupt_handler_install(
-        19,
+    	CAN1_TX_IRQn,
         "CAN1 TX Interrupt",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        20,
+    	CAN1_RX0_IRQn,
         "CAN1 RX Interrupt 0",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx0_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        21,
+    	CAN1_RX0_IRQn,
         "CAN1 RX Interrupt 1",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx1_isr,
         hCanHandle);
   } else 
   {
-    /* 
-     * TODO figure out CAN 2 interrupts
-    sc = rtems_interrupt_handler_install(19, "CAN2 TX Interrupt",   RTEMS_INTERRUPT_UNIQUE, stm32_can_isr,     hCanHandle);
-    sc = rtems_interrupt_handler_install(27, "CAN2 RX Interrupt 0", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
-    sc = rtems_interrupt_handler_install(28, "CAN2 RX Interrupt 1", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx1_isr, hCanHandle);
-    */
-  }
+	  sc = rtems_interrupt_handler_install(
+			  CAN2_TX_IRQn,
+			  "CAN2 TX Interrupt",
+			  RTEMS_INTERRUPT_UNIQUE,
+			  stm32_can_isr,
+			  hCanHandle);
+	  sc = rtems_interrupt_handler_install(
+			  CAN2_RX0_IRQn,
+			  "CAN2 RX Interrupt 0",
+			  RTEMS_INTERRUPT_UNIQUE,
+			  stm32_can_rx0_isr,
+			  hCanHandle);
+	  sc = rtems_interrupt_handler_install(
+			  CAN2_RX1_IRQn,
+			  "CAN2 RX Interrupt 1",
+			  RTEMS_INTERRUPT_UNIQUE,
+			  stm32_can_rx1_isr,
+			  hCanHandle);
+      }
   return CAN_OK;
 }
 
@@ -481,17 +512,19 @@ int stm32_bsp_register_can
   bus2 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus2));
 
   //
-  bus1->base.init     = stm32_can_init;
-  bus1->base.de_init  = stm32_can_de_init;
-  bus1->base.tx_task  = stm32_tx_task;
-  bus1->base.rx_task  = stm32_rx_task;
-  bus1->instance      = CAN_ONE;
+  bus1->base.init       = stm32_can_init;
+  bus1->base.de_init    = stm32_can_de_init;
+  bus1->base.tx_task    = stm32_tx_task;
+  bus1->base.rx_task    = stm32_rx_task;
+  bus1->base.set_filter = stm32_can_set_filter;
+  bus1->instance        = CAN_ONE;
 
-  bus2->base.init     = stm32_can_init;
-  bus2->base.de_init  = stm32_can_de_init;
-  bus2->base.tx_task  = stm32_tx_task;
-  bus2->base.rx_task  = stm32_rx_task;
-  bus2->instance      = CAN_TWO;
+  bus2->base.init       = stm32_can_init;
+  bus2->base.de_init    = stm32_can_de_init;
+  bus2->base.tx_task    = stm32_tx_task;
+  bus2->base.rx_task    = stm32_rx_task;
+  bus2->base.set_filter = stm32_can_set_filter;
+  bus2->instance        = CAN_TWO;
 
 
 

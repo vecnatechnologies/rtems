@@ -14,6 +14,7 @@ include_dev_i2c_HEADERS += include/dev/i2c/switch-nxp-pca9548a.h
 include_dev_candir = $(includedir)/dev/can
 include_dev_can_HEADERS =
 include_dev_can_HEADERS += include/dev/can/can.h
+include_dev_can_HEADERS += include/dev/can/can-internal.h
 
 include_linuxdir = $(includedir)/linux
 include_linux_HEADERS =
