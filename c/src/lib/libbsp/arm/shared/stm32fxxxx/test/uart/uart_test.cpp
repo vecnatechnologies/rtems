@@ -41,28 +41,18 @@
  *    Created Apr 30, 2015 - jay.doyle
  */
 
-#include <CppUTest/CommandLineTestRunner.h>
 #include <CppUTest/TestHarness.h>
+#include <stdio.h>
 
-#define MAX_STR 255
+#include <hal-uart.c>
+
 #define COUNTOF(x) (sizeof(x)/sizeof(x[0]))
-wchar_t strVecnaManufacturer[MAX_STR] = L"Vecna Technologies Inc.";
-wchar_t strSCProduct[MAX_STR] = L"SC";
-
-#define MAX_TRANSITION_TO_ACTIVE    1000
-#define MAX_TRANSITION_TO_NO_POWER  20
-#define MAX_TRANSITION_TO_DISABLED  20
-#define POLL_DEVICE_STATE_PERIOD_ms 5
-#define TARGET_MIN_TRANS_VELOCITY   0.5
-#define MAX_WAIT_FOR_ACTIVE         100
-
-static bool m_Verbose = false;
-
 
 TEST_GROUP(Uart_Base) {
 
   void setup() {
 
+    printf("Hello world");
     //printf("Stop Codes = %.016llX\n", DeviceState.u64_StopCodes);
     //LONGS_EQUAL(DRIVE_STATE_ACTIVE, DeviceState.enm_DriveState);
   }
@@ -73,7 +63,6 @@ TEST_GROUP(Uart_Base) {
 };
 
 
-
 TEST(Uart_Base, dummy_test) {
 
     //printf("Stop Codes = %.016llX\n", DeviceState.u64_StopCodes);
@@ -81,9 +70,5 @@ TEST(Uart_Base, dummy_test) {
 }
 
 
-
-int main(int argc, char * argv[]) {
-  return CommandLineTestRunner::RunAllTests(argc, argv);
-}
 
 

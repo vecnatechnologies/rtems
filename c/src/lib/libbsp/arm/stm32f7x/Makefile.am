@@ -19,7 +19,6 @@ project_lib_DATA += start.$(OBJEXT)
 project_lib_DATA += startup/linkcmds
 
 EXTRA_DIST = startup/linkcmds.stm32f7x
-EXTRA_DIST += startup/linkcmds.stm32f105rc
 
 ###############################################################################
 #                  Header                                                     #
@@ -287,6 +286,7 @@ libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_ll_usb.c
 
 # Evaluation board bsp file
 libbsp_a_SOURCES += hal/BSP/STM32746G-Discovery/stm32746g_discovery.c
+
 
 ###############################################################################
 #                  Special Rules                                              #
