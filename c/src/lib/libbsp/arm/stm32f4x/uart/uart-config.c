@@ -11,7 +11,7 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
   //          UART1
   [0] .base_driver_info = {
     .device_name         = "/dev/ttyS0",
-    .handle              = &(UartHandles[0]),
+    .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS]),
     .interrupt_number = USART1_IRQn,
     .uart_mode            = STM32F_UART_MODE_DMA,
     .tx_dma_stream         = DMA2_Stream7,
@@ -24,11 +24,11 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
     .alt_func_config        = GPIO_AF7_USART1,
     .uart                = STM32F_UART1,
   },
-
+/*
   //          UART2
   [1] .base_driver_info = {
     .device_name     = "/dev/ttyS1",
-    .handle          = &(UartHandles[1]),
+    .handle          = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+1]),
     .interrupt_number = USART2_IRQn,
     .uart_mode        = STM32F_UART_MODE_DMA,
     .tx_dma_stream     = DMA1_Stream6,
@@ -45,7 +45,7 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
   //          UART3
   [2] .base_driver_info = {
     .device_name     = "/dev/ttyS2",
-    .handle          = &(UartHandles[2]),
+    .handle          = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+2]),
     .interrupt_number = USART3_IRQn,
     .uart_mode        = STM32F_UART_MODE_DMA,
     .tx_dma_stream     = DMA1_Stream4,
@@ -62,7 +62,7 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
   //          UART4
     [3] .base_driver_info = {
     .device_name     = "/dev/ttyS3",
-    .handle          = &(UartHandles[3]),
+    .handle          = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+3]),
     .interrupt_number = UART4_IRQn,
     .uart_mode        = STM32F_UART_MODE_DMA,
     .tx_dma_stream     = DMA1_Stream4,
@@ -79,7 +79,7 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
   //          UART5
   [4] .base_driver_info = {
     .device_name     = "/dev/ttyS4",
-    .handle          = &(UartHandles[4]),
+    .handle          = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+4]),
     .interrupt_number = UART5_IRQn,
     .uart_mode        = STM32F_UART_MODE_DMA,
     .tx_dma_stream     = DMA1_Stream7,
@@ -92,6 +92,7 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
     .alt_func_config    = GPIO_AF8_UART5,
     .uart            = STM32F_UART5,
   },
+  */
 };
 
 stm32_uart_device uart_device_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];

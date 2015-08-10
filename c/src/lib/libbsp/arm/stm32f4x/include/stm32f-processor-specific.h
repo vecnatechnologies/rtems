@@ -38,8 +38,13 @@
 #define APB2_CLK                STM32F4_PCLK2
 
 // uart configuration
-#define NUM_PROCESSOR_NON_CONSOLE_UARTS     5
+#define NUM_PROCESSOR_NON_CONSOLE_UARTS     1
 #define NUM_PROCESSOR_CONSOLE_UARTS         1
+
+//TODO: Put this in configure.ac
+#define STM32F7_ENABLE_USART_1 1
+#define STM32F7_ENABLE_USART_6 1
+
 
 #else
 #error "Unspecified processor type!!"

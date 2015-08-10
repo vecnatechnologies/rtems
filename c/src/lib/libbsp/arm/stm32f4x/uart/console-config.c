@@ -13,7 +13,7 @@ stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CONSOLE_UA
         .base                = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("STM32F UART6"),
         .base_driver_info = {
                 .device_name         = "/dev/console",
-                .handle              = &(UartHandles[5]),
+                .handle              = &(UartHandles[0]),
                 .interrupt_number    = USART6_IRQn,
                 .uart_mode           = STM32F_UART_MODE_POLLING,
                 .tx_dma_stream       = DMA2_Stream6,
