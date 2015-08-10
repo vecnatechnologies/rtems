@@ -49,7 +49,7 @@
 #define HSI_FREQUENCY           16000000
 #define STM32F_FLASH_LATENCY    FLASH_LATENCY_7
 #define HSE_AVAILABLE           1
-#define MAX_SYSCLK              216000000
+#define MAX_SYSCLK              210000000
 #define APB1_CLK                STM32F7_PCLK1
 #define APB2_CLK                STM32F7_PCLK2
 

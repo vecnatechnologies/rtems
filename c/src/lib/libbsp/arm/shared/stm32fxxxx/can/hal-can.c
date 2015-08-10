@@ -1,5 +1,5 @@
 #include <hal-can.h>
-#include <dev/can/can.h>
+#include <dev/can/can-internal.h>
 #include <rtems.h>
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
