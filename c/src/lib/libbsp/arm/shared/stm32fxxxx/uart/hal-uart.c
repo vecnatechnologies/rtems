@@ -144,7 +144,7 @@ static rtems_task stm32_uart_tx_task(
       &len,
       RTEMS_WAIT,
       RTEMS_NO_TIMEOUT);
-    _Assert(len <= sizeof(msg));
+    _Assert(len <= sizeof(tx_msg));
 
     // send tx data to UART hardware
     if ( sc == RTEMS_SUCCESSFUL ) {
