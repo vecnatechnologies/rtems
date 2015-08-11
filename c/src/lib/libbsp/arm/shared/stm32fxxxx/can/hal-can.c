@@ -224,7 +224,17 @@ void stm32_can_gpio_init
   }
 }
 
-
+/**
+ * Calculate the baud timing values for the 
+ * STM32 BxCAN peripheral
+ *
+ * @param desired_baud desired buad rate
+ *
+ * @return CAN_Timing_Values.s1         - TQ in first bit segment
+ *                          .s2         - TQ in second bit segment
+ *                          .prescaler  - Preescaler
+ *                          .error      - Difference from requested baud
+ */
 CAN_Timing_Values rtems_can_get_timing_values
 (
   uint32_t desired_baud
@@ -295,21 +305,11 @@ CAN_Timing_Values rtems_can_get_timing_values
   float tq = 1.0 / clock_frequency;
 
   // x = S1 + S2
-  for (x = 4; x < 28; x++)
+  for (x = 9; x < 28; x++)
   {
     for (p = 0; p < 1025; p++)
     {
-      // An important note:
-      // if S1 = 0, the width of the actual
-      // bit segment is still 1, so we add
-      // 1 for each bit segment + 1 for the Sync Segment
-      // 
-      // That's where the + 3 comes from
-      //
-      // On a similar note, when the prescalar is zero,
-      // the actual width of one TQ is 1 / PCLK1, so
-      // we add another 1
-      test_baud = 1.0/ (tq * (x + 3) * (p + 1) );
+      test_baud = 1.0/ (tq * (x + 1) * (p) );
 
       error = fabs(desired_baud- test_baud);
       if (error < best_error) 
@@ -323,13 +323,11 @@ CAN_Timing_Values rtems_can_get_timing_values
 
   // Calculate S1 and S2
   // x = S1 + S2
-  // We are trying to get a sampling 
-  // point 75% through the bit
   int s1_plus_s2 = best_x;
-  int s1 = .75 * s1_plus_s2;
+  int s1 = roundf(.875 * s1_plus_s2);
   int s2 = s1_plus_s2 - s1;
-  s_timeValues.s1 = 6;//s1;
-  s_timeValues.s2 = 1;//  s2;
+  s_timeValues.s1 = s1;
+  s_timeValues.s2 = s2;
 
   s_timeValues.prescaler = best_p;
   s_timeValues.error = best_error;
@@ -438,10 +436,21 @@ int stm32_can_init
   {
     return CAN_ERROR;
   }
-
+    
+  // The STM32 HAL Code expects Init->BS1 and Init->BS2
+  // to contain the appropriate value so they can simply be 
+  // OR'd into CAN_BTR. 
+  //
+  // We subtract 1, since 1 TQ is represented by zero, but 
+  // our timing function returns the actual number of time 
+  // quanta for S1 and S2
   hCanHandle->Init.BS1 = (s_timeValues.s1 - 1) << CAN_BS1_OFFSET;
   hCanHandle->Init.BS2 = (s_timeValues.s2 - 1) << CAN_BS2_OFFSET;
 
+  // The Preescaler however, is expected to be passed in
+  // as is, so we don't need to subtract 1 here.
+  //
+  // See stm32f4xx_hal_can.c, line 309
   hCanHandle->Init.Prescaler = s_timeValues.prescaler; //s_timeValues.prescaler; //s_timeValues.prescaler;
 
   if (HAL_CAN_Init(hCanHandle) != HAL_OK)
