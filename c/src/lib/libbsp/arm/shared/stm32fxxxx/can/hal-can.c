@@ -1,3 +1,23 @@
+/**
+ * @file hal-can.c
+ *
+ * @ingroup can
+ *
+ * @brief CAN driver for the STM32xxxx series processors. Provides a 
+ * CAN driver that registers with cpukit/dev/can as a node in the 
+ * filesystem.
+ *
+ */
+
+/*
+ * Copyright (c) 2015 Vecna Technologies, Inc.
+ *
+ * The license and distribution terms for this file may be
+ * found in the file LICENSE in this distribution or at
+ * http://www.rtems.com/license/LICENSE.
+ */
+
+//================== STMF32 Support Functions =================================
 #include <hal-can.h>
 #include <dev/can/can-internal.h>
 #include <rtems.h>
@@ -62,7 +82,8 @@ CAN_Status stm32_can_start_tx
 (
   CAN_HandleTypeDef* hCanHandle, 
   can_msg * msg
-){
+)
+{
   //TODO refactor this to not have so much STM32 stuff
   CAN_Status Status;
 
@@ -81,17 +102,11 @@ CAN_Status stm32_can_start_tx
 CAN_Status stm32_can_start_rx
 (
   CAN_HandleTypeDef *hCanHandle
-){
-  static uint8_t fifoNum = 0;
+)
+{
+  //TODO use both FIFOs
   CAN_Status Status;
-  //TODO use real fifo numbers
-  if (fifoNum == 0) {
-    Status = HAL_CAN_Receive_IT(hCanHandle, 0);
-  } else {
-    Status = HAL_CAN_Receive_IT(hCanHandle, 0);
-  }
-  fifoNum = !fifoNum;
-
+  Status = HAL_CAN_Receive_IT(hCanHandle, 0);
   return Status;
 }
 
@@ -99,7 +114,8 @@ CAN_Status stm32_can_start_rx
 void HAL_CAN_RxCpltCallback
 (
   CAN_HandleTypeDef *hCanHandle
-){
+)
+{
   // Wakeup RX Task
   rtems_status_code sc;
   stm32_can_bus * bus = (((HandleWrapper *) hCanHandle)->bus);
@@ -112,7 +128,8 @@ void HAL_CAN_RxCpltCallback
 rtems_task stm32_rx_task
 (
   rtems_task_argument arg
-){
+)
+{
   rtems_status_code sc;
   can_msg msg;
   size_t len;
@@ -143,7 +160,8 @@ rtems_task stm32_rx_task
 rtems_task stm32_tx_task
 (
   rtems_task_argument arg
-){
+)
+{
   rtems_status_code sc;
   can_msg msg;
   size_t len;
@@ -170,7 +188,8 @@ rtems_task stm32_tx_task
 void stm32_can_gpio_init
 (
   CAN_Instance canInstance
-){
+)
+{
   GPIO_InitTypeDef GPIO_InitStructure;
 
   // Enable the clock CAN Core //
@@ -205,35 +224,92 @@ void stm32_can_gpio_init
   }
 }
 
-
+/**
+ * Calculate the baud timing values for the 
+ * STM32 BxCAN peripheral
+ *
+ * @param desired_baud desired buad rate
+ *
+ * @return CAN_Timing_Values.s1         - TQ in first bit segment
+ *                          .s2         - TQ in second bit segment
+ *                          .prescaler  - Preescaler
+ *                          .error      - Difference from requested baud
+ */
 CAN_Timing_Values rtems_can_get_timing_values
 (
   uint32_t desired_baud
-    ){
+)
+{
 
   //TODO:: Determine best value.
+  //
+  // 1 BS = 1 Time Quata, or TQ.
+  //
+  // A TQ is the smallest unit of time that can be used to 
+  // create a CAN timing profile. It is Preescaler * (1 / Peripheral Clock)
+  //
+  // A CAN bit is divided up as follows:
+  //
+  //   +---+-------------+-------+
+  //   |SS |     BS1     | BS2   |
+  //   +---+-------------+-------+
+  //    ^  ^             ^       ^
+  //    |  |             |       |
+  //    |  \ Start Bit   |       \ End of Bit
+  //    \ Synq Seg      \ Sampling Point
+  //
+  //  There are also a Sync Segment that is 1 TQ
+  //
+  //
+  //  Therefore the baud rate is the 1/(1 TQ + BS1 + BS2)
+  //
+  //  Keep in mind that in calculations, we are storing BS1
+  //  and BS2 as multiples of 1TQ, a unitless quantity.
+  //
+  //  Keeping this in mind, the actual equation is
+  //
+  //  baud = 1 / (TQ * (1 + BS1 + BS2))
+  //
 
   CAN_Timing_Values s_timeValues;
 
-  double test_baud;
-  double tpclk = 1.0/58000000;
+  // We want to calculate the best
+  // possible values for BS1 BS2 and 
+  // the Prescalar. We are going to do 
+  // 2D optimization using a bruteforce
+  // algorithm, simply trying combinations
+  // and comparing them against our previous 
+  // best
 
+  float test_baud;
+
+  // Rather than optimizing for three variables,
+  // we are combining x = BS1 + BS2.
+  //
+  // Now our optimization is the best combination 
+  // of X and the Prescaler.
+  //
+  // We can calculate BS1 and BS2 later to 
+  // pick a good sampling point
   int x;
   int p;
-  double error = 1000000000;
-  double best_error = 1000000000;
-  double best_x;
-  double best_p;
-  double clock_frequency = HAL_RCC_GetPCLK1Freq();
-  tpclk = 1.0 / clock_frequency;
 
-  /* Perform Computation */
+  float error = 1000000000;
+
+  // Store a very large error term
+  float best_error = 1000000000;
+  float best_x;
+  float best_p;
+
+  float clock_frequency = HAL_RCC_GetPCLK1Freq();
+  float tq = 1.0 / clock_frequency;
+
   // x = S1 + S2
-  for (x = 4; x < 28; x++)
+  for (x = 9; x < 28; x++)
   {
-    for (p = 1; p < 1025; p++)
+    for (p = 0; p < 1025; p++)
     {
-      test_baud = 1.0/(tpclk * (x + 3) * (p+1));
+      test_baud = 1.0/ (tq * (x + 1) * (p) );
 
       error = fabs(desired_baud- test_baud);
       if (error < best_error) 
@@ -246,14 +322,14 @@ CAN_Timing_Values rtems_can_get_timing_values
   }
 
   // Calculate S1 and S2
-  // x = S1 + S2 + 3
+  // x = S1 + S2
   int s1_plus_s2 = best_x;
-  int s1 = .75 * s1_plus_s2;
+  int s1 = roundf(.875 * s1_plus_s2);
   int s2 = s1_plus_s2 - s1;
-  s_timeValues.s1 = 6;//s1;
-  s_timeValues.s2 = 1;//  s2;
+  s_timeValues.s1 = s1;
+  s_timeValues.s2 = s2;
 
-  s_timeValues.prescaler = 5; //best_p; //10; // best_p;
+  s_timeValues.prescaler = best_p;
   s_timeValues.error = best_error;
   return s_timeValues;
 }
@@ -261,21 +337,24 @@ CAN_Timing_Values rtems_can_get_timing_values
 void stm32_can_isr
 (
   void * arg
-){
+)
+{
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
 }
 
 void stm32_can_rx0_isr
 (
  void * arg
-){
+)
+{
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
 }
 
 void stm32_can_rx1_isr 
 ( 
   void * arg
-){
+)
+{
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
 }
 
@@ -283,7 +362,8 @@ int stm32_can_set_filter
 (
   can_bus * self,
   can_filter * filter
-){
+)
+{
   stm32_can_bus * bus = (stm32_can_bus * ) self;
   CAN_HandleTypeDef * hCanHandle = (CAN_HandleTypeDef *) &(bus->wrapper);
 
@@ -306,13 +386,13 @@ int stm32_can_init
 (
     can_bus * self,
     long baudRate
-){
+)
+{
 
   stm32_can_bus * bus = (stm32_can_bus * ) self;
   CAN_HandleTypeDef * hCanHandle = (CAN_HandleTypeDef *) &(bus->wrapper);
   bus->wrapper.bus = bus;
   CAN_Instance canInstance = bus->instance;
-  //CAN_HandleTypeDef hCanHandle = *hnCanHandle;
 
   CAN_Timing_Values s_timeValues;
 
@@ -356,10 +436,21 @@ int stm32_can_init
   {
     return CAN_ERROR;
   }
-
+    
+  // The STM32 HAL Code expects Init->BS1 and Init->BS2
+  // to contain the appropriate value so they can simply be 
+  // OR'd into CAN_BTR. 
+  //
+  // We subtract 1, since 1 TQ is represented by zero, but 
+  // our timing function returns the actual number of time 
+  // quanta for S1 and S2
   hCanHandle->Init.BS1 = (s_timeValues.s1 - 1) << CAN_BS1_OFFSET;
   hCanHandle->Init.BS2 = (s_timeValues.s2 - 1) << CAN_BS2_OFFSET;
 
+  // The Preescaler however, is expected to be passed in
+  // as is, so we don't need to subtract 1 here.
+  //
+  // See stm32f4xx_hal_can.c, line 309
   hCanHandle->Init.Prescaler = s_timeValues.prescaler; //s_timeValues.prescaler; //s_timeValues.prescaler;
 
   if (HAL_CAN_Init(hCanHandle) != HAL_OK)
@@ -381,7 +472,7 @@ int stm32_can_init
   sFilterConfig.BankNumber = 14;
 
   if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) {
-
+    //TODO fill in this body
   }
 
   rtems_status_code sc;
@@ -389,6 +480,7 @@ int stm32_can_init
   if (CAN_ONE == canInstance)
   {
     sc = rtems_interrupt_handler_install(
+    // TODO pull in sudarshan's changs'
         19,
         "CAN1 TX Interrupt",
         RTEMS_INTERRUPT_UNIQUE,
@@ -419,9 +511,11 @@ int stm32_can_init
 }
 
 
-int stm32_can_de_init(
+int stm32_can_de_init
+(
     can_bus * self
-){
+)
+{
   stm32_can_bus * bus = (stm32_can_bus * ) self;
   CAN_HandleTypeDef * hCanHandle = &(bus->wrapper.handle);
   rtems_status_code sc;
@@ -475,7 +569,8 @@ stm32_can_bus * bus2;
 int stm32_bsp_register_can
 (
   void
-){
+)
+{
   int error;
 
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus1));
@@ -504,8 +599,7 @@ int stm32_bsp_register_can
     return -ENOMEM;
   }
 
-  error = can_bus_register(&bus1->base,
-      "/dev/can1");
+  error = can_bus_register(&bus1->base, "/dev/can1");
 
   error = can_bus_register(&bus2->base, "/dev/can2");
   return error;
