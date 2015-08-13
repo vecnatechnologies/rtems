@@ -511,7 +511,6 @@ int stm32_bsp_register_can
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus1));
   bus2 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus2));
 
-  //
   bus1->base.init       = stm32_can_init;
   bus1->base.de_init    = stm32_can_de_init;
   bus1->base.tx_task    = stm32_tx_task;

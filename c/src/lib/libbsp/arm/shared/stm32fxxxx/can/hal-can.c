@@ -480,32 +480,43 @@ int stm32_can_init
   if (CAN_ONE == canInstance)
   {
     sc = rtems_interrupt_handler_install(
-    // TODO pull in sudarshan's changs'
-        19,
+        CAN1_TX_IRQn,
         "CAN1 TX Interrupt",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        20,
+        CAN1_RX0_IRQn,
         "CAN1 RX Interrupt 0",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx0_isr,
         hCanHandle);
     sc = rtems_interrupt_handler_install(
-        21,
+        CAN1_RX1_IRQn,
         "CAN1 RX Interrupt 1",
         RTEMS_INTERRUPT_UNIQUE,
         stm32_can_rx1_isr,
         hCanHandle);
   } else 
   {
-    /* 
-     * TODO figure out CAN 2 interrupts
-    sc = rtems_interrupt_handler_install(19, "CAN2 TX Interrupt",   RTEMS_INTERRUPT_UNIQUE, stm32_can_isr,     hCanHandle);
-    sc = rtems_interrupt_handler_install(27, "CAN2 RX Interrupt 0", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx0_isr, hCanHandle);
-    sc = rtems_interrupt_handler_install(28, "CAN2 RX Interrupt 1", RTEMS_INTERRUPT_UNIQUE, stm32_can_rx1_isr, hCanHandle);
-    */
+    sc = rtems_interrupt_handler_install(
+        CAN2_TX_IRQn,
+        "CAN2 TX Interrupt",
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32_can_isr,
+        hCanHandle);
+    sc = rtems_interrupt_handler_install(
+        CAN2_RX0_IRQn,
+        "CAN2 RX Interrupt 0",
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32_can_rx0_isr,
+        hCanHandle);
+    sc = rtems_interrupt_handler_install(
+        CAN2_RX1_IRQn,
+        "CAN2 RX Interrupt 1",
+        RTEMS_INTERRUPT_UNIQUE,
+        stm32_can_rx1_isr,
+        hCanHandle);
   }
   return CAN_OK;
 }
@@ -523,38 +534,35 @@ int stm32_can_de_init
   if (CAN_ONE == hCanHandle->Instance)
   {
     sc = rtems_interrupt_handler_remove(
-        19, 
+        CAN1_TX_IRQn, 
         stm32_can_isr,     
         hCanHandle
         );
     sc = rtems_interrupt_handler_remove(
-        27, 
+        CAN1_RX0_IRQn, 
         stm32_can_rx0_isr, 
         hCanHandle
         );
     sc = rtems_interrupt_handler_remove(
-        28, 
+        CAN1_RX1_IRQn, 
         stm32_can_rx1_isr,
         hCanHandle);
   } else 
   {
-    /* 
-     * TODO figure out CAN 2 interrupts
     sc = rtems_interrupt_handler_remove(
-        19, 
+        CAN2_TX_IRQn, 
         stm32_can_isr,     
         hCanHandle
         );
-    sc = rtems_interrupt_handler_install(
-        27, 
+    sc = rtems_interrupt_handler_remove(
+        CAN2_RX0_IRQn, 
         stm32_can_rx0_isr, 
         hCanHandle
         );
-    sc = rtems_interrupt_handler_install(
-        28, 
+    sc = rtems_interrupt_handler_remove(
+        CAN2_RX1_IRQn, 
         stm32_can_rx1_isr,
         hCanHandle);
-    */
   }
 
   HAL_CAN_DeInit(hCanHandle);
