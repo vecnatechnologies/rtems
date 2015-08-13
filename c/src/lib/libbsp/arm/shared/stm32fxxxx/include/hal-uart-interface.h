@@ -19,6 +19,10 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <hal-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
@@ -517,5 +521,9 @@ extern stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CON
  * about which non-console UARTs should be defined for the processor.
  */
 extern stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_ */

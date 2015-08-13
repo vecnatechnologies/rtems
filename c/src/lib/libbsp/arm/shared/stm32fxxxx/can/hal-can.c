@@ -111,6 +111,21 @@ CAN_Status stm32_can_start_rx
   return Status;
 }
 
+static int local_roundf
+(
+  float arg
+)
+{
+  int ret = (int) arg;
+
+  if(arg > 0.0F) {
+    if((arg - ret) >= 0.5) ret++;
+  } else {
+    if((arg - ret) <= -0.5) ret--;
+  }
+
+  return ret;
+}
 
 void HAL_CAN_RxCpltCallback
 (
@@ -325,7 +340,7 @@ CAN_Timing_Values rtems_can_get_timing_values
   // Calculate S1 and S2
   // x = S1 + S2
   int s1_plus_s2 = best_x;
-  int s1 = roundf(.875 * s1_plus_s2);
+  int s1 = local_roundf(.875 * s1_plus_s2);
   int s2 = s1_plus_s2 - s1;
   s_timeValues.s1 = s1;
   s_timeValues.s2 = s2;
@@ -334,6 +349,9 @@ CAN_Timing_Values rtems_can_get_timing_values
   s_timeValues.error = best_error;
   return s_timeValues;
 }
+
+
+
 
 void stm32_can_isr
 (
