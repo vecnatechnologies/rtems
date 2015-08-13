@@ -581,12 +581,14 @@ int stm32_bsp_register_can
   bus1->base.de_init  = stm32_can_de_init;
   bus1->base.tx_task  = stm32_tx_task;
   bus1->base.rx_task  = stm32_rx_task;
+  bus1->base.set_filter = stm32_can_set_filter;
   bus1->instance      = CAN_ONE;
 
   bus2->base.init     = stm32_can_init;
   bus2->base.de_init  = stm32_can_de_init;
   bus2->base.tx_task  = stm32_tx_task;
   bus2->base.rx_task  = stm32_rx_task;
+  bus2->base.set_filter = stm32_can_set_filter;
   bus2->instance      = CAN_TWO;
 
 
