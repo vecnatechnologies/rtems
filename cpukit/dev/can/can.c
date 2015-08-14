@@ -31,9 +31,26 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define CAN_QUEUE_LEN 10
 #define CAN_TASK_PRIORITY 70
+
+static bool free_busses[10] = {true};
+
+int get_free_bus_number(
+  void
+)
+{
+  int i;
+  for (i = 1; i < 10; i++) {
+    if (true == free_busses[i]) {
+      free_busses[i] = false;
+      return i;
+    }
+  }
+  return -1; 
+}
 
 void can_bus_obtain(can_bus *bus)
 {
@@ -311,12 +328,20 @@ static const IMFS_node_control can_bus_node_control = IMFS_GENERIC_INITIALIZER(
 );
 
 int can_bus_register(
-  can_bus *bus,
-  const char *bus_path
+  can_bus *bus
 )
 {
   int rv;
   rtems_status_code sc;
+  char bus_path[12];
+  int bus_number = get_free_bus_number();
+  if (bus_number > 0) {
+    sprintf(bus_path, "/dev/can%d", bus_number);
+  } else {
+    return -1;
+  }
+
+  bus->bus_number = bus_number;
 
   rv = IMFS_make_generic_node(
     bus_path,
@@ -344,7 +369,7 @@ static int can_bus_do_init(
   rtems_status_code sc;
 
   sc = rtems_semaphore_create(
-    rtems_build_name('C', 'A', 'N', ' '),
+    rtems_build_name('C', '0' + bus->bus_number, 'M', 'X'),
     1,
     RTEMS_BINARY_SEMAPHORE | RTEMS_INHERIT_PRIORITY | RTEMS_PRIORITY,
     0,
@@ -357,7 +382,7 @@ static int can_bus_do_init(
   }
 
   sc = rtems_message_queue_create(
-    rtems_build_name('C', 'A', 'N', 'R'),
+    rtems_build_name('C', '0' + bus->bus_number, 'R', 'Q'),
     CAN_QUEUE_LEN,
     sizeof(can_msg),
     RTEMS_BINARY_SEMAPHORE | RTEMS_INHERIT_PRIORITY | RTEMS_PRIORITY,
@@ -370,7 +395,7 @@ static int can_bus_do_init(
   }
 
   sc = rtems_message_queue_create(
-    rtems_build_name('C', 'A', 'N', 'T'),
+    rtems_build_name('C', '0' + bus->bus_number, 'T', 'Q'),
     CAN_QUEUE_LEN,
     sizeof(can_msg),
     RTEMS_BINARY_SEMAPHORE | RTEMS_INHERIT_PRIORITY | RTEMS_PRIORITY,
@@ -383,7 +408,7 @@ static int can_bus_do_init(
   }
 
   sc = rtems_task_create(
-    rtems_build_name('C', 'A', 'N', 'r'),
+    rtems_build_name('C', '0' + bus->bus_number, 'R', 'X'),
     CAN_TASK_PRIORITY - 1,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_PREEMPT,
@@ -397,7 +422,7 @@ static int can_bus_do_init(
   }
 
   sc = rtems_task_create(
-    rtems_build_name('C', 'A', 'N', 't'),
+    rtems_build_name('C', '0' + bus->bus_number, 'T', 'X'),
     CAN_TASK_PRIORITY,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_PREEMPT,

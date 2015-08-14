@@ -42,18 +42,8 @@ struct stm32_can_bus {
   CanRxMsgTypeDef RxMessage;
 };
 
-/* Definition for CAN1 Pins */
-//TODO Make this configurable and work for F7
-#define CAN1_TX_PIN                   GPIO_PIN_9
-#define CAN1_RX_PIN                   GPIO_PIN_8
-#define CAN1_GPIO_PORT                GPIOB
+
 #define CAN1_AF                       GPIO_AF9_CAN1
-
-
-/* Definition for CAN2 Pins */
-#define CAN2_TX_PIN                   GPIO_PIN_6
-#define CAN2_RX_PIN                   GPIO_PIN_5
-#define CAN2_GPIO_PORT                GPIOB
 #define CAN2_AF                       GPIO_AF9_CAN2
 
 #define MAX_FILTERS                   14  
@@ -194,16 +184,16 @@ void stm32_can_gpio_init
 
   if (canInstance == CAN_ONE)
   {
-    GPIO_InitStructure.Pin = CAN1_TX_PIN | CAN1_RX_PIN;
+    GPIO_InitStructure.Pin = STM32F4_CAN1_TX_PIN | STM32F4_CAN1_RX_PIN;
     GPIO_InitStructure.Alternate =  CAN1_AF;
-    HAL_GPIO_Init(CAN1_GPIO_PORT, &GPIO_InitStructure);
+    HAL_GPIO_Init(STM32F4_CAN1_GPIO_PORT, &GPIO_InitStructure);
   }
 
   else if (canInstance == CAN_TWO)
   {
-    GPIO_InitStructure.Pin = CAN2_TX_PIN | CAN2_RX_PIN;
+    GPIO_InitStructure.Pin = STM32F4_CAN2_TX_PIN | STM32F4_CAN2_RX_PIN;
     GPIO_InitStructure.Alternate =  CAN2_AF;
-    HAL_GPIO_Init(CAN2_GPIO_PORT, &GPIO_InitStructure);
+    HAL_GPIO_Init(STM32F4_CAN2_GPIO_PORT, &GPIO_InitStructure);
   }
 }
 

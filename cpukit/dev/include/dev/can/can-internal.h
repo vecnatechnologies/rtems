@@ -51,6 +51,7 @@ typedef struct can_rdwr_ioctl_data can_rdwr_ioctl_data;
  */
 struct can_bus {
 
+  int bus_number;
 
   int (*init)(can_bus * bus, long buad);
 
@@ -186,8 +187,7 @@ void can_bus_destroy_and_free(can_bus *bus);
  * @retval -1 An error occurred.  The errno is set to indicate the error.
  */
 int can_bus_register(
-  can_bus *bus,
-  const char *bus_path
+  can_bus *bus
 );
 
 /**
