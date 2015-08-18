@@ -121,8 +121,10 @@ static void stm32f_init_uart_clock(
     break;
 #endif
   default:
-    case STM32F_INVALID_UART:
-    return;
+  case STM32F_INVALID_UART:
+    while(1) {
+      // you tried to reference a UART that is not enabled
+    }
     break;
   }
 }
@@ -190,8 +192,10 @@ static void stmf32_uart_reset(
 #endif
 
   default:
-    case STM32F_INVALID_UART:
-    return;
+  case STM32F_INVALID_UART:
+    while(1) {
+      // you tried to reference a UART that is not enabled
+    }
     break;
   }
 }
@@ -202,35 +206,38 @@ static void stmf32_init_gpio_clock(
 {
   switch ( port ) {
 
-  case STM32F_GOIO_PORTA:
+  case STM32F_GPIO_PORTA:
     __HAL_RCC_GPIOA_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTB:
+  case STM32F_GPIO_PORTB:
     __HAL_RCC_GPIOB_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTC:
+  case STM32F_GPIO_PORTC:
     __HAL_RCC_GPIOC_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTD:
+  case STM32F_GPIO_PORTD:
     __HAL_RCC_GPIOD_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTE:
+  case STM32F_GPIO_PORTE:
     __HAL_RCC_GPIOE_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTF:
+  case STM32F_GPIO_PORTF:
     __HAL_RCC_GPIOF_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTG:
+  case STM32F_GPIO_PORTG:
     __HAL_RCC_GPIOG_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTH:
+  case STM32F_GPIO_PORTH:
     __HAL_RCC_GPIOH_CLK_ENABLE();
     break;
-  case STM32F_GOIO_PORTI:
+  case STM32F_GPIO_PORTI:
     __HAL_RCC_GPIOI_CLK_ENABLE();
     break;
 
   default:
+    while(1) {
+      // you tried to reference a UART that is not enabled
+    }
     break;
   }
 }
@@ -243,35 +250,38 @@ static GPIO_TypeDef* stmf32_get_gpio(
 
   switch ( port ) {
 
-  case STM32F_GOIO_PORTA:
+  case STM32F_GPIO_PORTA:
     ret = GPIOA;
     break;
-  case STM32F_GOIO_PORTB:
+  case STM32F_GPIO_PORTB:
     ret = GPIOB;
     break;
-  case STM32F_GOIO_PORTC:
+  case STM32F_GPIO_PORTC:
     ret = GPIOC;
     break;
-  case STM32F_GOIO_PORTD:
+  case STM32F_GPIO_PORTD:
     ret = GPIOD;
     break;
-  case STM32F_GOIO_PORTE:
+  case STM32F_GPIO_PORTE:
     ret = GPIOE;
     break;
-  case STM32F_GOIO_PORTF:
+  case STM32F_GPIO_PORTF:
     ret = GPIOF;
     break;
-  case STM32F_GOIO_PORTG:
+  case STM32F_GPIO_PORTG:
     ret = GPIOG;
     break;
-  case STM32F_GOIO_PORTH:
+  case STM32F_GPIO_PORTH:
     ret = GPIOH;
     break;
-  case STM32F_GOIO_PORTI:
+  case STM32F_GPIO_PORTI:
     ret = GPIOI;
     break;
 
   default:
+    while(1) {
+      // you tried to reference a UART that is not enabled
+    }
     break;
   }
 
@@ -336,6 +346,9 @@ USART_TypeDef* stmf32_uart_get_registers(
 
   default:
     case STM32F_INVALID_UART:
+    while(1) {
+        // you tried to reference a UART that is not enabled
+    }
     break;
   }
 

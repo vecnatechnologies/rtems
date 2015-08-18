@@ -19,6 +19,10 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <hal-utils.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
@@ -149,31 +153,31 @@ typedef enum {
 typedef enum {
 
   /** Port A */
-  STM32F_GOIO_PORTA,
+  STM32F_GPIO_PORTA,
 
   /** Port B */
-  STM32F_GOIO_PORTB,
+  STM32F_GPIO_PORTB,
 
   /** Port C */
-  STM32F_GOIO_PORTC,
+  STM32F_GPIO_PORTC,
 
   /** Port D */
-  STM32F_GOIO_PORTD,
+  STM32F_GPIO_PORTD,
 
   /** Port E */
-  STM32F_GOIO_PORTE,
+  STM32F_GPIO_PORTE,
 
   /** Port F */
-  STM32F_GOIO_PORTF,
+  STM32F_GPIO_PORTF,
 
   /** Port G */
-  STM32F_GOIO_PORTG,
+  STM32F_GPIO_PORTG,
 
   /** Port H */
-  STM32F_GOIO_PORTH,
+  STM32F_GPIO_PORTH,
 
   /** Port I */
-  STM32F_GOIO_PORTI
+  STM32F_GPIO_PORTI
 } stm32f_gpio_port;
 
 /**
@@ -517,5 +521,9 @@ extern stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CON
  * about which non-console UARTs should be defined for the processor.
  */
 extern stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_ */

@@ -190,7 +190,7 @@ static ssize_t stm32_uart_read(
   size_t count
 )
 {
-  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  stm32_uart_device *pUartDevice = (stm32_uart_device *)IMFS_generic_get_context_by_iop(iop);
   ssize_t ret_size = 0;
   HAL_StatusTypeDef ret;
 
@@ -225,7 +225,7 @@ static ssize_t stm32_uart_write(
   size_t count
 )
 {
-  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
   rtems_status_code sc;
 
   if ( count <= MAX_UART_TX_MSG_SIZE ) {
@@ -237,10 +237,10 @@ static ssize_t stm32_uart_write(
       );
 
     if ( RTEMS_SUCCESSFUL != sc ) {
-      sc = EIO;
+      sc = (rtems_status_code) EIO;
     }
   } else {
-    sc = EIO;
+    sc = (rtems_status_code) EIO;
   }
 
   return sc;
@@ -250,7 +250,7 @@ static int stm32_uart_close(
   rtems_libio_t *iop
 )
 {
-  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
   int err;
 
   uart_obtain(pUartDevice->pUart);
@@ -275,11 +275,11 @@ static int stm32_uart_open(
   (void) oflag;
   (void) mode;
 
-  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
   rtems_status_code err;
 
   uart_obtain(pUartDevice->pUart);
-  err = pUartDevice->init(
+  err = (rtems_status_code) pUartDevice->init(
     pUartDevice->pUart,
     pUartDevice->pUart->base_driver_info.baud
     );
@@ -298,7 +298,7 @@ static int stm32_uart_ioctl(
   void *arg
 )
 {
-  stm32_uart_device *pUartDevice = IMFS_generic_get_context_by_iop(iop);
+  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
   int err;
   uint32_t baudrate;
 
@@ -353,7 +353,7 @@ static void uart_node_destroy(
 {
   stm32_uart_device *pUartDevice;
 
-  pUartDevice = IMFS_generic_get_context_by_node(node);
+  pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_node(node);
   (*pUartDevice->destroy)(pUartDevice->pUart);
 
   IMFS_node_destroy_default(node);
@@ -593,7 +593,7 @@ void stm32f_uarts_initialize(
   void
 )
 {
-  int i;
+  uint32_t i;
 
   for ( i = 0; i < COUNTOF(stm32f_uart_driver_table); i++ ) {
     stm32f_uart_driver_table[i].base_driver_info.handle =

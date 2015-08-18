@@ -201,9 +201,6 @@ libbsp_a_SOURCES += ../../shared/console_write.c
 libbsp_a_SOURCES += console/console-config.c
 libbsp_a_SOURCES += console/usart.c
 
-# RTC
-libbsp_a_SOURCES += rtc/rtc-config.c
-libbsp_a_SOURCES += ../../shared/tod.c
 
 # I2C
 libbsp_a_SOURCES += i2c/i2c.c
@@ -234,7 +231,6 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/hal/CMSIS/Include
 libbsp_a_CPPFLAGS += -I$(srcdir)/include
 
 libbsp_a_CPPFLAGS += -D STMF32F407xx -D TARGET_STM_PROCESSOR_PREFIX=4xx -DTARGET_STM_PROCESSOR=407
-#libbsp_a_CPPFLAGS += -DUSE_HAL_DRIVER
 
 libbsp_a_CPPFLAGS += -I$(srcdir)/can/
 
