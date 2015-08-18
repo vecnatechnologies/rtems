@@ -77,6 +77,7 @@ struct stm32_can_bus {
 #define CAN2_GPIO_PORT                 GPIOB
 #define CAN2_AF                        GPIO_AF9_CAN2
 
+#define MAX_FILTERS                   14  
 
 CAN_Status stm32_can_start_tx
 (
@@ -367,18 +368,43 @@ int stm32_can_set_filter
   stm32_can_bus * bus = (stm32_can_bus * ) self;
   CAN_HandleTypeDef * hCanHandle = (CAN_HandleTypeDef *) &(bus->wrapper);
 
+  if (   filter->number < 0
+      || filter->number >= MAX_FILTERS) 
+  {
+    return -EINVAL; 
+  }
+    
+  // There are a total of 28 filters on the BxCAN interface.
+  // 24-27 are allocated to CAN2
+  if (bus->instance == CAN2) {
+    filter->number += 14; 
+  }
 
   CAN_FilterConfTypeDef sFilterConfig;
-  sFilterConfig.FilterNumber = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow = 0x0000;
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow = 0x0000;
-  sFilterConfig.FilterFIFOAssignment = 0;
-  sFilterConfig.FilterActivation = ENABLE;
-  sFilterConfig.BankNumber = 14;
+  sFilterConfig.FilterNumber          = filter->number;
+  // We are always going to use the filter banks in a simple
+  // 32 bit filter and mask mode
+  sFilterConfig.FilterMode            = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale           = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh          = (filter->filter >> 16) & 0xFFFF;
+  sFilterConfig.FilterIdLow           =  filter->filter & 0xFFFF;
+  sFilterConfig.FilterMaskIdHigh      = (filter->mask >> 16) & 0xFFFF;
+  sFilterConfig.FilterMaskIdLow       =  filter->mask & 0xFFFF;
+  // For now, we are only using one of the RX fifos, since 
+  // a better allocation is a bit difficult
+  sFilterConfig.FilterFIFOAssignment  = 0;
+  sFilterConfig.FilterActivation      = ENABLE;
+
+  // The BankNumber argument is used to determine 
+  // how many filters are available to CAN2. It is used as the 
+  // CAN2SB filed in the CAN_FMR. The name is misleading/wrong.
+  sFilterConfig.BankNumber            = MAX_FILTERS;
+  
+  if(HAL_CAN_ConfigFilter(hCanHandle, &sFilterConfig) != HAL_OK) 
+  {
+    return -EINVAL;
+  }
+  return RTEMS_SUCCESSFUL;
   
 }
 
@@ -471,7 +497,7 @@ int stm32_can_init
   sFilterConfig.FilterActivation = ENABLE;
   sFilterConfig.BankNumber = 14;
 
-  if(HAL_CAN_ConfigFilter(&hCanHandle, &sFilterConfig) != HAL_OK) {
+  if(HAL_CAN_ConfigFilter(hCanHandle, &sFilterConfig) != HAL_OK) {
     //TODO fill in this body
   }
 
@@ -581,8 +607,8 @@ int stm32_bsp_register_can
 {
   int error;
 
+#if STM32F4_ENABLE_CAN1
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus1));
-  bus2 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus2));
 
   //
   bus1->base.init     = stm32_can_init;
@@ -592,6 +618,17 @@ int stm32_bsp_register_can
   bus1->base.set_filter = stm32_can_set_filter;
   bus1->instance      = CAN_ONE;
 
+  if (bus1 == NULL) {
+    return -ENOMEM;
+  }
+
+  error = can_bus_register(&bus1->base);
+
+#endif
+
+#if STM32F4_ENABLE_CAN2
+  bus2 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus2));
+
   bus2->base.init     = stm32_can_init;
   bus2->base.de_init  = stm32_can_de_init;
   bus2->base.tx_task  = stm32_tx_task;
@@ -599,18 +636,11 @@ int stm32_bsp_register_can
   bus2->base.set_filter = stm32_can_set_filter;
   bus2->instance      = CAN_TWO;
 
-
-
-  if (bus1 == NULL) {
-    return -ENOMEM;
-  }
-
   if (bus2 == NULL) {
     return -ENOMEM;
   }
 
-  error = can_bus_register(&bus1->base, "/dev/can1");
-
-  error = can_bus_register(&bus2->base, "/dev/can2");
+  error = can_bus_register(&bus2->base);
   return error;
+#endif
 }

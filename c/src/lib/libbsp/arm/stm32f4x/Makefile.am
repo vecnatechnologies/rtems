@@ -145,6 +145,7 @@ noinst_LIBRARIES += libbsp.a
 
 libbsp_a_SOURCES =
 libbsp_a_CPPFLAGS =
+libbsp_a_CPPFLAGS += --std=gnu99
 libbsp_a_LIBADD =
 
 # Shared
