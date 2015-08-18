@@ -504,6 +504,6 @@ can_bus *can_bus_alloc_and_init(size_t size)
   return bus;
 }
 
-inline uint32_t can_filter_stdid(uint32_t id) {
+uint32_t can_filter_stdid(uint32_t id) {
   return id << 21;
 }

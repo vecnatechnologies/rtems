@@ -62,6 +62,7 @@ typedef struct can_filter can_filter;
 #define CAN_SET_FILTER          _IOW(IOCTL_CAN_TYPE, 3, can_filter)
 
 
+uint32_t can_filter_stdid(uint32_t id);
 
 
 
