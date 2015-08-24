@@ -23,6 +23,7 @@
 #include <rtems.h>
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
+#include <bspopts.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, can)
@@ -625,7 +626,7 @@ int stm32_bsp_register_can
 {
   int error;
 
-#if STM32F4_ENABLE_CAN1
+
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus1));
 
   //
@@ -642,9 +643,9 @@ int stm32_bsp_register_can
 
   error = can_bus_register(&bus1->base);
 
-#endif
 
-#if STM32F4_ENABLE_CAN2
+
+
   bus2 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus2));
 
   bus2->base.init     = stm32_can_init;
@@ -660,5 +661,5 @@ int stm32_bsp_register_can
 
   error = can_bus_register(&bus2->base);
   return error;
-#endif
+
 }

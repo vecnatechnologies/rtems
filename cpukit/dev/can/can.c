@@ -36,7 +36,7 @@
 #define CAN_QUEUE_LEN 10
 #define CAN_TASK_PRIORITY 70
 
-static bool free_busses[10] = {true};
+static bool used_busses[10] = {true};
 
 int get_free_bus_number(
   void
@@ -44,8 +44,8 @@ int get_free_bus_number(
 {
   int i;
   for (i = 1; i < 10; i++) {
-    if (true == free_busses[i]) {
-      free_busses[i] = false;
+    if (false == used_busses[i]) {
+      used_busses[i] = true;
       return i;
     }
   }
@@ -493,7 +493,7 @@ can_bus *can_bus_alloc_and_init(size_t size)
     if (bus != NULL) {
       int rv;
 
-      bus->default_baud = 1000000;
+      bus->default_baud = 125000;
       rv = can_bus_do_init(bus, can_bus_destroy_and_free);
       if (rv != 0) {
         return NULL;
