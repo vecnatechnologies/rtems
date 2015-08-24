@@ -1,0 +1,110 @@
+/* include/bspopts.h.in.  Generated from configure.ac by autoheader.  */
+
+/* STM32F APB1 CLK */
+#undef APB1_CLK
+
+/* STM32F APB2 CLK */
+#undef APB2_CLK
+
+/* If defined, then the BSP Framework will put a non-zero pattern into the
+   RTEMS Workspace and C program heap. This should assist in finding code that
+   assumes memory starts set to zero. */
+#undef BSP_DIRTY_MEMORY
+
+/* If defined, print a message and wait until pressed before resetting board
+   when application exits. */
+#undef BSP_PRESS_KEY_FOR_RESET
+
+/* If defined, prints the exception context when an unexpected exception
+   occurs. */
+#undef BSP_PRINT_EXCEPTION_CONTEXT
+
+/* If defined, reset the board when the application exits. */
+#undef BSP_RESET_BOARD_AT_EXIT
+
+/* Is external high speed oscillator present */
+#undef HSE_AVAILABLE
+
+/* STM32F internal high speed oscillator frquency in Hz */
+#undef HSI_FREQUENCY
+
+/* STM32F maximum system clock frequency in Hz */
+#undef MAX_SYSCLK
+
+/* Number of UARTs used for serial consoles */
+#undef NUM_PROCESSOR_CONSOLE_UARTS
+
+/* Number of UARTs used for non-console applications */
+#undef NUM_PROCESSOR_UARTS
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* enable I2C 1 */
+#undef STM32F7_ENABLE_I2C1
+
+/* enable I2C 2 */
+#undef STM32F7_ENABLE_I2C2
+
+/* enable UART 4 */
+#undef STM32F7_ENABLE_UART_4
+
+/* disable UART 5 */
+#undef STM32F7_ENABLE_UART_5
+
+/* disable USART 1 */
+#undef STM32F7_ENABLE_USART_1
+
+/* disable USART 2 */
+#undef STM32F7_ENABLE_USART_2
+
+/* disable USART 3 */
+#undef STM32F7_ENABLE_USART_3
+
+/* enable USART 6 */
+#undef STM32F7_ENABLE_USART_6
+
+/* enable USART 7 */
+#undef STM32F7_ENABLE_USART_7
+
+/* disable USART 8 */
+#undef STM32F7_ENABLE_USART_8
+
+/* Chip belongs to the STM32F7XXXX family. */
+#undef STM32F7_FAMILY_F7XXXX
+
+/* HCLK frequency in Hz */
+#undef STM32F7_HCLK
+
+/* HSE oscillator frequency in Hz */
+#undef STM32F7_HSE_OSCILLATOR
+
+/* PCLK1 frequency in Hz */
+#undef STM32F7_PCLK1
+
+/* PCLK2 frequency in Hz */
+#undef STM32F7_PCLK2
+
+/* SYSCLK frequency in Hz */
+#undef STM32F7_SYSCLK
+
+/* baud for USARTs */
+#undef STM32F7_USART_BAUD
+
+/* STM32F SYSCLK frequency in Hz */
+#undef SYSCLK_FREQUENCY

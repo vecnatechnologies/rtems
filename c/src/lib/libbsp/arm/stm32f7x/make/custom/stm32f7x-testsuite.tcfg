@@ -1,0 +1,28 @@
+#
+# stm32f7 RTEMS Test Database.
+#
+# Format is one line per test that is _NOT_ built.
+#
+
+fsdosfsname01
+fsnofs01
+complex
+devfs01
+devfs02
+devfs04
+math
+mathf
+mathl
+stringto01
+termios02
+spfatal26
+spinternalerror01
+sptimecounter01
+jffs2_fserror
+jffs2_fslink
+jffs2_fspatheval
+jffs2_fspermission
+jffs2_fsrdwr
+jffs2_fsscandir01
+jffs2_fssymlink
+jffs2_fstime
