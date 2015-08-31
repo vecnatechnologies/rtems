@@ -36,7 +36,7 @@
 #define CAN_QUEUE_LEN 10
 #define CAN_TASK_PRIORITY 70
 
-static bool used_busses[10] = {true};
+static bool used_busses[10] = {false};
 
 int get_free_bus_number(
   void
@@ -335,7 +335,7 @@ int can_bus_register(
   rtems_status_code sc;
   char bus_path[12];
   if (bus->bus_number > 0) {
-    sprintf(bus_path, "/dev/can%d", bus_number);
+    sprintf(bus_path, "/dev/can%d", bus->bus_number);
   } else {
     return -1;
   }
