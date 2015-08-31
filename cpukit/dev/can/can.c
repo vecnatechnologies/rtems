@@ -334,14 +334,12 @@ int can_bus_register(
   int rv;
   rtems_status_code sc;
   char bus_path[12];
-  int bus_number = get_free_bus_number();
-  if (bus_number > 0) {
+  if (bus->bus_number > 0) {
     sprintf(bus_path, "/dev/can%d", bus_number);
   } else {
     return -1;
   }
 
-  bus->bus_number = bus_number;
 
   rv = IMFS_make_generic_node(
     bus_path,
@@ -367,6 +365,9 @@ static int can_bus_do_init(
 )
 {
   rtems_status_code sc;
+
+  int bus_number = get_free_bus_number();
+  bus->bus_number = bus_number;
 
   sc = rtems_semaphore_create(
     rtems_build_name('C', '0' + bus->bus_number, 'M', 'X'),
