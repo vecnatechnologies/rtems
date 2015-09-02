@@ -66,15 +66,15 @@ struct stm32_can_bus {
 
 /* Definition for CAN1 Pins */
 //TODO Make this configurable and work for F7
-#define CAN1_TX_PIN                    GPIO_PIN_9
-#define CAN1_RX_PIN                    GPIO_PIN_8
-#define CAN1_GPIO_PORT                 GPIOB
+#define CAN1_TX_PIN                    GPIO_PIN_1
+#define CAN1_RX_PIN                    GPIO_PIN_0
+#define CAN1_GPIO_PORT                 GPIOD
 #define CAN1_AF                        GPIO_AF9_CAN1
 
 
 /* Definition for CAN2 Pins */
-#define CAN2_TX_PIN                    GPIO_PIN_6
-#define CAN2_RX_PIN                    GPIO_PIN_5
+#define CAN2_TX_PIN                    GPIO_PIN_13
+#define CAN2_RX_PIN                    GPIO_PIN_12
 #define CAN2_GPIO_PORT                 GPIOB
 #define CAN2_AF                        GPIO_AF9_CAN2
 
@@ -219,6 +219,7 @@ void stm32_can_gpio_init
 
   // CAN GPIO Clock Enable//
   __GPIOB_CLK_ENABLE();
+  __GPIOD_CLK_ENABLE();
 
   /* CAN2 TX RX GPIO pin configuration */
 
@@ -376,6 +377,14 @@ void stm32_can_rx1_isr
 )
 {
   HAL_CAN_IRQHandler((CAN_HandleTypeDef *) arg);
+}
+int stm32_can_get_num_filters
+(
+  can_bus * self
+) 
+{
+  (void) self;
+  return MAX_FILTERS;
 }
 
 int stm32_can_set_filter
@@ -630,11 +639,12 @@ int stm32_bsp_register_can
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus1));
 
   //
-  bus1->base.init     = stm32_can_init;
-  bus1->base.de_init  = stm32_can_de_init;
-  bus1->base.tx_task  = stm32_tx_task;
-  bus1->base.rx_task  = stm32_rx_task;
-  bus1->base.set_filter = stm32_can_set_filter;
+  bus1->base.init             = stm32_can_init;
+  bus1->base.de_init          = stm32_can_de_init;
+  bus1->base.tx_task          = stm32_tx_task;
+  bus1->base.rx_task          = stm32_rx_task;
+  bus1->base.set_filter       = stm32_can_set_filter;
+  bus1->base.get_num_filters  = stm32_can_get_num_filters;
   bus1->instance      = CAN_ONE;
 
   if (bus1 == NULL) {
@@ -648,11 +658,12 @@ int stm32_bsp_register_can
 
   bus2 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus2));
 
-  bus2->base.init     = stm32_can_init;
-  bus2->base.de_init  = stm32_can_de_init;
-  bus2->base.tx_task  = stm32_tx_task;
-  bus2->base.rx_task  = stm32_rx_task;
-  bus2->base.set_filter = stm32_can_set_filter;
+  bus2->base.init             = stm32_can_init;
+  bus2->base.de_init          = stm32_can_de_init;
+  bus2->base.tx_task          = stm32_tx_task;
+  bus2->base.rx_task          = stm32_rx_task;
+  bus2->base.set_filter       = stm32_can_set_filter;
+  bus2->base.get_num_filters  = stm32_can_get_num_filters;
   bus2->instance      = CAN_TWO;
 
   if (bus2 == NULL) {

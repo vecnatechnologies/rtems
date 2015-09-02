@@ -87,10 +87,9 @@ int can_bus_set_filter(
   can_filter * filter
 ) 
 {
-  int err;
   _Assert(filter);
   can_bus_obtain(bus);
-  err =  bus->set_filter(bus, filter);
+  int err =  bus->set_filter(bus, filter);
   can_bus_release(bus);
   return err;
 }
@@ -133,19 +132,6 @@ int can_bus_get_num_filters_default(
   return -EIO;
 }
 
-int can_bus_transfer(can_bus *bus, can_msg *msgs, uint32_t msg_count)
-{
-  int err;
-
-  _Assert(msg_count > 0);
-  
-  // error checking
-
-  can_bus_obtain(bus);
-  can_bus_release(bus);
-
-  return err;
-}
 
 static ssize_t can_bus_read(
   rtems_libio_t *iop,
@@ -224,9 +210,8 @@ static int can_bus_close(
 )
 {
   can_bus *bus = IMFS_generic_get_context_by_iop(iop);
-  int err;
   can_bus_obtain(bus);
-  err = bus->de_init(bus);
+  int err = bus->de_init(bus);
   can_bus_release(bus);
   if (err == 0) {
     return 0;
@@ -244,9 +229,8 @@ static int can_bus_open(
 {
   rtems_status_code sc;
   can_bus *bus = IMFS_generic_get_context_by_iop(iop);
-  int err;
   can_bus_obtain(bus);
-  err = bus->init(bus, bus->default_baud);
+  int err = bus->init(bus, bus->default_baud);
   can_bus_release(bus);
 
   sc = rtems_task_start(
@@ -269,6 +253,7 @@ static int can_bus_ioctl(
 {
   can_bus *bus = IMFS_generic_get_context_by_iop(iop);
   can_filter * filter;
+  uint32_t baudrate;
   int err;
 
   switch (command) {
@@ -279,6 +264,15 @@ static int can_bus_ioctl(
 
     case CAN_GET_NUM_FILTERS:
       return bus->get_num_filters(bus);
+      break;
+
+    case CAN_SET_BAUDRATE:
+      baudrate = (uint32_t) arg;
+      if (baudrate > 1000000) {
+        return -1;
+      } else {
+        return can_bus_change_baudrate(bus, baudrate);
+      }
       break;
 
     default:
