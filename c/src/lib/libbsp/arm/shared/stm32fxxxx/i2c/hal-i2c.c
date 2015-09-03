@@ -42,6 +42,24 @@ const rtems_vector_number I2C_IRQ_VEC[MAX_I2C_INSTANCES] = { I2C1_EV_IRQn, \
 															 I2C2_EV_IRQn, \
 															 I2C3_EV_IRQn };
 
+const bool I2C_Enable[MAX_I2C_INSTANCES] = {
+#if (STM32F4_ENABLE_I2C1)
+										true,
+#else
+										false,
+#endif
+#if (STM32F4_ENABLE_I2C2)
+										true,
+#else
+										false,
+#endif
+#if (STM32F4_ENABLE_I2C3)
+										true
+#else
+										false
+#endif
+};
+
 /*********** Private Funvtions **********************/
 
 /**
@@ -136,9 +154,6 @@ static void stm32_i2c_gpio_init(stm32_i2c_bus * bus)
 		  GPIO_InitStruct.Pin = I2C3_SDA_PIN;
 		  HAL_GPIO_Init(I2C3_SDA_GPIO_PORT, &GPIO_InitStruct);
 	  }
-
-	  //HAL_NVIC_SetPriority(I2Cx_EV_IRQn, 2, 0);
-	  //HAL_NVIC_EnableIRQ(I2Cx_EV_IRQn);
 }
 
 /**
@@ -158,7 +173,7 @@ static void stm32_i2c_event_irq(void* arg)
 /**
  * I2C Initiate Transfer
  */
-static int stm32_i2c_initiate_transfer(
+static int stm32_i2c_transfer(
   i2c_bus *base,
   i2c_msg *msgs,
   uint32_t msg_count
@@ -170,12 +185,19 @@ static int stm32_i2c_initiate_transfer(
 	i2c_msg *message = msgs->buf;
 
 	 /* Wait for the I2C bus to be ready */
-	  while (HAL_I2C_GetState(&bus->handle) != HAL_I2C_STATE_READY)
-	  {
-	  }
+	while (HAL_I2C_GetState(&bus->handle) != HAL_I2C_STATE_READY);
 
-	if(HAL_I2C_Master_Transmit_IT(&bus->handle, (uint16_t)message->addr, (uint8_t*)message->buf, msgs->len)!= HAL_OK){
-		return -1;
+	if(msgs->flags == 0)
+	{
+		if(HAL_I2C_Master_Transmit_IT(&bus->handle, (uint16_t)message->addr, (uint8_t*)message->buf, msgs->len)!= HAL_OK){
+			return -1;
+		}
+	}
+	else if(msgs->flags == I2C_M_RD)
+	{
+		if(HAL_I2C_Master_Receive_IT(&bus->handle, (uint16_t)message->addr, (uint8_t*)message->buf, msgs->len) != HAL_OK){
+			return -1;
+		}
 	}
 
 	bus->task_id = rtems_task_self();
@@ -214,49 +236,53 @@ int stm32_bsp_register_i2c(void)
 
 	for(inst_num=0; inst_num < I2C_INSTANCES; inst_num++)
 	{
-		bus[inst_num] = (stm32_i2c_bus *) i2c_bus_alloc_and_init(sizeof(*bus[inst_num]));
+		if(true == I2C_Enable[inst_num]) // Check if to enable this instance or not
+		{
 
-		if (bus[inst_num] == NULL) {
-			return -ENOMEM;
-		}
+			bus[inst_num] = (stm32_i2c_bus *) i2c_bus_alloc_and_init(sizeof(*bus[inst_num]));
+
+			if (bus[inst_num] == NULL) {
+				return -ENOMEM;
+			}
 
 /*********************** Initialize I2C ***************************/
 
-		bus[inst_num]->instance = (I2C_Instance)inst_num;
+			bus[inst_num]->instance = (I2C_Instance)inst_num;
 
-		stm32_i2c_gpio_init(bus[inst_num]);
+			stm32_i2c_gpio_init(bus[inst_num]);
 
-		if(stm32_i2c_init(bus[inst_num]) != HAL_OK) {
+			if(stm32_i2c_init(bus[inst_num]) != HAL_OK) {
 
-			(*bus[inst_num]->base.destroy)(&bus[inst_num]->base);
-			rtems_set_errno_and_return_minus_one(EIO);
-		}
+				(*bus[inst_num]->base.destroy)(&bus[inst_num]->base);
+				rtems_set_errno_and_return_minus_one(EIO);
+			}
 
 /******************************************************************/
 
 /********************* Install I2C vectors ***********************/
 
-		sc = rtems_interrupt_handler_install(
-				I2C_IRQ_VEC[inst_num],
-				"I2C Event Insturrpt",
-				RTEMS_INTERRUPT_UNIQUE,
-				stm32_i2c_event_irq,
-				&bus[inst_num]->handle
-		);
+			sc = rtems_interrupt_handler_install(
+					I2C_IRQ_VEC[inst_num],
+					"I2C Event Insturrpt",
+					RTEMS_INTERRUPT_UNIQUE,
+					stm32_i2c_event_irq,
+					&bus[inst_num]->handle
+			);
 
-		if (sc != RTEMS_SUCCESSFUL) {
+			if (sc != RTEMS_SUCCESSFUL) {
 
-			(*bus[inst_num]->base.destroy)(&bus[inst_num]->base);
-			rtems_set_errno_and_return_minus_one(EIO);
-		}
+				(*bus[inst_num]->base.destroy)(&bus[inst_num]->base);
+				rtems_set_errno_and_return_minus_one(EIO);
+			}
 /******************************************************************/
 
-		bus[inst_num]->base.transfer = stm32_i2c_initiate_transfer;
-		bus[inst_num]->base.destroy  = stm32_i2c_deinit_destroy;
+			bus[inst_num]->base.transfer = stm32_i2c_transfer;
+			bus[inst_num]->base.destroy  = stm32_i2c_deinit_destroy;
 
-		sprintf(bus_path, "/dev/i2c%d",inst_num+1);
+			sprintf(bus_path, "/dev/i2c%d",inst_num+1);
 
-		err = i2c_bus_register(&bus[inst_num]->base, bus_path);
+			err = i2c_bus_register(&bus[inst_num]->base, bus_path);
+		}
 	}
 	return err;
 }

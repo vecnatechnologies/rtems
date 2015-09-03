@@ -72,14 +72,6 @@
  */
 #define I2C_AF                     		GPIO_AF4_I2C1
 
-/**
- *  Definition for I2Cx's NVIC
- */
-#define I2Cx_EV_IRQn                    I2C1_EV_IRQn
-#define I2Cx_EV_IRQHandler              I2C1_EV_IRQHandler
-#define I2Cx_ER_IRQn                    I2C1_ER_IRQn
-#define I2Cx_ER_IRQHandler              I2C1_ER_IRQHandler
-
 /************************ Typedefs ******************************/
 
 typedef struct i2c_system_bus i2c_system_bus;
