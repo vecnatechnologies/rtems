@@ -130,10 +130,16 @@ include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
 
 # Shared driver headers
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
+
+# Private driver headers
+include_bsp_HEADERS += include/hal-i2c-init.h
 
 ###############################################################################
 #                  LibBSP                                                     #
@@ -166,6 +172,13 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 
 # SDRAM
 libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
+
+# CAN
+libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
+
+#I2C
+libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
+libbsp_a_SOURCES += i2c/hal-i2c-init.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
@@ -214,7 +227,7 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/stm32fxxxx/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 
-libbsp_a_CPPFLAGS += -D STM32F746xx -D USE_HAL_DRIVER -D TARGET_STM_PROCESSOR_PREFIX=7xx -DTARGET_STM_PROCESSOR=746
+libbsp_a_CPPFLAGS += -D STM32F746xx -D TARGET_STM_PROCESSOR_PREFIX=7xx -DTARGET_STM_PROCESSOR=746
 
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc_ex.c
