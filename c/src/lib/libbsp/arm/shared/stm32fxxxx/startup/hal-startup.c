@@ -263,4 +263,5 @@ void bsp_predriver_hook(
 {
   stm32f_uarts_initialize();
   stm32_bsp_register_can();
+  stm32_bsp_register_i2c();
 }

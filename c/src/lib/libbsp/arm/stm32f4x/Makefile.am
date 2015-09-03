@@ -131,6 +131,7 @@ include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
 
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
@@ -172,6 +173,9 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
 
 # CAN
 libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
+
+#I2C
+libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
