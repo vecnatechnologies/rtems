@@ -73,13 +73,13 @@ static int stm32_i2c_init (stm32_i2c_bus * bus)
 		  bus->handle.Init.OwnAddress1     = I2C1_ADDRESS;
 		  bus->handle.Init.OwnAddress2     = 0xFE;
 	  }
-	  else if(bus->instance == I2C_ONE)
+	  else if(bus->instance == I2C_TWO)
 	  {
 		  bus->handle.Instance             = I2C2;
 		  bus->handle.Init.OwnAddress1     = I2C2_ADDRESS;
 		  bus->handle.Init.OwnAddress2     = 0xFE;
 	  }
-	  else if(bus->instance == I2C_ONE)
+	  else if(bus->instance == I2C_THREE)
 	  {
 		  bus->handle.Instance             = I2C3;
 		  bus->handle.Init.OwnAddress1     = I2C3_ADDRESS;
