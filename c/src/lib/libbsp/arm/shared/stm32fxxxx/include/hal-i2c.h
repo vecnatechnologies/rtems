@@ -27,47 +27,6 @@
 /************************ Defines ******************************/
 
 /**
- *  Max I2C Instances available in system
- */
-#define MAX_I2C_INSTANCES 				3
-
-/**
- *  Number of Instances to be initailized
- */
-#define I2C_INSTANCES 					3
-
-/**
- *  Device Address for each I2C instances
- */
-#define I2C1_ADDRESS        			0x30F
-#define I2C2_ADDRESS        			0x31F
-#define I2C3_ADDRESS       				0x32F
-
-/**
- *  Definition for I2C1 Pins
- */
-#define I2C1_SCL_PIN                    GPIO_PIN_6
-#define I2C1_SCL_GPIO_PORT              GPIOB
-#define I2C1_SDA_PIN                    GPIO_PIN_7
-#define I2C1_SDA_GPIO_PORT              GPIOB
-
-/**
- *  Definition for I2C2 Pins
- */
-#define I2C2_SCL_PIN                    GPIO_PIN_10
-#define I2C2_SCL_GPIO_PORT              GPIOB
-#define I2C2_SDA_PIN                    GPIO_PIN_11
-#define I2C2_SDA_GPIO_PORT              GPIOB
-
-/**
- *  Definition for I2C3 Pins
- */
-#define I2C3_SCL_PIN                    GPIO_PIN_8
-#define I2C3_SCL_GPIO_PORT              GPIOA
-#define I2C3_SDA_PIN                    GPIO_PIN_9
-#define I2C3_SDA_GPIO_PORT              GPIOC
-
-/**
  *  Alternate Pin Configuration for I2C
  */
 #define I2C_AF                     		GPIO_AF4_I2C1
@@ -84,7 +43,8 @@ typedef enum
 {
   I2C_ONE = 0,
   I2C_TWO,
-  I2C_THREE
+  I2C_THREE,
+  I2C_FOUR
 } I2C_Instance;
 
 /**

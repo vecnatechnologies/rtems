@@ -138,6 +138,9 @@ include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
 
+# Private driver headers
+include_bsp_HEADERS += include/hal-i2c-init.h
+
 ###############################################################################
 #                  LibBSP                                                     #
 ###############################################################################
@@ -176,6 +179,7 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 
 #I2C
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
+libbsp_a_SOURCES += i2c/hal-i2c-init.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
