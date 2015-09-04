@@ -134,7 +134,7 @@ static void stm32_i2c_gpio_init(stm32_i2c_bus * bus)
 		  GPIO_InitStruct.Pin = I2C1_SDA_PIN;
 		  HAL_GPIO_Init(I2C1_SDA_GPIO_PORT, &GPIO_InitStruct);
 	  }
-	  else if(bus->instance == I2C_ONE)
+	  else if(bus->instance == I2C_TWO)
 	  {
 		  /* I2C TX GPIO pin configuration  */
 		  GPIO_InitStruct.Pin = I2C2_SCL_PIN;
@@ -144,7 +144,7 @@ static void stm32_i2c_gpio_init(stm32_i2c_bus * bus)
 		  GPIO_InitStruct.Pin = I2C2_SDA_PIN;
 		  HAL_GPIO_Init(I2C2_SDA_GPIO_PORT, &GPIO_InitStruct);
 	  }
-	  else if(bus->instance == I2C_ONE)
+	  else if(bus->instance == I2C_THREE)
 	  {
 		  /* I2C TX GPIO pin configuration  */
 		  GPIO_InitStruct.Pin = I2C3_SCL_PIN;
