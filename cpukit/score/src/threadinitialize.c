@@ -30,7 +30,7 @@
 #include <rtems/config.h>
 
 bool _Thread_Initialize(
-  Objects_Information                  *information,
+  Thread_Information                   *information,
   Thread_Control                       *the_thread,
   const Scheduler_Control              *scheduler,
   void                                 *stack_area,
@@ -76,6 +76,7 @@ bool _Thread_Initialize(
   #endif
 
   the_thread->Start.tls_area = NULL;
+  the_thread->Wait.spare_heads = NULL;
 
   /*
    *  Allocate and Initialize the stack for this thread.
@@ -135,6 +136,20 @@ bool _Thread_Initialize(
   #endif
 
   /*
+   *  Get thread queue heads
+   */
+  the_thread->Wait.spare_heads = _Freechain_Get(
+    &information->Free_thread_queue_heads,
+    _Workspace_Allocate,
+    _Objects_Extend_size( &information->Objects ),
+    THREAD_QUEUE_HEADS_SIZE( _Scheduler_Count )
+  );
+  if ( the_thread->Wait.spare_heads == NULL ) {
+    goto failed;
+  }
+  _Thread_queue_Heads_initialize( the_thread->Wait.spare_heads );
+
+  /*
    *  Initialize the thread timer
    */
   _Watchdog_Preinitialize( &the_thread->Timer );
@@ -189,7 +204,9 @@ bool _Thread_Initialize(
   _Resource_Node_initialize( &the_thread->Resource_node );
   _CPU_Context_Set_is_executing( &the_thread->Registers, false );
   the_thread->Lock.current = &the_thread->Lock.Default;
-  _ISR_lock_Initialize( &the_thread->Lock.Default, "Thread Lock Default");
+  _SMP_ticket_lock_Initialize( &the_thread->Lock.Default );
+  _SMP_lock_Stats_initialize( &the_thread->Lock.Stats, "Thread Lock" );
+  _SMP_lock_Stats_initialize( &the_thread->Potpourri_stats, "Thread Potpourri" );
   _Atomic_Init_uint(&the_thread->Lock.generation, 0);
 #endif
 
@@ -239,7 +256,7 @@ bool _Thread_Initialize(
   /*
    *  Open the object
    */
-  _Objects_Open( information, &the_thread->Object, name );
+  _Objects_Open( &information->Objects, &the_thread->Object, name );
 
   /*
    *  We assume the Allocator Mutex is locked and dispatching is
@@ -259,6 +276,11 @@ failed:
   }
 
   _Workspace_Free( the_thread->Start.tls_area );
+
+  _Freechain_Put(
+    &information->Free_thread_queue_heads,
+    the_thread->Wait.spare_heads
+  );
 
   #if ( CPU_HARDWARE_FP == TRUE ) || ( CPU_SOFTWARE_FP == TRUE )
     _Workspace_Free( fp_area );

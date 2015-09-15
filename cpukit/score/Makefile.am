@@ -283,9 +283,10 @@ libscore_a_SOURCES += src/pheapallocate.c \
 libscore_a_SOURCES += src/freechain.c
 
 ## RBTREE_C_FILES
-libscore_a_SOURCES += src/rbtree.c \
+libscore_a_SOURCES += \
     src/rbtreeextract.c src/rbtreefind.c \
     src/rbtreeinsert.c src/rbtreeiterate.c src/rbtreenext.c
+libscore_a_SOURCES += src/rbtreereplace.c
 
 ## THREAD_C_FILES
 libscore_a_SOURCES += src/thread.c src/threadchangepriority.c \
@@ -324,6 +325,7 @@ libscore_a_SOURCES += src/coretod.c src/coretodset.c \
     src/coretodtickle.c \
     src/coretodtickspersec.c \
     src/coretodadjust.c
+libscore_a_SOURCES += src/coretodabsolutetimeout.c
 
 ## WATCHDOG_C_FILES
 libscore_a_SOURCES += src/watchdog.c src/watchdogadjust.c \
@@ -343,10 +345,15 @@ libscore_a_SOURCES += src/apiext.c src/chain.c src/chainappend.c \
     src/debugisthreaddispatchingallowed.c \
     src/interr.c src/isr.c src/wkspace.c src/wkstringduplicate.c
 libscore_a_SOURCES += src/isrisinprogress.c
+libscore_a_SOURCES += src/condition.c
 libscore_a_SOURCES += src/debugisownerofallocator.c
+libscore_a_SOURCES += src/futex.c
 libscore_a_SOURCES += src/profilingisrentryexit.c
+libscore_a_SOURCES += src/mutex.c
 libscore_a_SOURCES += src/once.c
 libscore_a_SOURCES += src/resourceiterate.c
+libscore_a_SOURCES += src/sched.c
+libscore_a_SOURCES += src/semaphore.c
 libscore_a_SOURCES += src/smpbarrierwait.c
 libscore_a_SOURCES += src/kern_tc.c
 

@@ -147,6 +147,101 @@ another processor.  So if we enable interrupts during this transition we have
 to provide an alternative task independent stack for this time frame.  This
 issue needs further investigation.
 
+@subsection Clustered Scheduling
+
+We have clustered scheduling in case the set of processors of a system is
+partitioned into non-empty pairwise-disjoint subsets. These subsets are called
+clusters.  Clusters with a cardinality of one are partitions.  Each cluster is
+owned by exactly one scheduler instance.
+
+Clustered scheduling helps to control the worst-case latencies in
+multi-processor systems, see @cite{Brandenburg, Björn B.: Scheduling and
+Locking in Multiprocessor Real-Time Operating Systems. PhD thesis, 2011.
+@uref{http://www.cs.unc.edu/~bbb/diss/brandenburg-diss.pdf}}.  The goal is to
+reduce the amount of shared state in the system and thus prevention of lock
+contention. Modern multi-processor systems tend to have several layers of data
+and instruction caches.  With clustered scheduling it is possible to honour the
+cache topology of a system and thus avoid expensive cache synchronization
+traffic.  It is easy to implement.  The problem is to provide synchronization
+primitives for inter-cluster synchronization (more than one cluster is involved
+in the synchronization process). In RTEMS there are currently four means
+available
+
+@itemize @bullet
+@item events,
+@item message queues,
+@item semaphores using the @ref{Semaphore Manager Priority Inheritance}
+protocol (priority boosting), and
+@item semaphores using the @ref{Semaphore Manager Multiprocessor Resource
+Sharing Protocol} (MrsP).
+@end itemize
+
+The clustered scheduling approach enables separation of functions with
+real-time requirements and functions that profit from fairness and high
+throughput provided the scheduler instances are fully decoupled and adequate
+inter-cluster synchronization primitives are used.  This is work in progress.
+
+For the configuration of clustered schedulers see @ref{Configuring a System
+Configuring Clustered Schedulers}.
+
+To set the scheduler of a task see @ref{Symmetric Multiprocessing Services
+SCHEDULER_IDENT - Get ID of a scheduler} and @ref{Symmetric Multiprocessing
+Services TASK_SET_SCHEDULER - Set scheduler of a task}.
+
+@subsection Task Priority Queues
+
+Due to the support for clustered scheduling the task priority queues need
+special attention.  It makes no sense to compare the priority values of two
+different scheduler instances.  Thus, it is not possible to simply use one
+plain priority queue for tasks of different scheduler instances.
+
+One solution to this problem is to use two levels of queues.  The top level
+queue provides FIFO ordering and contains priority queues.  Each priority queue
+is associated with a scheduler instance and contains only tasks of this
+scheduler instance.  Tasks are enqueued in the priority queue corresponding to
+their scheduler instance.  In case this priority queue was empty, then it is
+appended to the FIFO.  To dequeue a task the highest priority task of the first
+priority queue in the FIFO is selected.  Then the first priority queue is
+removed from the FIFO.  In case the previously first priority queue is not
+empty, then it is appended to the FIFO.  So there is FIFO fairness with respect
+to the highest priority task of each scheduler instances. See also @cite{
+Brandenburg, Björn B.: A fully preemptive multiprocessor semaphore protocol for
+latency-sensitive real-time applications. In Proceedings of the 25th Euromicro
+Conference on Real-Time Systems (ECRTS 2013), pages 292–302, 2013.
+@uref{http://www.mpi-sws.org/~bbb/papers/pdf/ecrts13b.pdf}}.
+
+Such a two level queue may need a considerable amount of memory if fast enqueue
+and dequeue operations are desired (depends on the scheduler instance count).
+To mitigate this problem an approch of the FreeBSD kernel was implemented in
+RTEMS.  We have the invariant that a task can be enqueued on at most one task
+queue.  Thus, we need only as many queues as we have tasks.  Each task is
+equipped with spare task queue which it can give to an object on demand.  The
+task queue uses a dedicated memory space independent of the other memory used
+for the task itself. In case a task needs to block, then there are two options
+
+@itemize @bullet
+@item the object already has task queue, then the task enqueues itself to this
+already present queue and the spare task queue of the task is added to a list
+of free queues for this object, or
+@item otherwise, then the queue of the task is given to the object and the task
+enqueues itself to this queue.
+@end itemize
+
+In case the task is dequeued, then there are two options
+
+@itemize @bullet
+@item the task is the last task on the queue, then it removes this queue from
+the object and reclaims it for its own purpose, or
+@item otherwise, then the task removes one queue from the free list of the
+object and reclaims it for its own purpose.
+@end itemize
+
+Since there are usually more objects than tasks, this actually reduces the
+memory demands. In addition the objects contain only a pointer to the task
+queue structure. This helps to hide implementation details and makes it
+possible to use self-contained synchronization objects in Newlib and GCC (C++
+and OpenMP run-time support).
+
 @subsection Scheduler Helping Protocol
 
 The scheduler provides a helping protocol to support locking protocols like
@@ -237,17 +332,70 @@ In general, applications must use proper operating system provided mutual
 exclusion mechanisms to ensure correct behavior. This primarily means
 the use of binary semaphores or mutexes to implement critical sections.
 
-@subsubsection Disable Interrupts
+@subsubsection Disable Interrupts and Interrupt Locks
 
-Again on a uniprocessor system, there is only a single processor which
-logically executes a single task and takes interrupts. On an SMP system,
-each processor may take an interrupt. When the application disables
-interrupts, it generally does so by altering a processor register to
-mask interrupts and later to re-enable them. On a uniprocessor system,
-changing this in the single processor is sufficient. However, on an SMP
-system, this register in @strong{ALL} processors must be changed. There
-are no comparable capabilities in an SMP system to disable all interrupts
-across all processors.
+A low overhead means to ensure mutual exclusion in uni-processor configurations
+is to disable interrupts around a critical section.  This is commonly used in
+device driver code and throughout the operating system core.  On SMP
+configurations, however, disabling the interrupts on one processor has no
+effect on other processors.  So, this is insufficient to ensure system wide
+mutual exclusion.  The macros
+@itemize @bullet
+@item @code{rtems_interrupt_disable()},
+@item @code{rtems_interrupt_enable()}, and
+@item @code{rtems_interrupt_flush()}
+@end itemize
+are disabled on SMP configurations and its use will lead to compiler warnings
+and linker errors.  In the unlikely case that interrupts must be disabled on
+the current processor, then the
+@itemize @bullet
+@item @code{rtems_interrupt_local_disable()}, and
+@item @code{rtems_interrupt_local_enable()}
+@end itemize
+macros are now available in all configurations.
+
+Since disabling of interrupts is not enough to ensure system wide mutual
+exclusion on SMP, a new low-level synchronization primitive was added - the
+interrupt locks.  They are a simple API layer on top of the SMP locks used for
+low-level synchronization in the operating system core.  Currently they are
+implemented as a ticket lock.  On uni-processor configurations they degenerate
+to simple interrupt disable/enable sequences.  It is disallowed to acquire a
+single interrupt lock in a nested way.  This will result in an infinite loop
+with interrupts disabled.  While converting legacy code to interrupt locks care
+must be taken to avoid this situation.
+
+@example
+@group
+void legacy_code_with_interrupt_disable_enable( void )
+@{
+  rtems_interrupt_level level;
+
+  rtems_interrupt_disable( level );
+  /* Some critical stuff */
+  rtems_interrupt_enable( level );
+@}
+
+RTEMS_INTERRUPT_LOCK_DEFINE( static, lock, "Name" )
+
+void smp_ready_code_with_interrupt_lock( void )
+@{
+  rtems_interrupt_lock_context lock_context;
+
+  rtems_interrupt_lock_acquire( &lock, &lock_context );
+  /* Some critical stuff */
+  rtems_interrupt_lock_release( &lock, &lock_context );
+@}
+@end group
+@end example
+
+The @code{rtems_interrupt_lock} structure is empty on uni-processor
+configurations.  Empty structures have a different size in C
+(implementation-defined, zero in case of GCC) and C++ (implementation-defined
+non-zero value, one in case of GCC).  Thus the
+@code{RTEMS_INTERRUPT_LOCK_DECLARE()}, @code{RTEMS_INTERRUPT_LOCK_DEFINE()},
+@code{RTEMS_INTERRUPT_LOCK_MEMBER()}, and
+@code{RTEMS_INTERRUPT_LOCK_REFERENCE()} macros are provided to ensure ABI
+compatibility.
 
 @subsubsection Highest Priority Task Assumption
 
@@ -307,16 +455,150 @@ The Classic API provides three directives to support per task variables. These a
 @item @code{@value{DIRPREFIX}task_variable_delete} - Remove per task variable
 @end itemize
 
-As task variables are unsafe for use on SMP systems, the use of these
-services should be eliminated in all software that is to be used in
-an SMP environment. It is recommended that the application developer
-consider the use of POSIX Keys or Thread Local Storage (TLS). POSIX Keys
-are not enabled in all RTEMS configurations.
+As task variables are unsafe for use on SMP systems, the use of these services
+must be eliminated in all software that is to be used in an SMP environment.
+The task variables API is disabled on SMP. Its use will lead to compile-time
+and link-time errors. It is recommended that the application developer consider
+the use of POSIX Keys or Thread Local Storage (TLS). POSIX Keys are available
+in all RTEMS configurations.  For the availablity of TLS on a particular
+architecture please consult the @cite{RTEMS CPU Architecture Supplement}.
 
-@b{STATUS}: As of March 2014, some support services in the
-@code{rtems/cpukit} use per task variables. When these uses are
-eliminated, the per task variable directives will be disabled when
-building RTEMS in SMP configuration.
+The only remaining user of task variables in the RTEMS code base is the Ada
+support.  So basically Ada is not available on RTEMS SMP.
+
+@subsection OpenMP
+
+OpenMP support for RTEMS is available via the GCC provided libgomp.  There is
+libgomp support for RTEMS in the POSIX configuration of libgomp since GCC 4.9
+(requires a Newlib snapshot after 2015-03-12). In GCC 6.1 or later (requires a
+Newlib snapshot after 2015-07-30 for <sys/lock.h> provided self-contained
+synchronization objects) there is a specialized libgomp configuration for RTEMS
+which offers a significantly better performance compared to the POSIX
+configuration of libgomp.  In addition application configurable thread pools
+for each scheduler instance are available in GCC 6.1 or later.
+
+The run-time configuration of libgomp is done via environment variables
+documented in the @uref{https://gcc.gnu.org/onlinedocs/libgomp/, libgomp
+manual}.  The environment variables are evaluated in a constructor function
+which executes in the context of the first initialization task before the
+actual initialization task function is called (just like a global C++
+constructor).  To set application specific values, a higher priority
+constructor function must be used to set up the environment variables.
+
+@example
+@group
+#include <stdlib.h>
+
+void __attribute__((constructor(1000))) config_libgomp( void )
+@{
+  setenv( "OMP_DISPLAY_ENV", "VERBOSE", 1 );
+  setenv( "GOMP_SPINCOUNT", "30000", 1 );
+  setenv( "GOMP_RTEMS_THREAD_POOLS", "1$2@@SCHD", 1 );
+@}
+@end group
+@end example
+
+The environment variable @env{GOMP_RTEMS_THREAD_POOLS} is RTEMS-specific.  It
+determines the thread pools for each scheduler instance.  The format for
+@env{GOMP_RTEMS_THREAD_POOLS} is a list of optional
+@code{<thread-pool-count>[$<priority>]@@<scheduler-name>} configurations
+separated by @code{:} where:
+
+@itemize @bullet
+@item @code{<thread-pool-count>} is the thread pool count for this scheduler
+instance.
+@item @code{$<priority>} is an optional priority for the worker threads of a
+thread pool according to @code{pthread_setschedparam}.  In case a priority
+value is omitted, then a worker thread will inherit the priority of the OpenMP
+master thread that created it.  The priority of the worker thread is not
+changed by libgomp after creation, even if a new OpenMP master thread using the
+worker has a different priority.
+@item @code{@@<scheduler-name>} is the scheduler instance name according to the
+RTEMS application configuration.
+@end itemize
+
+In case no thread pool configuration is specified for a scheduler instance,
+then each OpenMP master thread of this scheduler instance will use its own
+dynamically allocated thread pool.  To limit the worker thread count of the
+thread pools, each OpenMP master thread must call @code{omp_set_num_threads}.
+
+Lets suppose we have three scheduler instances @code{IO}, @code{WRK0}, and
+@code{WRK1} with @env{GOMP_RTEMS_THREAD_POOLS} set to
+@code{"1@@WRK0:3$4@@WRK1"}.  Then there are no thread pool restrictions for
+scheduler instance @code{IO}.  In the scheduler instance @code{WRK0} there is
+one thread pool available.  Since no priority is specified for this scheduler
+instance, the worker thread inherits the priority of the OpenMP master thread
+that created it.  In the scheduler instance @code{WRK1} there are three thread
+pools available and their worker threads run at priority four.
+
+@subsection Thread Dispatch Details
+
+This section gives background information to developers interested in the
+interrupt latencies introduced by thread dispatching.  A thread dispatch
+consists of all work which must be done to stop the currently executing thread
+on a processor and hand over this processor to an heir thread.
+
+On SMP systems, scheduling decisions on one processor must be propagated to
+other processors through inter-processor interrupts.  So, a thread dispatch
+which must be carried out on another processor happens not instantaneous.  Thus
+several thread dispatch requests might be in the air and it is possible that
+some of them may be out of date before the corresponding processor has time to
+deal with them.  The thread dispatch mechanism uses three per-processor
+variables,
+@itemize @bullet
+@item the executing thread,
+@item the heir thread, and
+@item an boolean flag indicating if a thread dispatch is necessary or not.
+@end itemize
+Updates of the heir thread and the thread dispatch necessary indicator are
+synchronized via explicit memory barriers without the use of locks.  A thread
+can be an heir thread on at most one processor in the system.  The thread context
+is protected by a TTAS lock embedded in the context to ensure that it is used
+on at most one processor at a time.  The thread post-switch actions use a
+per-processor lock.  This implementation turned out to be quite efficient and
+no lock contention was observed in the test suite.
+
+The current implementation of thread dispatching has some implications with
+respect to the interrupt latency.  It is crucial to preserve the system
+invariant that a thread can execute on at most one processor in the system at a
+time.  This is accomplished with a boolean indicator in the thread context.
+The processor architecture specific context switch code will mark that a thread
+context is no longer executing and waits that the heir context stopped
+execution before it restores the heir context and resumes execution of the heir
+thread (the boolean indicator is basically a TTAS lock).  So, there is one
+point in time in which a processor is without a thread.  This is essential to
+avoid cyclic dependencies in case multiple threads migrate at once.  Otherwise
+some supervising entity is necessary to prevent deadlocks.  Such a global
+supervisor would lead to scalability problems so this approach is not used.
+Currently the context switch is performed with interrupts disabled.  Thus in
+case the heir thread is currently executing on another processor, the time of
+disabled interrupts is prolonged since one processor has to wait for another
+processor to make progress.
+
+It is difficult to avoid this issue with the interrupt latency since interrupts
+normally store the context of the interrupted thread on its stack.  In case a
+thread is marked as not executing, we must not use its thread stack to store
+such an interrupt context.  We cannot use the heir stack before it stopped
+execution on another processor.  If we enable interrupts during this
+transition, then we have to provide an alternative thread independent stack for
+interrupts in this time frame.  This issue needs further investigation.
+
+The problematic situation occurs in case we have a thread which executes with
+thread dispatching disabled and should execute on another processor (e.g. it is
+an heir thread on another processor).  In this case the interrupts on this
+other processor are disabled until the thread enables thread dispatching and
+starts the thread dispatch sequence.  The scheduler (an exception is the
+scheduler with thread processor affinity support) tries to avoid such a
+situation and checks if a new scheduled thread already executes on a processor.
+In case the assigned processor differs from the processor on which the thread
+already executes and this processor is a member of the processor set managed by
+this scheduler instance, it will reassign the processors to keep the already
+executing thread in place.  Therefore normal scheduler requests will not lead
+to such a situation.  Explicit thread migration requests, however, can lead to
+this situation.  Explicit thread migrations may occur due to the scheduler
+helping protocol or explicit scheduler instance changes.  The situation can
+also be provoked by interrupts which suspend and resume threads multiple times
+and produce stale asynchronous thread dispatch requests in the system.
 
 @c
 @c
@@ -467,8 +749,8 @@ the processor set of this scheduler is empty
 @subheading DESCRIPTION:
 
 Identifies a scheduler by its name.  The scheduler name is determined by the
-scheduler configuration.  @xref{Configuring a System Configuring
-Clustered/Partitioned Schedulers}.
+scheduler configuration.  @xref{Configuring a System Configuring Clustered
+Schedulers}.
 
 @subheading NOTES:
 

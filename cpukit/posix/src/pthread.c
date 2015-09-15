@@ -39,7 +39,6 @@
 #include <rtems/posix/psignalimpl.h>
 #include <rtems/posix/config.h>
 #include <rtems/posix/keyimpl.h>
-#include <rtems/posix/time.h>
 #include <rtems/score/timespec.h>
 #include <rtems/score/cpusetimpl.h>
 #include <rtems/score/assert.h>
@@ -370,19 +369,17 @@ void _POSIX_Threads_Manager_initialization(void)
     CPU_COPY( attr->affinityset, affinity->set );
   #endif
 
-  _Objects_Initialize_information(
+  _Thread_Initialize_information(
     &_POSIX_Threads_Information, /* object information table */
     OBJECTS_POSIX_API,           /* object API */
     OBJECTS_POSIX_THREADS,       /* object class */
     Configuration_POSIX_API.maximum_threads,
                                  /* maximum objects of this class */
-    _Thread_Control_size,        /* size of this object's control block */
     true,                        /* true if names for this object are strings */
     _POSIX_PATH_MAX              /* maximum length of each object's name */
 #if defined(RTEMS_MULTIPROCESSING)
     ,
-    false,                       /* true if this is a global object class */
-    NULL                         /* Proxy extraction support callout */
+    false                        /* true if this is a global object class */
 #endif
   );
 

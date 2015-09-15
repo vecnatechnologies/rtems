@@ -63,7 +63,7 @@ static const Objects_Information *const objects_info_table[] = {
   &_Dual_ported_memory_Information,
   &_Region_Information,
   &_Semaphore_Information,
-  &_RTEMS_tasks_Information,
+  &_RTEMS_tasks_Information.Objects,
   &_Timer_Information
   #ifdef RTEMS_POSIX_API
     ,
@@ -75,7 +75,7 @@ static const Objects_Information *const objects_info_table[] = {
     &_POSIX_RWLock_Information,
     &_POSIX_Semaphore_Information,
     &_POSIX_Spinlock_Information,
-    &_POSIX_Threads_Information,
+    &_POSIX_Threads_Information.Objects,
     &_POSIX_Timer_Information
   #endif
 };
@@ -107,14 +107,12 @@ static void get_heap_info(Heap_Control *heap, Heap_Information_block *info)
 
 static bool count_posix_key_value_pairs(
   const RBTree_Node *node,
-  RBTree_Direction dir,
   void *visitor_arg
 )
 {
   uint32_t *count = visitor_arg;
 
   (void) node;
-  (void) dir;
 
   ++(*count);
 
@@ -128,7 +126,6 @@ static uint32_t get_active_posix_key_value_pairs(void)
   _Thread_Disable_dispatch();
   _RBTree_Iterate(
     &_POSIX_Keys_Key_value_lookup_tree,
-    RBT_LEFT,
     count_posix_key_value_pairs,
     &count
   );

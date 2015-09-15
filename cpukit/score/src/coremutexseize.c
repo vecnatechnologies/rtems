@@ -75,7 +75,7 @@ void _CORE_mutex_Seize_interrupt_blocking(
     _Thread_queue_Release( &the_mutex->Wait_queue, lock_context );
 #endif
 
-    _Thread_Raise_priority( holder, executing->current_priority );
+    _Thread_Inherit_priority( holder, executing );
 
 #if !defined(RTEMS_SMP)
     _Thread_queue_Acquire( &the_mutex->Wait_queue, lock_context );
@@ -83,7 +83,8 @@ void _CORE_mutex_Seize_interrupt_blocking(
   }
 
   _Thread_queue_Enqueue_critical(
-    &the_mutex->Wait_queue,
+    &the_mutex->Wait_queue.Queue,
+    the_mutex->Wait_queue.operations,
     executing,
     STATES_WAITING_FOR_MUTEX,
     timeout,

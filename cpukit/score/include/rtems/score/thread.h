@@ -329,7 +329,7 @@ typedef struct {
    *
    * @see _Thread_Lock_set() and _Thread_Wait_set_queue().
    */
-  Thread_queue_Control *queue;
+  Thread_queue_Queue *queue;
 
   /**
    * @brief This field contains several flags used to control the wait class
@@ -349,6 +349,8 @@ typedef struct {
    * @see _Thread_Lock_set() and _Thread_Wait_set_operations().
    */
   const Thread_queue_Operations *operations;
+
+  Thread_queue_Heads *spare_heads;
 }   Thread_Wait_information;
 
 /**
@@ -649,14 +651,30 @@ typedef struct  {
 typedef struct {
   /**
    * @brief The current thread lock.
+   *
+   * This is a plain ticket lock without SMP lock statistics support.  This
+   * enables external libraries to use thread locks since they are independent
+   * of the actual RTEMS build configuration, e.g. profiling enabled or
+   * disabled.
    */
-  ISR_lock_Control *current;
+  SMP_ticket_lock_Control *current;
 
   /**
    * @brief The default thread lock in case the thread is not blocked on a
    * resource.
    */
-  ISR_lock_Control Default;
+  SMP_ticket_lock_Control Default;
+
+#if defined(RTEMS_PROFILING)
+  /**
+   * @brief The thread lock statistics.
+   *
+   * These statistics are used by the executing thread in case it acquires a
+   * thread lock.  Thus the statistics are an aggregation of acquire and
+   * release operations of diffent locks.
+   */
+  SMP_lock_Stats Stats;
+#endif
 
   /**
    * @brief Generation number to invalidate stale locks.
@@ -667,8 +685,11 @@ typedef struct {
 
 /**
  *  This structure defines the Thread Control Block (TCB).
+ *
+ *  Uses a leading underscore in the structure name to allow forward
+ *  declarations in standard header files provided by Newlib and GCC.
  */
-struct Thread_Control {
+struct _Thread_Control {
   /** This field is the object management structure for each thread. */
   Objects_Control          Object;
   /** This field is the current execution state of this thread. */
@@ -726,6 +747,18 @@ struct Thread_Control {
    * @brief Thread lock control.
    */
   Thread_Lock_control Lock;
+#endif
+
+#if defined(RTEMS_SMP) && defined(RTEMS_PROFILING)
+  /**
+   * @brief Potpourri lock statistics.
+   *
+   * These SMP lock statistics are used for all lock objects that lack a
+   * storage space for the statistics.  Examples are lock objects used in
+   * external libraries which are independent of the actual RTEMS build
+   * configuration.
+   */
+  SMP_lock_Stats Potpourri_stats;
 #endif
 
 #ifdef __RTEMS_STRICT_ORDER_MUTEX__

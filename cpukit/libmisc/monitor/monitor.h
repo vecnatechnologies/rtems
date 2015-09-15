@@ -99,15 +99,15 @@ typedef struct {
     Thread_Entry_numeric_type  argument;
     void                      *stack;
     uint32_t                   stack_size;
+    uint32_t                   cpu;
     rtems_task_priority        priority;
     States_Control             state;
     rtems_event_set            events;
     rtems_mode                 modes;
     rtems_attribute            attributes;
-    uint32_t                   notepad[RTEMS_NUMBER_NOTEPADS]
-                                            RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
     rtems_id                   wait_id;
-    uint32_t                   wait_args;
+    const void                *wait_queue;
+    const void                *wait_operations;
     uint32_t                   ticks;
 } rtems_monitor_task_t;
 
@@ -405,7 +405,7 @@ void       rtems_monitor_separator(void);
 uint32_t   rtems_monitor_pad(uint32_t   dest_col, uint32_t   curr_col);
 int        rtems_monitor_dump_decimal(uint32_t   num);
 int        rtems_monitor_dump_hex(uint32_t   num);
-int        rtems_monitor_dump_addr(void *addr);
+int        rtems_monitor_dump_addr(const void *addr);
 int        rtems_monitor_dump_id(rtems_id id);
 int        rtems_monitor_dump_name(rtems_id id);
 int        rtems_monitor_dump_priority(rtems_task_priority priority);
@@ -413,7 +413,6 @@ int        rtems_monitor_dump_state(States_Control state);
 int        rtems_monitor_dump_modes(rtems_mode modes);
 int        rtems_monitor_dump_attributes(rtems_attribute attributes);
 int        rtems_monitor_dump_events(rtems_event_set events);
-int        rtems_monitor_dump_notepad(uint32_t   *notepad);
 
 /* object.c */
 rtems_id   rtems_monitor_id_fixup(rtems_id, uint32_t  , rtems_monitor_object_type_t);

@@ -18,9 +18,8 @@
 #ifndef _RTEMS_SCORE_RBTREE_H
 #define _RTEMS_SCORE_RBTREE_H
 
-#include <stddef.h>
-
-#include <rtems/score/address.h>
+#include <sys/tree.h>
+#include <rtems/score/basedefs.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,54 +39,22 @@ extern "C" {
 /**@{*/
 
 /**
- *  @typedef RBTree_Node
+ * @brief Red-black tree node.
  *
- *  This type definition promotes the name for the RBTree Node used by
- *  all RTEMS code.  It is a separate type definition because a forward
- *  reference is required to define it.  See @ref RBTree_Node_struct for
- *  detailed information.
+ * This is used to manage each node (element) which is placed on a red-black
+ * tree.
  */
-typedef struct RBTree_Node_struct RBTree_Node;
+typedef struct RBTree_Node {
+  RB_ENTRY(RBTree_Node) Node;
+} RBTree_Node;
 
 /**
- * This enum type defines the colors available for the RBTree Nodes
- */
-typedef enum {
-  RBT_BLACK,
-  RBT_RED
-} RBTree_Color;
-
-/**
- *  @struct RBTree_Node_struct
+ * @brief Red-black tree control.
  *
- *  This is used to manage each element (node) which is placed
- *  on a RBT.
- *
- *  @note Typically, a more complicated structure will use the
- *        rbtree package.  The more complicated structure will
- *        include a rbtree node as the first element in its
- *        control structure.  It will then call the rbtree package
- *        with a pointer to that node element.  The node pointer
- *        and the higher level structure start at the same address
- *        so the user can cast the pointers back and forth.
- *
+ * This is used to manage a red-black tree.  A red-black tree consists of a
+ * tree of zero or more nodes.
  */
-struct RBTree_Node_struct {
-  /** This points to the node's parent */
-  RBTree_Node *parent;
-  /** child[0] points to the left child, child[1] points to the right child */
-  RBTree_Node *child[2];
-  /** The color of the node. Either red or black */
-  RBTree_Color color;
-};
-
-/**
- *  This type indicates the direction.
- */
-typedef enum {
-  RBT_LEFT=0,
-  RBT_RIGHT=1
-} RBTree_Direction;
+typedef RB_HEAD(RBTree_Control, RBTree_Node) RBTree_Control;
 
 /**
  * @brief Integer type for compare results.
@@ -117,80 +84,16 @@ typedef RBTree_Compare_result ( *RBTree_Compare )(
 );
 
 /**
- *  @struct RBTree_Control
- *
- * This is used to manage a RBT.  A rbtree consists of a tree of zero or more
- * nodes.
- *
- * @note This implementation does not require special checks for
- *   manipulating the root element of the RBT.
- *   To accomplish this the @a RBTree_Control structure can be overlaid
- *   with a @ref RBTree_Node structure to act as a "dummy root",
- *   which has a NULL parent and its left child is the root.
- */
-
-/* the RBTree_Control is actually part of the RBTree structure as an
- * RBTree_Node. The mapping of fields from RBTree_Control to RBTree_Node are:
- *   permanent_null == parent
- *   root == left
- *   first[0] == right
- */
-typedef struct {
-  /** This points to a NULL. Useful for finding the root. */
-  RBTree_Node *permanent_null;
-  /** This points to the root node of the RBT. */
-  RBTree_Node *root;
-  /** This points to the min and max nodes of this RBT. */
-  RBTree_Node *first[2];
-} RBTree_Control;
-
-/**
- *  @brief RBTree initializer for an empty rbtree with designator @a name.
+ * @brief Initializer for an empty red-black tree with designator @a name.
  */
 #define RBTREE_INITIALIZER_EMPTY( name ) \
-  { NULL, NULL, { NULL, NULL } }
+  RB_INITIALIZER( name )
 
 /**
- *  @brief RBTree definition for an empty rbtree with designator @a name.
+ * @brief Definition for an empty red-black tree with designator @a name.
  */
 #define RBTREE_DEFINE_EMPTY( name ) \
   RBTree_Control name = RBTREE_INITIALIZER_EMPTY( name )
-
-/**
- *  @brief RBTree_Node initializer for an empty node with designator @a name.
- */
-#define RBTREE_NODE_INITIALIZER_EMPTY( name ) \
-  { NULL, { NULL, NULL }, RBT_RED }
-
-/**
- *  @brief RBTree definition for an empty rbtree with designator @a name.
- */
-#define RBTREE_NODE_DEFINE_EMPTY( name ) \
-  RBTree_Node name = RBTREE_NODE_INITIALIZER_EMPTY( name )
-
-/**
- *  @brief Initialize a RBTree Header.
- *
- *  This routine initializes @a the_rbtree structure to manage the
- *  contiguous array of @a number_nodes nodes which starts at
- *  @a starting_address.  Each node is of @a node_size bytes.
- *
- *  @param[in] the_rbtree is the pointer to rbtree header
- *  @param[in] compare The node compare function.
- *  @param[in] starting_address is the starting address of first node
- *  @param[in] number_nodes is the number of nodes in rbtree
- *  @param[in] node_size is the size of node in bytes
- *  @param[in] is_unique If true, then reject nodes with a duplicate key, else
- *    otherwise.
- */
-void _RBTree_Initialize(
-  RBTree_Control *the_rbtree,
-  RBTree_Compare  compare,
-  void           *starting_address,
-  size_t          number_nodes,
-  size_t          node_size,
-  bool            is_unique
-);
 
 /**
  * @brief Tries to find a node for the specified key in the tree.
@@ -237,6 +140,95 @@ RBTree_Node *_RBTree_Insert(
 );
 
 /**
+ * @brief Rebalances the red-black tree after insertion of the node.
+ *
+ * @param[in] the_rbtree The red-black tree control.
+ * @param[in] the_node The most recently inserted node.
+ */
+void _RBTree_Insert_color(
+  RBTree_Control *the_rbtree,
+  RBTree_Node    *the_node
+);
+
+/**
+ * @brief Adds a child node to a parent node.
+ *
+ * @param[in] child The child node.
+ * @param[in] parent The parent node.
+ * @param[in] link The child node link of the parent node.
+ */
+RTEMS_INLINE_ROUTINE void _RBTree_Add_child(
+  RBTree_Node  *child,
+  RBTree_Node  *parent,
+  RBTree_Node **link
+)
+{
+  RB_SET( child, parent, Node );
+  *link = child;
+}
+
+/**
+ * @brief Inserts the node into the red-black tree using the specified parent
+ * node and link.
+ *
+ * @param[in] the_rbtree The red-black tree control.
+ * @param[in] the_node The node to insert.
+ * @param[in] parent The parent node.
+ * @param[in] link The child node link of the parent node.
+ *
+ * @code
+ * #include <rtems/score/rbtree.h>
+ *
+ * typedef struct {
+ *   int value;
+ *   RBTree_Node Node;
+ * } Some_Node;
+ *
+ * bool _Some_Less(
+ *   const RBTree_Node *a,
+ *   const RBTree_Node *b
+ * )
+ * {
+ *   const Some_Node *aa = RTEMS_CONTAINER_OF( a, Some_Node, Node );
+ *   const Some_Node *bb = RTEMS_CONTAINER_OF( b, Some_Node, Node );
+ *
+ *   return aa->value < bb->value;
+ * }
+ *
+ * void _Some_Insert(
+ *   RBTree_Control *the_rbtree,
+ *   Some_Node      *the_node
+ * )
+ * {
+ *   RBTree_Node **link = _RBTree_Root_reference( the_rbtree );
+ *   RBTree_Node  *parent = NULL;
+ *
+ *   while ( *link != NULL ) {
+ *     parent = *link;
+ *
+ *     if ( _Some_Less( &the_node->Node, parent ) ) {
+ *       link = _RBTree_Left_reference( parent );
+ *     } else {
+ *       link = _RBTree_Right_reference( parent );
+ *     }
+ *   }
+ *
+ *   _RBTree_Insert_with_parent( the_rbtree, &the_node->Node, parent, link );
+ * }
+ * @endcode
+ */
+RTEMS_INLINE_ROUTINE void _RBTree_Insert_with_parent(
+  RBTree_Control  *the_rbtree,
+  RBTree_Node     *the_node,
+  RBTree_Node     *parent,
+  RBTree_Node    **link
+)
+{
+  _RBTree_Add_child( the_node, parent, link );
+  _RBTree_Insert_color( the_rbtree, the_node );
+}
+
+/**
  * @brief Extracts (removes) the node from the red-black tree.
  *
  * This function does not set the node off-tree.  In case this is desired, then
@@ -254,20 +246,6 @@ void _RBTree_Extract(
 );
 
 /**
- * @brief Returns the in-order next node of a node.
- *
- * @param[in] node The node.
- * @param[in] dir The direction.
- *
- * @retval NULL The in-order next node does not exist.
- * @retval otherwise The next node.
- */
-RBTree_Node *_RBTree_Next(
-  const RBTree_Node *node,
-  RBTree_Direction dir
-);
-
-/**
  * @brief Sets a red-black tree node as off-tree.
  *
  * Do not use this function on nodes which are a part of a tree.
@@ -278,7 +256,7 @@ RBTree_Node *_RBTree_Next(
  */
 RTEMS_INLINE_ROUTINE void _RBTree_Set_off_tree( RBTree_Node *the_node )
 {
-  the_node->parent = NULL;
+  RB_COLOR( the_node, Node ) = -1;
 }
 
 /**
@@ -296,7 +274,7 @@ RTEMS_INLINE_ROUTINE bool _RBTree_Is_node_off_tree(
   const RBTree_Node *the_node
 )
 {
-  return the_node->parent == NULL;
+  return RB_COLOR( the_node, Node ) == -1;
 }
 
 /**
@@ -315,21 +293,17 @@ RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Root(
   const RBTree_Control *the_rbtree
 )
 {
-  return the_rbtree->root;
+  return RB_ROOT( the_rbtree );
 }
 
 /**
- * @brief Return pointer to RBTree's first node.
- *
- * This function returns a pointer to the first node on @a the_rbtree,
- * where @a dir specifies whether to return the minimum (0) or maximum (1).
+ * @brief Returns a reference to the root pointer of the red-black tree.
  */
-RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_First(
-  const RBTree_Control *the_rbtree,
-  RBTree_Direction dir
+RTEMS_INLINE_ROUTINE RBTree_Node **_RBTree_Root_reference(
+  RBTree_Control *the_rbtree
 )
 {
-  return the_rbtree->first[dir];
+  return &RB_ROOT( the_rbtree );
 }
 
 /**
@@ -348,7 +322,7 @@ RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Parent(
   const RBTree_Node *the_node
 )
 {
-  return the_node->parent;
+  return RB_PARENT( the_node, Node );
 }
 
 /**
@@ -364,7 +338,18 @@ RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Left(
   const RBTree_Node *the_node
 )
 {
-  return the_node->child[RBT_LEFT];
+  return RB_LEFT( the_node, Node );
+}
+
+/**
+ * @brief Returns a reference to the left child pointer of the red-black tree
+ * node.
+ */
+RTEMS_INLINE_ROUTINE RBTree_Node **_RBTree_Left_reference(
+  RBTree_Node *the_node
+)
+{
+  return &RB_LEFT( the_node, Node );
 }
 
 /**
@@ -380,7 +365,18 @@ RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Right(
   const RBTree_Node *the_node
 )
 {
-  return the_node->child[RBT_RIGHT];
+  return RB_RIGHT( the_node, Node );
+}
+
+/**
+ * @brief Returns a reference to the right child pointer of the red-black tree
+ * node.
+ */
+RTEMS_INLINE_ROUTINE RBTree_Node **_RBTree_Right_reference(
+  RBTree_Node *the_node
+)
+{
+  return &RB_RIGHT( the_node, Node );
 }
 
 /**
@@ -398,27 +394,7 @@ RTEMS_INLINE_ROUTINE bool _RBTree_Is_empty(
   const RBTree_Control *the_rbtree
 )
 {
-  return (the_rbtree->root == NULL);
-}
-
-/**
- * @brief Is this the first node on the RBTree.
- *
- * This function returns true if @a the_node is the first node on
- * @a the_rbtree and false otherwise. @a dir specifies whether first means
- * minimum (0) or maximum (1).
- *
- * @retval true @a the_node is the first node on @a the_rbtree.
- * @retval false @a the_node is not the first node on @a the_rbtree.
- *
- */
-RTEMS_INLINE_ROUTINE bool _RBTree_Is_first(
-  const RBTree_Control *the_rbtree,
-  const RBTree_Node *the_node,
-  RBTree_Direction dir
-)
-{
-  return (the_node == _RBTree_First(the_rbtree, dir));
+  return RB_EMPTY( the_rbtree );
 }
 
 /**
@@ -440,32 +416,7 @@ RTEMS_INLINE_ROUTINE bool _RBTree_Is_root(
   const RBTree_Node *the_node
 )
 {
-  return _RBTree_Parent( _RBTree_Parent( the_node ) ) == NULL;
-}
-
-/**
- * @brief Finds the red-black tree control given a node in the tree.
- *
- * In case the node is not a node of a tree, then this function yields
- * unpredictable results.
- *
- * @param[in] the_node The node of interest.
- *
- * @return The red-black tree control of the node.
- */
-RTEMS_INLINE_ROUTINE RBTree_Control *_RBTree_Find_control(
-  const RBTree_Node *the_node
-)
-{
-  RBTree_Node    *parent = the_node->parent;
-  RBTree_Control *rbtree;
-
-  do {
-    rbtree = (RBTree_Control *) parent;
-    parent = parent->parent;
-  } while ( parent != NULL );
-
-  return rbtree;
+  return _RBTree_Parent( the_node ) == NULL;
 }
 
 /**
@@ -477,11 +428,28 @@ RTEMS_INLINE_ROUTINE void _RBTree_Initialize_empty(
   RBTree_Control *the_rbtree
 )
 {
-  the_rbtree->permanent_null   = NULL;
-  the_rbtree->root             = NULL;
-  the_rbtree->first[RBT_LEFT]  = NULL;
-  the_rbtree->first[RBT_RIGHT] = NULL;
+  RB_INIT( the_rbtree );
 }
+
+/**
+ * @brief Returns the minimum node of the red-black tree.
+ *
+ * @param[in] the_rbtree The red-black tree control.
+ *
+ * @retval NULL The red-black tree is empty.
+ * @retval node The minimum node.
+ */
+RBTree_Node *_RBTree_Minimum( const RBTree_Control *the_rbtree );
+
+/**
+ * @brief Returns the maximum node of the red-black tree.
+ *
+ * @param[in] the_rbtree The red-black tree control.
+ *
+ * @retval NULL The red-black tree is empty.
+ * @retval node The maximum node.
+ */
+RBTree_Node *_RBTree_Maximum( const RBTree_Control *the_rbtree );
 
 /**
  * @brief Returns the predecessor of a node.
@@ -491,12 +459,7 @@ RTEMS_INLINE_ROUTINE void _RBTree_Initialize_empty(
  * @retval NULL The predecessor does not exist.  Otherwise it returns
  *         the predecessor node.
  */
-RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Predecessor(
-  const RBTree_Node *node
-)
-{
-  return _RBTree_Next( node, RBT_LEFT );
-}
+RBTree_Node *_RBTree_Predecessor( const RBTree_Node *node );
 
 /**
  * @brief Returns the successor of a node.
@@ -505,43 +468,20 @@ RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Predecessor(
  *
  * @retval NULL The successor does not exist.  Otherwise the successor node.
  */
-RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Successor(
-  const RBTree_Node *node
-)
-{
-  return _RBTree_Next( node, RBT_RIGHT );
-}
+RBTree_Node *_RBTree_Successor( const RBTree_Node *node );
 
 /**
- * @brief Gets a node with an extremal key value from the red-black tree.
- *
- * This function extracts a node with the minimum or maximum key value from
- * tree and returns a pointer to that node if it exists.  In case multiple
- * nodes with a minimum key value exist, then they are extracted in FIFO order.
- * In case multiple nodes with a maximum key value exist, then they are
- * extracted in LIFO order.
+ * @brief Replaces a node in the red-black tree without a rebalance.
  *
  * @param[in] the_rbtree The red-black tree control.
- * @param[in] dir Specifies whether to get a node with the minimum (RBT_LEFT)
- *   or maximum (RBT_RIGHT) key value.
- *
- * @retval NULL The tree is empty.
- * @retval extremal_node A node with a minimal or maximal key value on the
- *   tree.
+ * @param[in] victim The victim node.
+ * @param[in] replacement The replacement node.
  */
-RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Get(
+void _RBTree_Replace_node(
   RBTree_Control *the_rbtree,
-  RBTree_Direction dir
-)
-{
-  RBTree_Node *the_node = the_rbtree->first[ dir ];
-
-  if ( the_node != NULL ) {
-    _RBTree_Extract( the_rbtree, the_node );
-  }
-
-  return the_node;
-}
+  RBTree_Node    *victim,
+  RBTree_Node    *replacement
+);
 
 /**@}*/
 

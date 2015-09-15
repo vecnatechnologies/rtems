@@ -66,6 +66,13 @@ _start:
 	ori	r0, INITIAL_MSR, MSR_IS | MSR_DS
 	mtmsr	r0
 
+#ifdef QORIQ_INITIAL_BUCSR
+	/* BUCSR initialization */
+	LWI	r0, QORIQ_INITIAL_BUCSR
+	mtspr	FSL_EIS_BUCSR, r0
+	isync
+#endif
+
 	/* Initialize start stack */
 	LWI	r1, start_stack_end - PPC_MINIMUM_STACK_FRAME_SIZE
 	clrrwi	r1, r1, PPC_STACK_ALIGN_POWER
@@ -210,6 +217,13 @@ _start_secondary_processor:
 	ori	r0, INITIAL_MSR, MSR_IS | MSR_DS
 	mtmsr	r0
 
+#ifdef QORIQ_INITIAL_BUCSR
+	/* BUCSR initialization */
+	LWI	r0, QORIQ_INITIAL_BUCSR
+	mtspr	FSL_EIS_BUCSR, r0
+	isync
+#endif
+
 	/* Initialize start stack */
 	subi	r1, r1, PPC_MINIMUM_STACK_FRAME_SIZE
 	clrrwi	r1, r1, PPC_STACK_ALIGN_POWER
@@ -330,6 +344,9 @@ system_call:
 	stw	r4, GPR4_OFFSET(r1)
 	li	r4, 15
 	b	ppc_exc_wrap_nopush_std
+
+/* Symbol provided for debugging and tracing */
+bsp_exc_vector_end:
 
 	/* Start stack area */
 	.section ".bsp_rwextra", "aw", @nobits

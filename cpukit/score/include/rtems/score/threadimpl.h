@@ -32,6 +32,7 @@
 #include <rtems/score/sysstate.h>
 #include <rtems/score/threadqimpl.h>
 #include <rtems/score/todimpl.h>
+#include <rtems/score/freechain.h>
 #include <rtems/config.h>
 
 #ifdef __cplusplus
@@ -54,11 +55,17 @@ extern "C" {
  */
 SCORE_EXTERN void *rtems_ada_self;
 
+typedef struct {
+  Objects_Information Objects;
+
+  Freechain_Control Free_thread_queue_heads;
+} Thread_Information;
+
 /**
  *  The following defines the information control block used to
  *  manage this class of objects.
  */
-SCORE_EXTERN Objects_Information _Thread_Internal_information;
+SCORE_EXTERN Thread_Information _Thread_Internal_information;
 
 /**
  *  The following points to the thread whose floating point
@@ -88,6 +95,19 @@ SCORE_EXTERN struct _reent **_Thread_libc_reent;
 #define THREAD_RESOURCE_NODE_TO_THREAD( node ) \
   RTEMS_CONTAINER_OF( node, Thread_Control, Resource_node )
 #endif
+
+void _Thread_Initialize_information(
+  Thread_Information  *information,
+  Objects_APIs         the_api,
+  uint16_t             the_class,
+  uint32_t             maximum,
+  bool                 is_string,
+  uint32_t             maximum_name_length
+#if defined(RTEMS_MULTIPROCESSING)
+  ,
+  bool                 supports_global
+#endif
+);
 
 /**
  *  @brief Initialize thread handler.
@@ -154,7 +174,7 @@ void _Thread_Stack_Free(
  *        guaranteed to be of at least minimum size.
  */
 bool _Thread_Initialize(
-  Objects_Information                  *information,
+  Thread_Information                   *information,
   Thread_Control                       *the_thread,
   const struct Scheduler_Control       *scheduler,
   void                                 *stack_area,
@@ -415,6 +435,37 @@ void _Thread_Raise_priority(
   Thread_Control   *the_thread,
   Priority_Control  new_priority
 );
+
+/**
+ * @brief Inherit the priority of a thread.
+ *
+ * It changes the current priority of the inheritor thread to the current priority
+ * of the ancestor thread if it is higher than the current priority of the inheritor
+ * thread.  In this case the inheritor thread is appended to its new priority group
+ * in its scheduler instance.
+ *
+ * On SMP configurations, the priority is changed to PRIORITY_PSEUDO_ISR in
+ * case the own schedulers of the inheritor and ancestor thread differ (priority
+ * boosting).
+ *
+ * @param[in] inheritor The thread to inherit the priority.
+ * @param[in] ancestor The thread to bequeath its priority to the inheritor
+ *   thread.
+ */
+#if defined(RTEMS_SMP)
+void _Thread_Inherit_priority(
+  Thread_Control *inheritor,
+  Thread_Control *ancestor
+);
+#else
+RTEMS_INLINE_ROUTINE void _Thread_Inherit_priority(
+  Thread_Control *inheritor,
+  Thread_Control *ancestor
+)
+{
+  _Thread_Raise_priority( inheritor, ancestor->current_priority );
+}
+#endif
 
 /**
  * @brief Sets the current to the real priority of a thread.
@@ -736,7 +787,7 @@ RTEMS_INLINE_ROUTINE uint32_t _Thread_Get_maximum_internal_threads(void)
 RTEMS_INLINE_ROUTINE Thread_Control *_Thread_Internal_allocate( void )
 {
   return (Thread_Control *)
-    _Objects_Allocate_unprotected( &_Thread_Internal_information );
+    _Objects_Allocate_unprotected( &_Thread_Internal_information.Objects );
 }
 
 /**
@@ -950,6 +1001,34 @@ RTEMS_INLINE_ROUTINE bool _Thread_Owns_resources(
 }
 
 /**
+ * @brief Acquires the default thread lock inside a critical section
+ * (interrupts disabled).
+ *
+ * @param[in] the_thread The thread.
+ * @param[in] lock_context The lock context used for the corresponding lock
+ * release.
+ *
+ * @see _Thread_Lock_release_default().
+ */
+RTEMS_INLINE_ROUTINE void _Thread_Lock_acquire_default_critical(
+  Thread_Control   *the_thread,
+  ISR_lock_Context *lock_context
+)
+{
+  _Assert( _ISR_Get_level() != 0 );
+#if defined(RTEMS_SMP)
+  _SMP_ticket_lock_Acquire(
+    &the_thread->Lock.Default,
+    &_Thread_Executing->Lock.Stats,
+    &lock_context->Lock_context.Stats_context
+  );
+#else
+  (void) the_thread;
+  (void) lock_context;
+#endif
+}
+
+/**
  * @brief Acquires the default thread lock and returns the executing thread.
  *
  * @param[in] lock_context The lock context used for the corresponding lock
@@ -967,28 +1046,9 @@ RTEMS_INLINE_ROUTINE Thread_Control *_Thread_Lock_acquire_default_for_executing(
 
   _ISR_lock_ISR_disable( lock_context );
   executing = _Thread_Executing;
-  _ISR_lock_Acquire( &executing->Lock.Default, lock_context );
+  _Thread_Lock_acquire_default_critical( executing, lock_context );
 
   return executing;
-}
-
-/**
- * @brief Acquires the default thread lock inside a critical section
- * (interrupts disabled).
- *
- * @param[in] the_thread The thread.
- * @param[in] lock_context The lock context used for the corresponding lock
- * release.
- *
- * @see _Thread_Lock_release_default().
- */
-RTEMS_INLINE_ROUTINE void _Thread_Lock_acquire_default_critical(
-  Thread_Control   *the_thread,
-  ISR_lock_Context *lock_context
-)
-{
-  _Assert( _ISR_Get_level() != 0 );
-  _ISR_lock_Acquire( &the_thread->Lock.Default, lock_context );
 }
 
 /**
@@ -1005,11 +1065,78 @@ RTEMS_INLINE_ROUTINE void _Thread_Lock_acquire_default(
   ISR_lock_Context *lock_context
 )
 {
-  _ISR_lock_ISR_disable_and_acquire( &the_thread->Lock.Default, lock_context );
+  _ISR_lock_ISR_disable( lock_context );
+  _Thread_Lock_acquire_default_critical( the_thread, lock_context );
 }
 
 /**
- * @brief Release the default thread lock.
+ * @brief Releases the thread lock inside a critical section (interrupts
+ * disabled).
+ *
+ * The previous interrupt status is not restored.
+ *
+ * @param[in] lock The lock.
+ * @param[in] lock_context The lock context used for the corresponding lock
+ * acquire.
+ */
+RTEMS_INLINE_ROUTINE void _Thread_Lock_release_critical(
+  void             *lock,
+  ISR_lock_Context *lock_context
+)
+{
+#if defined(RTEMS_SMP)
+  _SMP_ticket_lock_Release(
+    lock,
+    &lock_context->Lock_context.Stats_context
+  );
+#else
+  (void) lock;
+  (void) lock_context;
+#endif
+}
+
+/**
+ * @brief Releases the thread lock.
+ *
+ * @param[in] lock The lock returned by _Thread_Lock_acquire().
+ * @param[in] lock_context The lock context used for _Thread_Lock_acquire().
+ */
+RTEMS_INLINE_ROUTINE void _Thread_Lock_release(
+  void             *lock,
+  ISR_lock_Context *lock_context
+)
+{
+  _Thread_Lock_release_critical( lock, lock_context );
+  _ISR_lock_ISR_enable( lock_context );
+}
+
+/**
+ * @brief Releases the default thread lock inside a critical section
+ * (interrupts disabled).
+ *
+ * The previous interrupt status is not restored.
+ *
+ * @param[in] the_thread The thread.
+ * @param[in] lock_context The lock context used for the corresponding lock
+ * acquire.
+ */
+RTEMS_INLINE_ROUTINE void _Thread_Lock_release_default_critical(
+  Thread_Control   *the_thread,
+  ISR_lock_Context *lock_context
+)
+{
+  _Thread_Lock_release_critical(
+#if defined(RTEMS_SMP)
+    &the_thread->Lock.Default,
+#else
+    NULL,
+#endif
+    lock_context
+  );
+}
+
+/**
+ * @brief Releases the default thread lock.
  *
  * @param[in] the_thread The thread.
  * @param[in] lock_context The lock context used for the corresponding lock
@@ -1020,21 +1147,8 @@ RTEMS_INLINE_ROUTINE void _Thread_Lock_release_default(
   ISR_lock_Context *lock_context
 )
 {
-  _ISR_lock_Release_and_ISR_enable( &the_thread->Lock.Default, lock_context );
-}
-
-/**
- * @brief Release the thread lock.
- *
- * @param[in] lock The lock returned by _Thread_Lock_acquire().
- * @param[in] lock_context The lock context used for _Thread_Lock_acquire().
- */
-RTEMS_INLINE_ROUTINE void _Thread_Lock_release(
-  ISR_lock_Control *lock,
-  ISR_lock_Context *lock_context
-)
-{
-  _ISR_lock_Release_and_ISR_enable( lock, lock_context );
+  _Thread_Lock_release_default_critical( the_thread, lock_context );
+  _ISR_lock_ISR_enable( lock_context );
 }
 
 /**
@@ -1045,13 +1159,13 @@ RTEMS_INLINE_ROUTINE void _Thread_Lock_release(
  *
  * @return The lock required by _Thread_Lock_release().
  */
-RTEMS_INLINE_ROUTINE ISR_lock_Control *_Thread_Lock_acquire(
+RTEMS_INLINE_ROUTINE void *_Thread_Lock_acquire(
   Thread_Control   *the_thread,
   ISR_lock_Context *lock_context
 )
 {
 #if defined(RTEMS_SMP)
-  ISR_lock_Control *lock;
+  SMP_ticket_lock_Control *lock;
 
   while ( true ) {
     uint32_t my_generation;
@@ -1066,7 +1180,11 @@ RTEMS_INLINE_ROUTINE ISR_lock_Control *_Thread_Lock_acquire(
     _Atomic_Fence( ATOMIC_ORDER_ACQUIRE );
 
     lock = the_thread->Lock.current;
-    _ISR_lock_Acquire( lock, lock_context );
+    _SMP_ticket_lock_Acquire(
+      lock,
+      &_Thread_Executing->Lock.Stats,
+      &lock_context->Lock_context.Stats_context
+    );
 
     /*
      * Ensure that we read the second lock generation after we obtained our
@@ -1095,8 +1213,8 @@ RTEMS_INLINE_ROUTINE ISR_lock_Control *_Thread_Lock_acquire(
  * instead.
  */
 RTEMS_INLINE_ROUTINE void _Thread_Lock_set_unprotected(
-  Thread_Control   *the_thread,
-  ISR_lock_Control *new_lock
+  Thread_Control          *the_thread,
+  SMP_ticket_lock_Control *new_lock
 )
 {
   the_thread->Lock.current = new_lock;
@@ -1131,16 +1249,16 @@ RTEMS_INLINE_ROUTINE void _Thread_Lock_set_unprotected(
  */
 #if defined(RTEMS_SMP)
 RTEMS_INLINE_ROUTINE void _Thread_Lock_set(
-  Thread_Control   *the_thread,
-  ISR_lock_Control *new_lock
+  Thread_Control          *the_thread,
+  SMP_ticket_lock_Control *new_lock
 )
 {
-  ISR_lock_Control *lock;
-  ISR_lock_Context  lock_context;
+  ISR_lock_Context lock_context;
 
-  lock = _Thread_Lock_acquire( the_thread, &lock_context );
+  _Thread_Lock_acquire_default_critical( the_thread, &lock_context );
+  _Assert( the_thread->Lock.current == &the_thread->Lock.Default );
   _Thread_Lock_set_unprotected( the_thread, new_lock );
-  _Thread_Lock_release( lock, &lock_context );
+  _Thread_Lock_release_default_critical( the_thread, &lock_context );
 }
 #else
 #define _Thread_Lock_set( the_thread, new_lock ) \
@@ -1159,6 +1277,11 @@ RTEMS_INLINE_ROUTINE void _Thread_Lock_restore_default(
   Thread_Control *the_thread
 )
 {
+  /*
+   * Ensures that the stores to the wait queue and operations completed before
+   * the default lock is restored.  See _Thread_Wait_set_queue() and
+   * _Thread_Wait_restore_default_operations().
+   */
   _Atomic_Fence( ATOMIC_ORDER_RELEASE );
 
   _Thread_Lock_set_unprotected( the_thread, &the_thread->Lock.Default );
@@ -1323,8 +1446,8 @@ RTEMS_INLINE_ROUTINE bool _Thread_Wait_flags_try_change(
  * @see _Thread_Lock_set().
  */
 RTEMS_INLINE_ROUTINE void _Thread_Wait_set_queue(
-  Thread_Control       *the_thread,
-  Thread_queue_Control *new_queue
+  Thread_Control     *the_thread,
+  Thread_queue_Queue *new_queue
 )
 {
   the_thread->Wait.queue = new_queue;

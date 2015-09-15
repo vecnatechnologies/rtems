@@ -47,9 +47,9 @@ rtems_monitor_dump_decimal(uint32_t   num)
 }
 
 int
-rtems_monitor_dump_addr(void *addr)
+rtems_monitor_dump_addr(const void *addr)
 {
-    return fprintf(stdout,"0x%p", addr);
+    return fprintf(stdout,"%08" PRIxPTR, (intptr_t) addr);
 }
 
 int
@@ -114,31 +114,35 @@ rtems_monitor_dump_priority(rtems_task_priority priority)
 
 
 static const rtems_assoc_t rtems_monitor_state_assoc[] = {
-    { "DORM",   STATES_DORMANT, 0 },
-    { "SUSP",   STATES_SUSPENDED, 0 },
     { "DELAY",  STATES_DELAYING, 0 },
-    { "Wtime",  STATES_WAITING_FOR_TIME, 0 },
-    { "Wbuf",   STATES_WAITING_FOR_BUFFER, 0 },
-    { "Wseg",   STATES_WAITING_FOR_SEGMENT, 0 },
-    { "Wmsg" ,  STATES_WAITING_FOR_MESSAGE, 0 },
-    { "Wevnt",  STATES_WAITING_FOR_EVENT, 0 },
-    { "Wsysev", STATES_WAITING_FOR_SYSTEM_EVENT, 0 },
-    { "Wsem",   STATES_WAITING_FOR_SEMAPHORE, 0 },
-    { "Wmutex", STATES_WAITING_FOR_MUTEX, 0 },
-    { "Wcvar",  STATES_WAITING_FOR_CONDITION_VARIABLE, 0 },
-    { "Wjatx",  STATES_WAITING_FOR_JOIN_AT_EXIT, 0 },
-    { "Wjoin",  STATES_WAITING_FOR_JOIN, 0 },
-    { "Wrpc",   STATES_WAITING_FOR_RPC_REPLY, 0 },
-    { "WRATE",  STATES_WAITING_FOR_PERIOD, 0 },
-    { "Wsig",   STATES_WAITING_FOR_SIGNAL, 0 },
-    { "Wbar",   STATES_WAITING_FOR_BARRIER, 0 },
-    { "Wrwlk",  STATES_WAITING_FOR_RWLOCK, 0 },
-    { "Wisig",  STATES_INTERRUPTIBLE_BY_SIGNAL, 0 },
-    { "Wwkup",  STATES_WAITING_FOR_BSD_WAKEUP, 0 },
-    { "Wterm",  STATES_WAITING_FOR_TERMINATION, 0 },
-    { "ZOMBI",  STATES_ZOMBIE, 0 },
+    { "DORM",   STATES_DORMANT, 0 },
     { "MIGRA",  STATES_MIGRATING, 0 },
     { "RESTA",  STATES_RESTARTING, 0 },
+    { "SUSP",   STATES_SUSPENDED, 0 },
+    { "Wbar",   STATES_WAITING_FOR_BARRIER, 0 },
+    { "Wbuf",   STATES_WAITING_FOR_BUFFER, 0 },
+    { "Wcvar",  STATES_WAITING_FOR_CONDITION_VARIABLE, 0 },
+    { "Wevnt",  STATES_WAITING_FOR_EVENT, 0 },
+    { "Wisig",  STATES_INTERRUPTIBLE_BY_SIGNAL, 0 },
+    { "Wjatx",  STATES_WAITING_FOR_JOIN_AT_EXIT, 0 },
+    { "Wjoin",  STATES_WAITING_FOR_JOIN, 0 },
+    { "Wmsg" ,  STATES_WAITING_FOR_MESSAGE, 0 },
+    { "Wmutex", STATES_WAITING_FOR_MUTEX, 0 },
+    { "WRATE",  STATES_WAITING_FOR_PERIOD, 0 },
+    { "Wrpc",   STATES_WAITING_FOR_RPC_REPLY, 0 },
+    { "Wrwlk",  STATES_WAITING_FOR_RWLOCK, 0 },
+    { "Wseg",   STATES_WAITING_FOR_SEGMENT, 0 },
+    { "Wsem",   STATES_WAITING_FOR_SEMAPHORE, 0 },
+    { "Wsig",   STATES_WAITING_FOR_SIGNAL, 0 },
+    { "Wslcnd", STATES_WAITING_FOR_SYS_LOCK_CONDITION, 0 },
+    { "Wslftx", STATES_WAITING_FOR_SYS_LOCK_FUTEX, 0 },
+    { "Wslmtx", STATES_WAITING_FOR_SYS_LOCK_MUTEX, 0 },
+    { "Wslsem", STATES_WAITING_FOR_SYS_LOCK_SEMAPHORE, 0 },
+    { "Wsysev", STATES_WAITING_FOR_SYSTEM_EVENT, 0 },
+    { "Wterm",  STATES_WAITING_FOR_TERMINATION, 0 },
+    { "Wtime",  STATES_WAITING_FOR_TIME, 0 },
+    { "Wwkup",  STATES_WAITING_FOR_BSD_WAKEUP, 0 },
+    { "ZOMBI",  STATES_ZOMBIE, 0 },
     { 0, 0, 0 },
 };
 
@@ -247,20 +251,4 @@ rtems_monitor_dump_events(rtems_event_set events)
         return fprintf(stdout,"  NONE  ");
 
     return fprintf(stdout,"%08" PRIx32, events);
-}
-
-int
-rtems_monitor_dump_notepad(uint32_t   *notepad)
-{
-    int   length = 0;
-
-    if (rtems_configuration_get_notepads_enabled()) {
-      int i;
-
-      for (i=0; i < RTEMS_NUMBER_NOTEPADS; i++)
-          if (notepad[i])
-              length += fprintf(stdout,"%d: 0x%" PRIx32, i, notepad[i]);
-    }
-
-    return length;
 }

@@ -1,4 +1,4 @@
-/*	
+/*
  *  DCHP client for RTEMS
  *  Andrew Bythell, <abythell@nortelnetworks.com>
  *  based on and uses subroutines from c/src/libnetworking/nfs/bootp_subr.c
@@ -394,15 +394,23 @@ process_options (unsigned char *optbuf, int optbufSize)
           printf ("dhcpc: hostname >= %d bytes\n", MAXHOSTNAMELEN);
           len = MAXHOSTNAMELEN-1;
         }
-        if (sethostname (p, len) < 0)
+        if (sethostname (p, len) < 0) {
           printf ("dhcpc: can't set host name");
+        }
         if (dhcp_hostname != NULL)
         {
-          dhcp_hostname = realloc (dhcp_hostname, len);
-          strncpy (dhcp_hostname, p, len);
-        }
-        else
+          char *tmp = realloc (dhcp_hostname, len);
+          if (tmp != NULL) {
+            dhcp_hostname = tmp;
+            strncpy (dhcp_hostname, p, len);
+          } else {  /* realloc failed */
+            printf ("dhcpc: realloc failed (%s:%d)", __FILE__, __LINE__);
+            free (dhcp_hostname, 0);
+            dhcp_hostname = NULL;
+          }
+        } else { /* dhcp_hostname == NULL */
           dhcp_hostname = strndup (p, len);
+        }
         break;
 
       case 7:
@@ -542,6 +550,20 @@ dhcp_discover_req (struct dhcp_packet* call,
   call->vend[len++] = DHCP_MESSAGE;
   call->vend[len++] = 1;
   call->vend[len++] = DHCP_DISCOVER;
+
+  /*
+   * If a host name is set add it to the request.
+   */
+  if (rtems_bsdnet_config.hostname && \
+      (strlen (rtems_bsdnet_config.hostname) > 1) &&
+      (strlen (rtems_bsdnet_config.hostname) < 32)) {
+    call->vend[len++] = DHCP_HOST;
+    call->vend[len++] = strlen (rtems_bsdnet_config.hostname);
+    memcpy (&call->vend[len],
+            rtems_bsdnet_config.hostname,
+            strlen (rtems_bsdnet_config.hostname));
+    len += strlen (rtems_bsdnet_config.hostname);
+  }
 
   /*
    * DHCP Parameter request list
@@ -880,7 +902,7 @@ dhcp_init (int update_files)
   struct proc          *procp = NULL;
 
   clean_dns_entries();
-  
+
   /*
    * If we are to update the files create the root
    * file structure.
