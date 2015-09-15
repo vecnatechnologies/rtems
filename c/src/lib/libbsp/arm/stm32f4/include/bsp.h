@@ -47,13 +47,6 @@ extern "C" {
 
 #define BSP_ARMV7M_SYSTICK_FREQUENCY STM32F4_HCLK
 
-struct rtems_bsdnet_ifconfig;
-
-int
-rtems_scc1_driver_attach (struct rtems_bsdnet_ifconfig *config, int attaching);
-
-#define RTEMS_BSP_NETWORK_DRIVER_ATTACH rtems_scc1_driver_attach
-#define RTEMS_BSP_NETWORK_DRIVER_NAME "eth1"
 /** @} */
 
 #ifdef __cplusplus

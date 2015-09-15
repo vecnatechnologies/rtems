@@ -19,7 +19,6 @@
 #include <bsp/irq-generic.h>
 #include <assert.h>
 #include <bsp/stm32f4.h>
-#include <can.h>
 
 #ifdef STM32F4_FAMILY_F4XXXX
 
@@ -301,9 +300,4 @@ void bsp_start( void )
   stm32f4_gpio_set_config_array( &stm32f4_start_config_gpio[ 0 ] );
 
   bsp_interrupt_initialize();
-}
-
-
-void bsp_predriver_hook(void) {
-  stm32_bsp_register_can(); 
 }
