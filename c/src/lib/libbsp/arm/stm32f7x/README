@@ -1,5 +1,15 @@
-Tested with STM32F4-Discovery evaluation board.
+Tested with STM32F7-Discovery evaluation board.
 
-For debugging on Linux use:
+This BSP is built on top the STM Hardware Abstraction Layer (HAL) code
+freely distributed as part of STM32FCube distributions.  
 
-https://github.com/texane/stlink
+The BSP can be configured for other STM32F7 series processors by using the 
+configure.ac to specify different clocks and peripherals.
+
+Use the console-config.c to specify the pins and uart options for the console uart.
+Use the uart-config.c to specify the pins and uart options for non-console uarts.
+
+This BSP will initialize the external SDRAM that is part of the STM32F7-Discovery
+board.  The BSP linker command will use the SDRAM only for heap memory only.  
+The .bss and .data sections will be located in the internal SRAM. Change the 
+linkcmds.stm32fx file to move other regions into the SDRAM.
