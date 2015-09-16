@@ -22,6 +22,11 @@
 #include <stm32f-processor-specific.h>
 #include <bspopts.h>
 
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc_ex)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
+
 // A set of UART handle used in the HAL code.  These handles are used
 // for both the termios console uarts as well as the non-console uarts.
 UART_HandleTypeDef UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+NUM_PROCESSOR_NON_CONSOLE_UARTS];

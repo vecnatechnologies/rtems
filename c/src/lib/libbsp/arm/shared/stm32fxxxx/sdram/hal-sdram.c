@@ -17,11 +17,16 @@
 
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
+#include <hal-sdram-interface.h>
+#include <hal-error.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, dma)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, sdram)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, cortex)
 #include stm_ll_header(TARGET_STM_PROCESSOR_PREFIX, fmc)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc_ex)
 
 #if defined(EXTERNAL_SDRAM)
 

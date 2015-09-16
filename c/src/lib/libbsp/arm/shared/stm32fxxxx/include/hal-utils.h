@@ -46,4 +46,9 @@
 #define _stm_hal_header(x) __stm_hal_header(stm32f##x##_hal.h)
 #define stm_hal_header(x) _stm_hal_header(x)
 
+#include <stm32f-processor-specific.h>
+#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
+
+void HAL_Delay(__IO uint32_t Delay);
+
 #endif /* RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_ */

@@ -29,4 +29,17 @@
  *
  */
 void bsp_start (void);
+
+/**
+ * @brief A function used to do pre-driver initialization code
+ *
+ */
+void bsp_predriver_hook(void);
+
+/**
+ * @brief A function used to initialize external SDRAM.  This is only
+ *   executed if EXTERNAL_SDRAM is defined.
+ */
+void configure_external_memories(void);
+
 #endif // RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_HAL_STARTUP_INTERFACE_H

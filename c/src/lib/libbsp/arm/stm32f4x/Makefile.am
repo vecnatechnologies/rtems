@@ -171,9 +171,6 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/startup/hal-bsp-reset.c
 # SDRAM
 libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
 
-# CAN
-libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
-
 #I2C
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
 libbsp_a_SOURCES += i2c/hal-i2c-init.c
@@ -292,8 +289,6 @@ libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_iwdg.c
 
-# Discovery board bsp file
-libbsp_a_SOURCES += hal/BSP/STM32F4-Discovery/stm32f4_discovery.c
 
 ###############################################################################
 #                  Special Rules                                              #
