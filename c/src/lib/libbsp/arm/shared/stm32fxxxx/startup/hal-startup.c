@@ -22,10 +22,8 @@
 #include <stm32f-processor-specific.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_hal_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, pwr_ex)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, flash_ex)
+#include stm_header(TARGET_STM_PROCESSOR_PREFIX, conf)
 
 #include <hal-startup-interface.h>
 #include <hal-sdram-interface.h>
@@ -36,19 +34,6 @@
 
 // The STM32F HAL code requires this global variable
 uint32_t SystemCoreClock = HSI_FREQUENCY;
-
-
-void configure_external_memories(
-  void
-)
-{
-
-#ifdef EXTERNAL_SDRAM
-  MPU_Config();
-  BSP_SDRAM_Config();
-#endif
-
-}
 
 /**
  * @brief  CPU L1-Cache enable.
@@ -238,7 +223,17 @@ static rtems_status_code set_system_clk(
   return RTEMS_SUCCESSFUL;
 }
 
+void configure_external_memories(
+  void
+)
+{
 
+#ifdef EXTERNAL_SDRAM
+  MPU_Config();
+  BSP_SDRAM_Config();
+#endif
+
+}
 
 void bsp_start(
   void
@@ -267,4 +262,7 @@ void bsp_predriver_hook(
 )
 {
   stm32f_uarts_initialize();
+  stm32_bsp_register_can();
+  stm32_bsp_register_i2c();
+  stm32_bsp_register_spi();
 }
