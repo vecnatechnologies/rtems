@@ -44,15 +44,17 @@ static RTC_HandleTypeDef stm32fxxxx_rtc = {
   .State = HAL_RTC_STATE_RESET
 };
 
+
 static bool stm32fxxxx_rtc_device_probe(
   int minor
 )
 {
   (void) minor;
 
-  // All the processors in this family have internal RTCs (?)
+  // All the processors in this family have internal RTCs
   return true;
 }
+
 
 static void stm32fxxxx_rtc_initialize(
   int minor
@@ -66,26 +68,8 @@ static void stm32fxxxx_rtc_initialize(
   (void) minor;
 
   HAL_RTC_Init(&stm32fxxxx_rtc);
-
-  //TODO: test
-  ret = HAL_RTC_GetDate(&stm32fxxxx_rtc, &HALDate, RTC_FORMAT_BIN);
-  if ( (HALDate.Year + BASE_RTC_YEAR) < 2015 ) {
-
-    HALDate.Year = 2015;
-    HALDate.Month = 7;
-    HALDate.Date = 13;
-    HALDate.WeekDay = 1;
-
-    HALTime.Hours = 13;
-    HALTime.Minutes = 41;
-    HALTime.Seconds = 0;
-    HALTime.TimeFormat = RTC_HOURFORMAT12_PM;
-    HALTime.StoreOperation = RTC_STOREOPERATION_SET;
-
-    ret = HAL_RTC_SetTime(&stm32fxxxx_rtc, &HALTime, RTC_FORMAT_BIN);
-    ret = HAL_RTC_SetDate(&stm32fxxxx_rtc, &HALDate, RTC_FORMAT_BIN);
-  }
 }
+
 
 static int stm32fxxxx_rtc_get_time(
   int minor,
@@ -100,10 +84,10 @@ static int stm32fxxxx_rtc_get_time(
   ret = HAL_RTC_GetTime(&stm32fxxxx_rtc, &HALTime, RTC_FORMAT_BIN);
 
   if ( ret == HAL_OK ) {
-    time->ticks = 0;
+    time->ticks  = 0;
     time->second = HALTime.Seconds;
     time->minute = HALTime.Minutes;
-    time->hour = HALTime.Hours;
+    time->hour   = HALTime.Hours;
   } else {
     return -1;
   }
@@ -111,9 +95,9 @@ static int stm32fxxxx_rtc_get_time(
   ret = HAL_RTC_GetDate(&stm32fxxxx_rtc, &HALDate, RTC_FORMAT_BIN);
 
   if ( ret == HAL_OK ) {
-    time->day = HALDate.Date;
+    time->day   = HALDate.Date;
     time->month = HALDate.Month;
-    time->year = HALDate.Year + BASE_RTC_YEAR;
+    time->year  = HALDate.Year + BASE_RTC_YEAR;
   } else {
     return -1;
   }
@@ -121,20 +105,20 @@ static int stm32fxxxx_rtc_get_time(
   return 0;
 }
 
+
 static int stm32fxxxx_rtc_set_time(
   int minor,
   const rtems_time_of_day *time
 )
 {
-
   HAL_StatusTypeDef ret;
   RTC_TimeTypeDef HALTime;
   RTC_DateTypeDef HALDate;
 
-  HALTime.Seconds = time->second;
-  HALTime.Minutes = time->minute;
-  HALTime.Hours = time->hour;
-  HALTime.SubSeconds = 0;
+  HALTime.Seconds        = time->second;
+  HALTime.Minutes        = time->minute;
+  HALTime.Hours          = time->hour;
+  HALTime.SubSeconds     = 0;
   HALTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   HALTime.StoreOperation = RTC_STOREOPERATION_SET;
 
@@ -144,9 +128,9 @@ static int stm32fxxxx_rtc_set_time(
     return -1;
   }
 
-  HALDate.Date = time->day;
+  HALDate.Date  = time->day;
   HALDate.Month = time->month;
-  HALDate.Year = time->year - BASE_RTC_YEAR;
+  HALDate.Year  = time->year - BASE_RTC_YEAR;
 
   ret = HAL_RTC_SetDate(&stm32fxxxx_rtc, &HALDate, RTC_FORMAT_BIN);
 
@@ -156,6 +140,7 @@ static int stm32fxxxx_rtc_set_time(
     return 0;
   }
 }
+
 
 /**
  * @brief  Initializes the RTC MSP.
@@ -189,11 +174,8 @@ void HAL_RTC_MspInit(
   //##-2- Enable RTC peripheral Clocks #######################################
   // Enable RTC Clock
   __HAL_RCC_RTC_ENABLE();
-
-  //##-3- Configure the NVIC for RTC Alarm ###################################
-  //HAL_NVIC_SetPriority(RTC_IRQn, 0x0, 0);
-  //HAL_NVIC_EnableIRQ(RTC_IRQn);
 }
+
 
 /**
  * @brief  DeInitializes the RTC MSP.
@@ -211,20 +193,20 @@ void HAL_RTC_MspDeInit(
 
 static const rtc_fns stm32fxxxx_rtc_fns = {
   .deviceInitialize = stm32fxxxx_rtc_initialize,
-  .deviceGetTime = stm32fxxxx_rtc_get_time,
-  .deviceSetTime = stm32fxxxx_rtc_set_time
+  .deviceGetTime    = stm32fxxxx_rtc_get_time,
+  .deviceSetTime    = stm32fxxxx_rtc_set_time
 };
 
 rtc_tbl RTC_Table[STM32FXXXX_RTC_NUMBER] = {
   {
-    .sDeviceName = "/dev/rtc0",
-    .deviceType = RTC_CUSTOM,
-    .pDeviceFns = &stm32fxxxx_rtc_fns,
-    .deviceProbe = stm32fxxxx_rtc_device_probe,
+    .sDeviceName   = "/dev/rtc0",
+    .deviceType    = RTC_CUSTOM,
+    .pDeviceFns    = &stm32fxxxx_rtc_fns,
+    .deviceProbe   = stm32fxxxx_rtc_device_probe,
     .pDeviceParams = NULL,
-    .ulCtrlPort1 = NULL,
-    .ulDataPort = NULL,
-    .getRegister = NULL,
-    .setRegister = NULL
+    .ulCtrlPort1   = NULL,
+    .ulDataPort    = NULL,
+    .getRegister   = NULL,
+    .setRegister   = NULL
   }
 };
