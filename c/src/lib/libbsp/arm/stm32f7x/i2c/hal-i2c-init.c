@@ -33,149 +33,30 @@
 /************************ Defines ******************************/
 
 /**
- *  Device Address for each I2C instances
+ * I2C Own Device Addresses
  */
-#define I2C1_ADDRESS        			0x30F
-#define I2C2_ADDRESS        			0x31F
-#define I2C3_ADDRESS       				0x32F
-#define I2C4_ADDRESS       				0x34F
+extern uint32_t I2C_Address[MAX_I2C_INSTANCES];
 
 /**
- *  Definition for I2C1 Pins
+ * I2C Set Clock Rate
  */
-#define I2C1_SCL_PIN                    GPIO_PIN_6
-#define I2C1_SCL_GPIO_PORT              GPIOB
-#define I2C1_SDA_PIN                    GPIO_PIN_7
-#define I2C1_SDA_GPIO_PORT              GPIOB
-
-/**
- *  Definition for I2C2 Pins
- */
-#define I2C2_SCL_PIN                    GPIO_PIN_10
-#define I2C2_SCL_GPIO_PORT              GPIOB
-#define I2C2_SDA_PIN                    GPIO_PIN_11
-#define I2C2_SDA_GPIO_PORT              GPIOB
-
-/**
- *  Definition for I2C3 Pins
- */
-#define I2C3_SCL_PIN                    GPIO_PIN_8
-#define I2C3_SCL_GPIO_PORT              GPIOA
-#define I2C3_SDA_PIN                    GPIO_PIN_9
-#define I2C3_SDA_GPIO_PORT              GPIOC
-
-/**
- *  Definition for I2C3 Pins
- */
-//TODO:: Change I2C4 Pins
-#define I2C4_SCL_PIN                    GPIO_PIN_8
-#define I2C4_SCL_GPIO_PORT              GPIOA
-#define I2C4_SDA_PIN                    GPIO_PIN_9
-#define I2C4_SDA_GPIO_PORT              GPIOC
-
-/* I2C Vector numbers */
-const rtems_vector_number I2C_IRQ_VEC[MAX_I2C_INSTANCES] = { I2C1_EV_IRQn, \
-															 I2C2_EV_IRQn, \
-															 I2C3_EV_IRQn, \
-															 I2C4_EV_IRQn };
-
-const bool I2C_Enable[MAX_I2C_INSTANCES] = {
-#if (STM32F7_ENABLE_I2C1)
-										true,
-#else
-										false,
-#endif
-#if (STM32F7_ENABLE_I2C2)
-										true,
-#else
-										false,
-#endif
-#if (STM32F7_ENABLE_I2C3)
-										true,
-#else
-										false,
-#endif
-#if (STM32F7_ENABLE_I2C4)
-										true
-#else
-										false
-#endif
-};
-
-/**
- * Initialize GPIO pins
- */
-void stm32_i2c_gpio_init(stm32_i2c_bus * bus)
+int stm32_i2c_set_clock(
+	i2c_bus *base,
+	unsigned long clock
+)
 {
+	I2C_HandleTypeDef i2c_handle;
+	rtems_status_code sc = RTEMS_SUCCESSFUL;
+	stm32_i2c_bus *bus = (stm32_i2c_bus *) base;
 
-	GPIO_InitTypeDef  GPIO_InitStruct;
+	i2c_handle = bus->handle;
 
-	switch(bus->instance)
-	{
-	case I2C_ONE: 	__HAL_RCC_I2C1_CLK_ENABLE();
-					break;
+	HAL_I2C_DeInit(&bus->handle);
 
-	case I2C_TWO: 	__HAL_RCC_I2C2_CLK_ENABLE();
-					break;
+	bus->handle = i2c_handle;
+	bus->handle.Init.Timing = (uint32_t) clock;
 
-	case I2C_THREE: __HAL_RCC_I2C3_CLK_ENABLE();
-					break;
-
-	case I2C_FOUR: 	__HAL_RCC_I2C4_CLK_ENABLE();
-					break;
-	}
-
-	/* Initialize GPIO Clock */
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-
-	  GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-	  GPIO_InitStruct.Pull      = GPIO_PULLUP;
-	  GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
-	  GPIO_InitStruct.Alternate = I2C_AF;
-
-	  if(bus->instance == I2C_ONE)
-	  {
-		  /* I2C TX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C1_SCL_PIN;
-		  HAL_GPIO_Init(I2C1_SCL_GPIO_PORT, &GPIO_InitStruct);
-
-		  /* I2C RX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C1_SDA_PIN;
-		  HAL_GPIO_Init(I2C1_SDA_GPIO_PORT, &GPIO_InitStruct);
-	  }
-	  else if(bus->instance == I2C_TWO)
-	  {
-		  /* I2C TX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C2_SCL_PIN;
-		  HAL_GPIO_Init(I2C2_SCL_GPIO_PORT, &GPIO_InitStruct);
-
-		  /* I2C RX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C2_SDA_PIN;
-		  HAL_GPIO_Init(I2C2_SDA_GPIO_PORT, &GPIO_InitStruct);
-	  }
-	  else if(bus->instance == I2C_THREE)
-	  {
-		  /* I2C TX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C3_SCL_PIN;
-		  HAL_GPIO_Init(I2C3_SCL_GPIO_PORT, &GPIO_InitStruct);
-
-		  /* I2C RX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C3_SDA_PIN;
-		  HAL_GPIO_Init(I2C3_SDA_GPIO_PORT, &GPIO_InitStruct);
-	  }
-
-	  else if(bus->instance == I2C_FOUR)
-	  {
-		  /* I2C TX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C4_SCL_PIN;
-		  HAL_GPIO_Init(I2C4_SCL_GPIO_PORT, &GPIO_InitStruct);
-
-		  /* I2C RX GPIO pin configuration  */
-		  GPIO_InitStruct.Pin = I2C4_SDA_PIN;
-		  HAL_GPIO_Init(I2C4_SDA_GPIO_PORT, &GPIO_InitStruct);
-	  }
+	return(HAL_I2C_Init(&bus->handle));
 }
 
 /**
@@ -183,30 +64,9 @@ void stm32_i2c_gpio_init(stm32_i2c_bus * bus)
  */
 int stm32_i2c_init (stm32_i2c_bus * bus)
 {
-	  if(bus->instance == I2C_ONE)
-	  {
-		  bus->handle.Instance             = I2C1;
-		  bus->handle.Init.OwnAddress1     = I2C1_ADDRESS;
-		  bus->handle.Init.OwnAddress2     = 0xFE;
-	  }
-	  else if(bus->instance == I2C_TWO)
-	  {
-		  bus->handle.Instance             = I2C2;
-		  bus->handle.Init.OwnAddress1     = I2C2_ADDRESS;
-		  bus->handle.Init.OwnAddress2     = 0xFE;
-	  }
-	  else if(bus->instance == I2C_THREE)
-	  {
-		  bus->handle.Instance             = I2C3;
-		  bus->handle.Init.OwnAddress1     = I2C3_ADDRESS;
-		  bus->handle.Init.OwnAddress2     = 0xFE;
-	  }
-	  else if(bus->instance == I2C_FOUR)
-	  {
-		  bus->handle.Instance             = I2C4;
-		  bus->handle.Init.OwnAddress1     = I2C4_ADDRESS;
-		  bus->handle.Init.OwnAddress2     = 0xFE;
-	  }
+	bus->handle.Instance             = stm32_i2c_get_i2c_instance(bus->instance);
+	bus->handle.Init.OwnAddress1     = I2C_Address[bus->instance];
+	bus->handle.Init.OwnAddress2     = 0xFE;
 
 	bus->handle.Init.AddressingMode  = I2C_ADDRESSINGMODE_7BIT;
 	bus->handle.Init.Timing      	 = I2C_TIMING;

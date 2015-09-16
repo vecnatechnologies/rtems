@@ -19,19 +19,12 @@
 #define HAL_I2C_INIT_H
 
 /**
- *  Max I2C Instances available in system
+ * I2C Set Clock Rate
  */
-#define MAX_I2C_INSTANCES 				3
-
-/**
- *  Number of Instances to be initailized
- */
-#define I2C_INSTANCES 					3
-
-/**
- * Initialize GPIO pins
- */
-void stm32_i2c_gpio_init(stm32_i2c_bus * bus);
+int stm32_i2c_set_clock(
+	i2c_bus *base,
+	unsigned long clock
+);
 
 /**
  *  Initialize the I2C instance

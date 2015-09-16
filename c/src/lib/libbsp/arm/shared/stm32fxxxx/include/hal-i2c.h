@@ -26,10 +26,43 @@
 
 /************************ Defines ******************************/
 
+#define STRINGIFY(x)                #x
+
+#define _GET_I2C_VEC(x)				I2C##x_EV_IRQn
+#define GET_I2C_VEC(__INSTANCE__)	STRINGIFY(_GET_I2C_VEC(__INSTANCE__))
+
+/* I2C1 Pin Configuration */
+#if (STM32_ENABLE_I2C1)
+#define I2C1_PORT		STM32_I2C1_PORT
+#define I2C1_SCK_PIN	STM32_I2C1_SCL_PIN
+#define I2C1_SDA_PIN	STM32_I2C1_SDA_PIN
+#endif
+
+/* I2C2 Pin Configuration */
+#if (STM32_ENABLE_I2C2)
+#define I2C2_PORT		STM32_I2C2_PORT
+#define I2C2_SCK_PIN	STM32_I2C2_SCL_PIN
+#define I2C2_SDA_PIN	STM32_I2C2_SDA_PIN
+#endif
+
+/* I2C3 Pin Configuration */
+#if (STM32_ENABLE_I2C3)
+#define I2C3_PORT		STM32_I2C3_PORT
+#define I2C3_SCK_PIN	STM32_I2C3_SCL_PIN
+#define I2C3_SDA_PIN	STM32_I2C3_SDA_PIN
+#endif
+
+/* I2C4 Pin Configuration */
+#if (STM32_ENABLE_I2C4)
+#define I2C4_PORT		STM32_I2C4_PORT
+#define I2C4_SCK_PIN	STM32_I2C4_SCL_PIN
+#define I2C4_SDA_PIN	STM32_I2C4_SDA_PIN
+#endif
+
 /**
- *  Alternate Pin Configuration for I2C
+ *  Max I2C Instances available in system
  */
-#define I2C_AF                     		GPIO_AF4_I2C1
+#define MAX_I2C_INSTANCES 				3
 
 /************************ Typedefs ******************************/
 
@@ -48,6 +81,17 @@ typedef enum
 } I2C_Instance;
 
 /**
+ * I2C Pin Config Struct
+ */
+typedef struct
+{
+GPIO_TypeDef *port;
+uint32_t sck_pin;
+uint32_t sda_pin;
+uint32_t alternate_func;
+}stm32_i2c_pin_config;
+
+/**
  * Stm32 I2C Bus Struct
  */
 typedef struct
@@ -57,6 +101,12 @@ typedef struct
   I2C_Instance instance;
   rtems_id task_id;
 }stm32_i2c_bus;
+
+
+/**
+ * Returns the base address of the I2C instances
+ */
+I2C_TypeDef* stm32_i2c_get_spi_instance(I2C_Instance i2c_instance);
 
 
 #endif

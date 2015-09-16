@@ -35,15 +35,145 @@
 #include <math.h>
 #include <rtems/irq-extension.h>
 
-stm32_i2c_bus *bus[I2C_INSTANCES];
+stm32_i2c_bus *bus[MAX_I2C_INSTANCES];
 I2C_HandleTypeDef I2cHandle;
 
+stm32_i2c_pin_config i2c_pin_config[MAX_I2C_INSTANCES] = {
+#if (STM32_ENABLE_I2C1)
+													{.port 		= I2C1_PORT,
+													.sck_pin 	= I2C1_SCK_PIN,
+													.sda_pin 	= I2C1_SDA_PIN,
+													.alternate_func = GPIO_AF4_I2C1},
+#endif
+#if (STM32_ENABLE_I2C2)
+													{.port 		= I2C2_PORT,
+													.sck_pin 	= I2C2_SCK_PIN,
+													.sda_pin 	= I2C2_SDA_PIN,
+													.alternate_func = GPIO_AF4_I2C2},
+#endif
+#if (STM32_ENABLE_I2C3)
+													{.port 		= I2C3_PORT,
+													.sck_pin 	= I2C3_SCK_PIN,
+													.sda_pin 	= I2C3_SDA_PIN,
+													.alternate_func = GPIO_AF4_I2C3},
+#endif
+#if (STM32_ENABLE_I2C4)
+													{.port 		= I2C4_PORT,
+													.sck_pin 	= I2C4_SCK_PIN,
+													.sda_pin 	= I2C4_SDA_PIN,
+													.alternate_func = GPIO_AF4_I2C4},
+#endif
+};
 
-/******************** Externs **********************/
-extern rtems_vector_number I2C_IRQ_VEC[MAX_I2C_INSTANCES];
-extern bool I2C_Enable[MAX_I2C_INSTANCES];
+const bool I2C_Enable[MAX_I2C_INSTANCES] = {
+#ifndef STM32_ENABLE_I2C1
+		false,
+#else
+		STM32_ENABLE_I2C1,
+#endif
+#ifndef STM32_ENABLE_I2C2
+		false,
+#else
+		STM32_ENABLE_I2C2,
+#endif
+#ifndef STM32_ENABLE_I2C3
+		false,
+#else
+		STM32_ENABLE_I2C3,
+#endif
+#ifndef STM32_ENABLE_I2C4
+		false,
+#else
+		STM32_ENABLE_I2C4,
+#endif
+};
+
+/**
+ * I2C Own Device Addresses
+ */
+uint32_t I2C_Address[MAX_I2C_INSTANCES] = {
+#if (STM32_ENABLE_I2C1)
+		STM32_I2C1_ADDRESS,
+#else
+		0x00,
+#endif
+#if (STM32_ENABLE_I2C2)
+		STM32_I2C2_ADDRESS,
+#else
+		0x00,
+#endif
+#if (STM32_ENABLE_I2C3)
+		STM32_I2C3_ADDRESS,
+#else
+		0x00,
+#endif
+#if (STM32_ENABLE_I2C4)
+		STM32_I2C4_ADDRESS,
+#else
+		0x00,
+#endif
+};
 
 /*********** Private Funvtions **********************/
+
+
+/**
+ * I2C get instance based vector number
+ */
+IRQn_Type stm32_get_i2c_vec_num(I2C_Instance i2c_instance)
+{
+	switch(i2c_instance)
+	{
+	case I2C_ONE:	return (IRQn_Type)GET_I2C_VEC((I2C_ONE++));
+					break;
+	case I2C_TWO:	return (IRQn_Type)GET_I2C_VEC(I2C_TWO++);
+					break;
+	case I2C_THREE:	return (IRQn_Type)GET_I2C_VEC(I2C_THREE++);
+					break;
+	case I2C_FOUR:	return (IRQn_Type)GET_I2C_VEC(I2C_FOUR++);
+					break;
+	}
+}
+
+/**
+ * Initialize I2C clock
+ */
+void stm32_i2c_initialize_i2c_clock(I2C_Instance i2c_instance)
+{
+	switch(i2c_instance)
+	{
+	case I2C_ONE:	__HAL_RCC_I2C1_CLK_ENABLE();
+					break;
+	case I2C_TWO:	__HAL_RCC_I2C2_CLK_ENABLE();
+					break;
+	case I2C_THREE:	__HAL_RCC_I2C3_CLK_ENABLE();
+					break;
+#if (STM32_ENABLE_I2C4)
+	case I2C_FOUR:	__HAL_RCC_I2C4_CLK_ENABLE();
+					break;
+#endif
+	}
+}
+
+/**
+ * Returns the base address of the I2C instances
+ */
+I2C_TypeDef* stm32_i2c_get_i2c_instance(I2C_Instance i2c_instance)
+{
+	switch(i2c_instance)
+	{
+	case I2C_ONE:	return I2C1;
+					break;
+	case I2C_TWO:	return I2C2;
+					break;
+	case I2C_THREE:	return I2C3;
+					break;
+#if (STM32_ENABLE_I2C4)
+	case I2C_FOUR:	return I2C4;
+					break;
+#endif
+	}
+}
 
 /**
  * I2C Interrupt Event ISR
@@ -73,7 +203,7 @@ static int stm32_i2c_transfer(
 
 	i2c_msg *message = msgs->buf;
 
-	 /* Wait for the I2C bus to be ready */
+	/* Wait for the I2C bus to be ready */
 	while (HAL_I2C_GetState(&bus->handle) != HAL_I2C_STATE_READY);
 
 	if(msgs->flags == 0)
@@ -103,14 +233,42 @@ static int stm32_i2c_transfer(
   */
 static int stm32_i2c_deinit_destroy(stm32_i2c_bus * bus)
 {
-	  rtems_status_code sc;
+	rtems_status_code sc;
 
-	  sc = rtems_interrupt_handler_remove(I2C_IRQ_VEC[bus->instance], stm32_i2c_event_irq, &bus->handle);
-	  _Assert(sc == RTEMS_SUCCESSFUL);
-	  (void) sc;
+	sc = rtems_interrupt_handler_remove(stm32_get_i2c_vec_num(bus->instance), stm32_i2c_event_irq, &bus->handle);
+	_Assert(sc == RTEMS_SUCCESSFUL);
+	(void) sc;
 
-	  i2c_bus_destroy_and_free(&bus->base);
+	i2c_bus_destroy_and_free(&bus->base);
 	return (HAL_I2C_DeInit(&bus->handle));
+}
+
+/**
+ * Initialize GPIO pins
+ */
+void stm32_i2c_gpio_init(stm32_i2c_bus * bus)
+{
+
+	GPIO_InitTypeDef  GPIO_InitStruct;
+
+	stm32_i2c_initialize_i2c_clock(bus->instance);
+
+	/* Initialize GPIO Clock */
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+
+	GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
+	GPIO_InitStruct.Pull      = GPIO_PULLUP;
+	GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
+	GPIO_InitStruct.Alternate = i2c_pin_config[bus->instance].alternate_func;
+
+	/* I2C SCL GPIO pin configuration  */
+	GPIO_InitStruct.Pin       = i2c_pin_config[bus->instance].sck_pin;
+	HAL_GPIO_Init(i2c_pin_config[bus->instance].port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin       = i2c_pin_config[bus->instance].sda_pin;
+	HAL_GPIO_Init(i2c_pin_config[bus->instance].port, &GPIO_InitStruct);
 }
 
 /* Register I2C Driver to RTEMS */
@@ -120,13 +278,10 @@ int stm32_bsp_register_i2c(void)
 	int err,inst_num=0;
 	char bus_path[12];
 
-	_Assert(I2C_INSTANCES <= MAX_I2C_INSTANCES);
-
-	for(inst_num=0; inst_num < I2C_INSTANCES; inst_num++)
+	for(inst_num=0; inst_num < MAX_I2C_INSTANCES; inst_num++)
 	{
 		if(true == I2C_Enable[inst_num]) // Check if to enable this instance or not
 		{
-
 			bus[inst_num] = (stm32_i2c_bus *) i2c_bus_alloc_and_init(sizeof(*bus[inst_num]));
 
 			if (bus[inst_num] == NULL) {
@@ -150,7 +305,7 @@ int stm32_bsp_register_i2c(void)
 /********************* Install I2C vectors ***********************/
 
 			sc = rtems_interrupt_handler_install(
-					I2C_IRQ_VEC[inst_num],
+					stm32_get_i2c_vec_num(inst_num),
 					"I2C Event Insturrpt",
 					RTEMS_INTERRUPT_UNIQUE,
 					stm32_i2c_event_irq,
@@ -164,9 +319,9 @@ int stm32_bsp_register_i2c(void)
 			}
 /******************************************************************/
 
-			bus[inst_num]->base.transfer = stm32_i2c_transfer;
-			bus[inst_num]->base.destroy  = stm32_i2c_deinit_destroy;
-
+			bus[inst_num]->base.transfer 	= stm32_i2c_transfer;
+			bus[inst_num]->base.destroy  	= stm32_i2c_deinit_destroy;
+			bus[inst_num]->base.set_clock 	= stm32_i2c_set_clock;
 			sprintf(bus_path, "/dev/i2c%d",inst_num+1);
 
 			err = i2c_bus_register(&bus[inst_num]->base, bus_path);
