@@ -126,8 +126,6 @@ include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_sdmmc.h
 include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
 include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 
-# Discovery headers
-include_bsp_HEADERS += hal/BSP/STM32F4-Discovery/stm32f4_discovery.h
 
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
@@ -297,8 +295,6 @@ libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_iwdg.c
 
-# Discovery board bsp file
-libbsp_a_SOURCES += hal/BSP/STM32F4-Discovery/stm32f4_discovery.c
 
 ###############################################################################
 #                  Special Rules                                              #

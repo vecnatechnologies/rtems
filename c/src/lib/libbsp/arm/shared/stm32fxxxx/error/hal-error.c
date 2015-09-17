@@ -13,7 +13,7 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
-void Error_Handler(
+void stm32f_error_handler(
   void
 )
 {

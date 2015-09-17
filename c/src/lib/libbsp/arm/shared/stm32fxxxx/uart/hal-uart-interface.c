@@ -31,6 +31,11 @@
 // for both the termios console uarts as well as the non-console uarts.
 UART_HandleTypeDef UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+NUM_PROCESSOR_NON_CONSOLE_UARTS];
 
+typedef enum {
+  UARTCallbackType_TX,
+  UARTCallbackType_RX
+} UARTCallbackType;
+
 static stm32f_base_uart_driver_entry* stm32f_get_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 )
@@ -67,55 +72,71 @@ stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
   return NULL;
 }
 
+
+stm32_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart
+)
+{
+  uint32_t i;
+
+  for ( i = 0UL; i < COUNTOF(stm32f_uart_driver_table); i++ ) {
+    if ( stm32f_uart_driver_table[i].base_driver_info.handle == huart ) {
+      return (stm32_uart_driver_entry*) &(stm32f_uart_driver_table[i]);
+    }
+  }
+
+  return NULL;
+}
+
 static void stm32f_init_uart_clock(
   const stm32f_uart Uart
 )
 {
   switch ( Uart )
   {
-#if defined(STM32F7_ENABLE_USART_1)
+#if defined(STM32_ENABLE_USART_1)
   case STM32F_UART1:
     __HAL_RCC_USART1_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_2)
+#if defined(STM32_ENABLE_USART_2)
   case STM32F_UART2:
     __HAL_RCC_USART2_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_3)
+#if defined(STM32_ENABLE_USART_3)
   case STM32F_UART3:
     __HAL_RCC_USART3_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_4)
+#if defined(STM32_ENABLE_USART_4)
   case STM32F_UART4:
     __HAL_RCC_UART4_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_5)
+#if defined(STM32_ENABLE_USART_5)
   case STM32F_UART5:
     __HAL_RCC_UART5_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_6)
+#if defined(STM32_ENABLE_USART_6)
   case STM32F_UART6:
     __HAL_RCC_USART6_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_7)
+#if defined(STM32_ENABLE_USART_7)
     case STM32F_UART7:
     __HAL_RCC_UART7_CLK_ENABLE();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_UART_8)
+#if defined(STM32_ENABLE_USART_8)
     case STM32F_UART8:
     __HAL_RCC_UART8_CLK_ENABLE();
     break;
@@ -135,56 +156,56 @@ static void stmf32_uart_reset(
 {
   switch ( Uart )
   {
-#if defined(STM32F7_ENABLE_USART_1)
+#if defined(STM32_ENABLE_USART_1)
   case STM32F_UART1:
     __HAL_RCC_USART1_FORCE_RESET();
     __HAL_RCC_USART1_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_2)
+#if defined(STM32_ENABLE_USART_2)
   case STM32F_UART2:
     __HAL_RCC_USART2_FORCE_RESET();
     __HAL_RCC_USART2_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_3)
+#if defined(STM32_ENABLE_USART_3)
   case STM32F_UART3:
     __HAL_RCC_USART3_FORCE_RESET();
     __HAL_RCC_USART3_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_4)
+#if defined(STM32_ENABLE_USART_4)
   case STM32F_UART4:
     __HAL_RCC_UART4_FORCE_RESET();
     __HAL_RCC_UART4_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_5)
+#if defined(STM32_ENABLE_USART_5)
   case STM32F_UART5:
     __HAL_RCC_UART5_FORCE_RESET();
     __HAL_RCC_UART5_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_6)
+#if defined(STM32_ENABLE_USART_6)
   case STM32F_UART6:
     __HAL_RCC_USART6_FORCE_RESET();
     __HAL_RCC_USART6_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_7)
+#if defined(STM32_ENABLE_USART_7)
     case STM32F_UART7:
     __HAL_RCC_UART7_FORCE_RESET();
     __HAL_RCC_UART7_RELEASE_RESET();
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_8)
+#if defined(STM32_ENABLE_USART_8)
     case STM32F_UART8:
     __HAL_RCC_UART8_FORCE_RESET();
     __HAL_RCC_UART8_RELEASE_RESET();
@@ -296,49 +317,49 @@ USART_TypeDef* stmf32_uart_get_registers(
 
   switch ( Uart )
   {
-#if defined(STM32F7_ENABLE_USART_1)
+#if defined(STM32_ENABLE_USART_1)
   case STM32F_UART1:
     ret = USART1;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_2)
+#if defined(STM32_ENABLE_USART_2)
   case STM32F_UART2:
     ret = USART2;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_3)
+#if defined(STM32_ENABLE_USART_3)
   case STM32F_UART3:
     ret = USART3;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_4)
+#if defined(STM32_ENABLE_USART_4)
   case STM32F_UART4:
     ret = UART4;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_5)
+#if defined(STM32_ENABLE_USART_5)
   case STM32F_UART5:
     ret = UART5;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_6)
+#if defined(STM32_ENABLE_USART_6)
   case STM32F_UART6:
     ret = USART6;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_7)
+#if defined(STM32_ENABLE_USART_7)
     case STM32F_UART7:
     ret = UART7;
     break;
 #endif
 
-#if defined(STM32F7_ENABLE_USART_8)
+#if defined(STM32_ENABLE_USART_8)
     case STM32F_UART8:
     ret = UART8;
     break;
@@ -497,3 +518,66 @@ void HAL_UART_MspDeInit(
   }
 }
 
+static void stm32f_send_uart_event(UART_HandleTypeDef *huart, const UARTCallbackType type) {
+
+  rtems_status_code sc;
+
+  stm32_uart_driver_entry* pUartDriver = stm32f_get_uart_driver_entry_from_handle (huart);
+
+  if(pUartDriver != NULL) {
+
+    switch(type){
+
+    case UARTCallbackType_TX:
+      // Double check driver state for TX done
+      if((pUartDriver->base_driver_info.handle->State == HAL_UART_STATE_BUSY_RX) ||
+         (pUartDriver->base_driver_info.handle->State == HAL_UART_STATE_READY)) {
+
+        // Send event to TX task to indicate that transmit is complete.
+        sc = rtems_event_send(pUartDriver->tx_task_id, UART_TX_DONE);
+      }
+      break;
+
+    case UARTCallbackType_RX:
+      // Double check driver state for RX done
+      if((pUartDriver->base_driver_info.handle->State == HAL_UART_STATE_BUSY_TX) ||
+         (pUartDriver->base_driver_info.handle->State == HAL_UART_STATE_READY)) {
+
+        // Send event to TX task to indicate that transmit is complete.
+        sc = rtems_event_send(pUartDriver->rx_task_id, UART_RX_DONE);
+      }
+      break;
+    }
+  }
+}
+
+void HAL_UART_TxCpltCallback(
+  UART_HandleTypeDef *huart
+)
+{
+  stm32f_console_driver_entry* pEntry =
+    stm32f_get_console_driver_entry_from_handle(huart);
+
+  // If there are still characters in TX fifo start sending again...
+  if ( pEntry != NULL ) {
+
+    if ( Ring_buffer_Is_empty(pEntry->fifo) == false ) {
+      stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
+    }
+  } else {
+
+    // If this is non-console uart then send event to TX task to
+    // indicate that we are done transmitting.
+    stm32f_send_uart_event(huart, UARTCallbackType_TX);
+  }
+}
+
+/**
+  * @brief Rx Transfer completed callbacks
+  * @param huart: uart handle
+  * @retval None
+  */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  stm32f_send_uart_event(huart, UARTCallbackType_RX);
+}

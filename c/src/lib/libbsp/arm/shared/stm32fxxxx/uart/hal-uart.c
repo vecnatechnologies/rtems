@@ -20,6 +20,7 @@
 #include <hal-utils.h>
 #include <hal-uart-interface.h>
 #include <stm32f-processor-specific.h>
+#include <hal-error.h>
 
 #include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
 #include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
@@ -30,6 +31,12 @@
 //--- Include processor specfic uart configurations
 #include <uart-config.c>
 
+/**
+ * The maximum amount of of time to wait for a UART buffer to be completely
+ * transmitted.
+ */
+#define STM32F_MAX_UART_TX_TIME_ms  20
+
 typedef struct {
   uint32_t len;
   rtems_interval max_wait_time;
@@ -37,6 +44,7 @@ typedef struct {
 
 static uint8_t tx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_TX_MSG_SIZE];
 static uint8_t rx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_RX_MSG_SIZE];
+
 
 //============================== ISR Definitions ==========================================
 static void stm32f_uart_dma_tx_isr(
@@ -107,8 +115,12 @@ static HAL_StatusTypeDef stm32_uart_receive(
 )
 {
   HAL_StatusTypeDef ret = HAL_ERROR;
+  stm32_uart_driver_entry* pUartDriver = stm32f_get_uart_driver_entry_from_handle (hUartHandle);
 
-  if ( (len > 0) && (buf != NULL) && (hUartHandle != NULL) ) {
+  if ( (len > 0) && (buf != NULL) && (hUartHandle != NULL) && (pUartDriver != NULL)) {
+
+    // Record calling task rtems_id for RX event routing.
+    pUartDriver->rx_task_id = rtems_task_self();
 
     switch ( uartType ) {
 
@@ -135,7 +147,16 @@ static rtems_task stm32_uart_tx_task(
 {
   size_t len;
   rtems_status_code sc;
+  rtems_event_set   events_rx;
   stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
+  rtems_interval ticks_per_ms;
+
+  static uint32_t failure_counter = 0UL, success_counter = 0UL;
+
+  // Calculate the ticks per ms.  This is constant during execution
+  // of the application and therefore can be calculated just once
+  // at task startup.
+  ticks_per_ms = rtems_clock_get_ticks_per_second() / 1000;
 
   while ( 1 ) {
 
@@ -154,11 +175,18 @@ static rtems_task stm32_uart_tx_task(
         len);
     }
 
-    // ensure that next TX request is only processed when the current
-    // request has been fully processed.
-    while ( (pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_RX) &&
-      (pUart->base_driver_info.handle->State != HAL_UART_STATE_READY) ) {
-      (void) rtems_task_wake_after(1);
+    // Wait for event from TX complete callback before
+    // processing any additional messages.
+    sc = rtems_event_receive(UART_TX_DONE,
+                             RTEMS_WAIT | RTEMS_EVENT_ANY,
+                             ticks_per_ms * STM32F_MAX_UART_TX_TIME_ms,
+                             &events_rx);
+
+    if (sc != RTEMS_SUCCESSFUL) {
+      failure_counter++;
+      //stm32f_error_handler();
+    } else {
+      success_counter++;
     }
   }
 }
@@ -194,6 +222,9 @@ static ssize_t stm32_uart_read(
   stm32_uart_device *pUartDevice = (stm32_uart_device *)IMFS_generic_get_context_by_iop(iop);
   ssize_t ret_size = 0;
   HAL_StatusTypeDef ret;
+  rtems_status_code sc;
+  rtems_event_set  events_rx;
+
 
   if ( count <= MAX_UART_RX_MSG_SIZE ) {
 
@@ -206,15 +237,22 @@ static ssize_t stm32_uart_read(
 
     if ( ret == HAL_OK ) {
 
-      while ( (pUartDevice->pUart->base_driver_info.handle->State != HAL_UART_STATE_BUSY_TX) &&
-              (pUartDevice->pUart->base_driver_info.handle->State != HAL_UART_STATE_READY) ) {
-        (void) rtems_task_wake_after(1);
+      // Wait for event from RX complete callback before
+      // processing any additional messages.
+      sc = rtems_event_receive(UART_RX_DONE,
+                               RTEMS_WAIT | RTEMS_EVENT_ANY,
+                               RTEMS_NO_TIMEOUT,
+                               &events_rx);
+
+      if (sc == RTEMS_SUCCESSFUL) {
+
+        // copy received data to the destination buffer
+        memcpy(buffer, (void*) &(rx_msg[pUartDevice->pUart->instance]), count);
+
+        ret_size = count;
+      } else {
+        stm32f_error_handler();
       }
-
-      // copy received data to the destination buffer
-      memcpy(buffer, (void*) &(rx_msg[pUartDevice->pUart->instance]), count);
-
-      ret_size = count;
     }
   }
   return ret_size;

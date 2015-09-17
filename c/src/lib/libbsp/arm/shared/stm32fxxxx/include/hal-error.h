@@ -22,7 +22,7 @@
 /**
  * @brief HAL ST32F error handler function.
  */
-void Error_Handler(void);
+void stm32f_error_handler(void);
 
 
 #endif /* INCLUDE_HAL_ERROR_H_ */

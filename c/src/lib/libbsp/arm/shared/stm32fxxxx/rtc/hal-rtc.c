@@ -162,13 +162,13 @@ void HAL_RTC_MspInit(
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.LSEState = RCC_LSE_OFF;
   if ( HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK ) {
-    Error_Handler();
+    stm32f_error_handler();
   }
 
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   if ( HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK ) {
-    Error_Handler();
+    stm32f_error_handler();
   }
 
   //##-2- Enable RTC peripheral Clocks #######################################

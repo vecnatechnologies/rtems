@@ -64,7 +64,7 @@ extern "C" {
 /**
  * The RTEMS task priority of the UART TX task
  **/
-#define UART_TX_TASK_PRIORITY   100
+#define UART_TX_TASK_PRIORITY   10
 
 /**
  * The maximum amount of time the RTOS will wait for a single character to
@@ -82,6 +82,10 @@ extern "C" {
  * The ioctl baud rate argument definition.
  */
 #define UART_BAUDRATE        _IOW(IOCTL_UART_TYPE, 1, uint32_t)
+
+#define UART_TX_DONE RTEMS_EVENT_1
+
+#define UART_RX_DONE RTEMS_EVENT_2
 
 /**
  * The various modes of UART operation supported in the STM32F processor
@@ -383,6 +387,11 @@ typedef struct {
   rtems_id tx_task_id;
 
   /**
+   * The rtems_id of the task currently waiting on UART RX data.
+   */
+  rtems_id rx_task_id;
+
+  /**
    * The rtems_id of the message queue used to hold transmit requests
    * for the UART.
    */
@@ -453,6 +462,22 @@ stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 );
 
+
+/**
+ * @brief Returns the uart from the HAL UART handle
+ *
+ * This will return a pointer to the non-console uart from the
+ * stm32f_uart_driver_table that has the specified HAL UART handle.
+ *
+ * @param[in] huart A STM32F HAL UART handle
+ *
+ * @return The address of the specified UART in the stm32f_uart_driver_table
+ *  if it exists.  If it doesn't exist, then NULL is returned.
+ */
+stm32_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart
+);
+
 /**
  * @brief Returns the location of the UART's hardware registers
  *
@@ -501,6 +526,12 @@ int uart_remove_interrupt_handlers(
 void stm32f_uarts_initialize(
   void
 );
+
+
+int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
+  uint8_t *buf,
+  size_t len
+  );
 
 /**
  * This array will hold all the STM32F HAL UART handles.  The handles are

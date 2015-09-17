@@ -69,11 +69,6 @@ static int stm32f_uart_poll_read(
   rtems_termios_device_context *context
   );
 
-static int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
-  uint8_t *buf,
-  size_t len
-  );
-
 //---------------
 BSP_output_char_function_type BSP_output_char = NULL;
 BSP_polling_getchar_function_type BSP_poll_char = NULL;
@@ -393,7 +388,7 @@ static void stm32f_uart_write(
   }
 }
 
-static int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
+int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
   uint8_t *buf,
   size_t len
 )
@@ -453,20 +448,6 @@ static int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
   return error;
 }
 
-void HAL_UART_TxCpltCallback(
-  UART_HandleTypeDef *huart
-)
-{
-  stm32f_console_driver_entry* pEntry =
-    stm32f_get_console_driver_entry_from_handle(huart);
 
-  // If there are still characters in TX fifo start sending again...
-  if ( pEntry != NULL ) {
-
-    if ( Ring_buffer_Is_empty(pEntry->fifo) == false ) {
-      stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
-    }
-  }
-}
 
 

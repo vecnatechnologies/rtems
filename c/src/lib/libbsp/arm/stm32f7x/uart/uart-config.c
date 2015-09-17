@@ -30,7 +30,7 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
         .device_name         = "/dev/ttyS6",
         .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+1]),
         .interrupt_number    = UART7_IRQn,
-        .uart_mode           = STM32F_UART_MODE_DMA,
+        .uart_mode           = STM32F_UART_MODE_INT,
         .tx_dma_stream       = DMA1_Stream1,
         .rx_dma_stream       = DMA1_Stream3,
         .tx_pin              = {STM32F_GOIO_PORTF, 6},

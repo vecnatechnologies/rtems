@@ -182,7 +182,7 @@ void BSP_SDRAM_Config(
   if(HAL_SDRAM_Init(&hsdram, &SDRAM_Timing) != HAL_OK)
   {
     /* Initialization Error */
-    Error_Handler();
+    stm32f_error_handler();
   }
 
   /* Program the SDRAM external device */

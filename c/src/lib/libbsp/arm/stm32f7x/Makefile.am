@@ -126,9 +126,6 @@ include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/stm32f7xx_ll_sdmmc.h
 include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/stm32f7xx_ll_usb.h
 include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 
-# Evaluation board headers
-include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
-
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
@@ -293,8 +290,6 @@ libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_ll_fmc.c
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_ll_sdmmc.c
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_ll_usb.c
 
-# Evaluation board bsp file
-libbsp_a_SOURCES += hal/BSP/STM32746G-Discovery/stm32746g_discovery.c
 
 
 ###############################################################################
