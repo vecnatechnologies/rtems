@@ -132,8 +132,8 @@ include_bsp_HEADERS += hal/BSP/STM32746G-Discovery/stm32746g_discovery.h
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-spi.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-fatal-error-handler.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
@@ -181,14 +181,12 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
 libbsp_a_SOURCES += i2c/hal-i2c-init.c
 
-#SPI
-libbsp_a_SOURCES += ../shared/stm32fxxxx/spi/hal-spi.c
-
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c
 
 # Error
 libbsp_a_SOURCES += ../shared/stm32fxxxx/error/hal-error.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/error/hal-fatal-error-handler.c
 
 # IRQ
 libbsp_a_SOURCES += ../../shared/src/irq-default-handler.c

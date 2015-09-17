@@ -255,6 +255,7 @@ void bsp_start(
 
   // initialize interrupt vectors with default handler
   bsp_interrupt_initialize();
+
 }
 
 void bsp_predriver_hook(
@@ -264,5 +265,5 @@ void bsp_predriver_hook(
   stm32f_uarts_initialize();
   stm32_bsp_register_can();
   stm32_bsp_register_i2c();
-  stm32_bsp_register_spi();
+  stm32_initialize_extensions();
 }
