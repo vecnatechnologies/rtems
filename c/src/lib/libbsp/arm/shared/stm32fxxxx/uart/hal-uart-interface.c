@@ -143,9 +143,7 @@ static void stm32f_init_uart_clock(
 #endif
   default:
   case STM32F_INVALID_UART:
-    while(1) {
-      // you tried to reference a UART that is not enabled
-    }
+    stm32f_error_handler();
     break;
   }
 }
@@ -214,9 +212,7 @@ static void stmf32_uart_reset(
 
   default:
   case STM32F_INVALID_UART:
-    while(1) {
-      // you tried to reference a UART that is not enabled
-    }
+    stm32f_error_handler();
     break;
   }
 }
@@ -256,9 +252,7 @@ static void stmf32_init_gpio_clock(
     break;
 
   default:
-    while(1) {
-      // you tried to reference a UART that is not enabled
-    }
+    stm32f_error_handler();
     break;
   }
 }
@@ -300,9 +294,7 @@ static GPIO_TypeDef* stmf32_get_gpio(
     break;
 
   default:
-    while(1) {
-      // you tried to reference a UART that is not enabled
-    }
+    stm32f_error_handler();
     break;
   }
 
@@ -367,9 +359,7 @@ USART_TypeDef* stmf32_uart_get_registers(
 
   default:
     case STM32F_INVALID_UART:
-    while(1) {
-        // you tried to reference a UART that is not enabled
-    }
+    stm32f_error_handler();
     break;
   }
 

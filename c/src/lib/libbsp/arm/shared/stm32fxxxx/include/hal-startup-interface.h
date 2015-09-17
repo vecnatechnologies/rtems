@@ -16,8 +16,8 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
-#ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_HAL_STARTUP_INTERFACE_H
-#define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_HAL_STARTUP_INTERFACE_H
+#ifndef HAL_STARTUP_INTERFACE_H
+#define HAL_STARTUP_INTERFACE_H
 
 /**
  * @brief Performs various BSP startup activities

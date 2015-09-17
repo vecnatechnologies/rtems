@@ -16,8 +16,8 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
-#ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_
-#define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_VECNA_UTILS_H_
+#ifndef HAL_UTILS_H
+#define HAL_UTILS_H_
 
 /**
  * A macro that can be used determine the size of any array

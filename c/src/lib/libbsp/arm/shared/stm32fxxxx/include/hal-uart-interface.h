@@ -16,8 +16,8 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
-#ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
-#define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_UART_HAL_UART_INTERFACE_H_
+#ifndef HAL_UART_INTERFACE_H
+#define HAL_UART_INTERFACE_H
 
 #ifdef __cplusplus
 extern "C" {
