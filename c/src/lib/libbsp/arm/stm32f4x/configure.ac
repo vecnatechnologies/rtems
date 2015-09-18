@@ -16,6 +16,14 @@ AM_CONDITIONAL(HAS_NETWORKING,test "$HAS_NETWORKING" = "yes")
 
 RTEMS_BSPOPTS_HELP([STM32F4_FAMILY_F4XXXX],[Chip belongs to the STM32F4XXXX family.])
 
+#System Memory Address
+RTEMS_BSPOPTS_SET([SYS_MEM_ADDR],[*],[0x1FFF0000])
+RTEMS_BSPOPTS_HELP([SYS_MEM_ADDR],[System Memory Address])
+
+#Bootloader firmware address offset in system memory
+RTEMS_BSPOPTS_SET([BOOTLOADER_OFFSET],[*],[0x4])
+RTEMS_BSPOPTS_HELP([BOOTLOADER_OFFSET],[Bootloader firmware address offset in system memory])
+
 RTEMS_BSPOPTS_SET([STM32F4_HSE_OSCILLATOR],[*],[8000000])
 RTEMS_BSPOPTS_HELP([STM32F4_HSE_OSCILLATOR],[HSE oscillator frequency in Hz])
 

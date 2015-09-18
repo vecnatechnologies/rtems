@@ -216,6 +216,11 @@ libbsp_a_SOURCES += ../../shared/timerstub.c
 libbsp_a_SOURCES += ../../../libcpu/shared/src/cache_manager.c
 libbsp_a_SOURCES += ../../../libcpu/arm/shared/cache/cache_.h
 
+#Boot Init
+libbsp_a_SOURCES += ../shared/stm32fxxxx/bootinit/hal-bootinit.c
+
+#Shell User Commands
+libbsp_a_SOURCES += ../shared/stm32fxxxx/shell_bsp_cmds/shell_bsp_cmds.c
 
 libbsp_a_CPPFLAGS += -I$(srcdir)/../../../libcpu/arm/shared/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/../../../libcpu/arm/shared/stm32fxxxx/include
