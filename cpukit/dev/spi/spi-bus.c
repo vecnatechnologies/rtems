@@ -9,6 +9,8 @@
 /*
  * Copyright (c) 2015 Vecna Technologies, Inc.
  *
+ * Author: Sudarshan Rajagopalan
+ *
  * The license and distribution terms for this file may be
  * found in the file LICENSE in this distribution or at
  * http://www.rtems.com/license/LICENSE.
@@ -59,23 +61,23 @@ int spi_bus_transfer(spi_bus *bus, spi_msg *msgs, uint32_t msg_count)
 }
 
 static int spi_bus_open(
-		rtems_libio_t *iop,
-		const char    *path,
-		int            oflag,
-		mode_t         mode
+    rtems_libio_t *iop,
+    const char    *path,
+    int            oflag,
+    mode_t         mode
 )
 {
-	int err;
-	spi_bus *bus = IMFS_generic_get_context_by_iop(iop);
-	spi_bus_obtain(bus);
-	err = bus->init(bus);
-	spi_bus_release(bus);
+  int err;
+  spi_bus *bus = IMFS_generic_get_context_by_iop(iop);
+  spi_bus_obtain(bus);
+  err = bus->init(bus);
+  spi_bus_release(bus);
 
-	if (err == 0) {
-		return 0;
-	} else {
-		rtems_set_errno_and_return_minus_one(-err);
-	}
+  if (err == 0) {
+      return 0;
+  } else {
+      rtems_set_errno_and_return_minus_one(-err);
+  }
 
 }
 
@@ -186,20 +188,20 @@ static const IMFS_node_control spi_bus_node_control = IMFS_GENERIC_INITIALIZER(
 );
 
 int spi_bus_register(
-		  spi_bus *bus,
-		  const char *bus_path
+    spi_bus *bus,
+    const char *bus_path
 )
 {
   int rv;
 
   rv = IMFS_make_generic_node(
-    bus_path,
-    S_IFCHR | S_IRWXU | S_IRWXG | S_IRWXO,
-    &spi_bus_node_control,
-    bus
+      bus_path,
+      S_IFCHR | S_IRWXU | S_IRWXG | S_IRWXO,
+      &spi_bus_node_control,
+      bus
   );
   if (rv != 0) {
-    (*bus->destroy)(bus);
+      (*bus->destroy)(bus);
   }
 
   return rv;
