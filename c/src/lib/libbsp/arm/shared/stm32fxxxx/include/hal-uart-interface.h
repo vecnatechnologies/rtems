@@ -88,6 +88,12 @@ extern "C" {
 #define UART_RX_DONE RTEMS_EVENT_2
 
 /**
+ * The maximum amount of of time to wait for a UART buffer to be completely
+ * transmitted.
+ */
+#define STM32F_MAX_UART_TX_TIME_ms  20
+
+/**
  * The various modes of UART operation supported in the STM32F processor
  */
 typedef enum {
@@ -347,16 +353,6 @@ typedef struct {
    */
   struct rtems_termios_tty* tty;
 
-  /**
-   * A fifo buffer used to queue characters for transmission.
-   */
-  Ring_buffer_t* fifo;
-
-  /**
-   *  The block of data currently being transmitted on the UART.
-   */
-  uint8_t tx_buffer[SERIAL_TERMIOS_FIFO_SIZE];
-
 } stm32f_console_driver_entry;
 
 /**
@@ -403,7 +399,7 @@ typedef struct {
    */
   rtems_id mutex;
 
-} stm32_uart_driver_entry;
+} stm32f_uart_driver_entry;
 
 /**
  * This structure is used to register a non-console UART device driver.
@@ -414,24 +410,24 @@ typedef struct {
    * The object that describes the configuration and state of the
    * non-console UART.
    */
-  stm32_uart_driver_entry* pUart;
+  stm32f_uart_driver_entry* pUart;
 
   /**
    * The initialization function for the device.
    */
-  int (*init)(stm32_uart_driver_entry * pUart, uint32_t baud);
+  int (*init)(stm32f_uart_driver_entry * pUart, uint32_t baud);
 
   /**
    * The de-initialization routine that closes the UART.
    */
-  int (*de_init)(stm32_uart_driver_entry * pUart);
+  int (*de_init)(stm32f_uart_driver_entry * pUart);
 
   /**
    * The destroy routine used to clean up the driver when it is no
    * longer required.
    */
-  void (*destroy)(stm32_uart_driver_entry * pUart);
-} stm32_uart_device;
+  void (*destroy)(stm32f_uart_driver_entry * pUart);
+} stm32f_uart_device;
 
 /**
  * @brief Initializes console UARTs.
@@ -474,7 +470,7 @@ stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
  * @return The address of the specified UART in the stm32f_uart_driver_table
  *  if it exists.  If it doesn't exist, then NULL is returned.
  */
-stm32_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
+stm32f_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 );
 
@@ -536,7 +532,7 @@ int stm32f_remove_interrupt_handlers(
  * @returns The starting address of the UART's hardware registers or
  *  NULL if the processor does not implement the specified UART.
  */
-USART_TypeDef* stmf32_uart_get_registers(
+USART_TypeDef* stm32f_uart_get_registers(
   const stm32f_uart Uart
 );
 
@@ -548,11 +544,6 @@ void stm32f_uarts_initialize(
   void
 );
 
-
-int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
-  uint8_t *buf,
-  size_t len
-  );
 
 /**
  * This array will hold all the STM32F HAL UART handles.  The handles are
@@ -572,7 +563,7 @@ extern stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CON
  * in a file named uart-config.c.  This array should contain information
  * about which non-console UARTs should be defined for the processor.
  */
-extern stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
+extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
 
 #ifdef __cplusplus
 }

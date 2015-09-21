@@ -75,7 +75,7 @@ stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
 }
 
 
-stm32_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
+stm32f_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 )
 {
@@ -83,7 +83,7 @@ stm32_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
 
   for ( i = 0UL; i < COUNTOF(stm32f_uart_driver_table); i++ ) {
     if ( stm32f_uart_driver_table[i].base_driver_info.handle == huart ) {
-      return (stm32_uart_driver_entry*) &(stm32f_uart_driver_table[i]);
+      return (stm32f_uart_driver_entry*) &(stm32f_uart_driver_table[i]);
     }
   }
 
@@ -151,7 +151,7 @@ static void stm32f_init_uart_clock(
   }
 }
 
-static void stmf32_uart_reset(
+static void stm32f_uart_reset(
   const stm32f_uart Uart
 )
 {
@@ -220,7 +220,7 @@ static void stmf32_uart_reset(
   }
 }
 
-static void stmf32_init_gpio_clock(
+static void stm32f_init_gpio_clock(
   const stm32f_gpio_port port
 )
 {
@@ -260,7 +260,7 @@ static void stmf32_init_gpio_clock(
   }
 }
 
-static GPIO_TypeDef* stmf32_get_gpio(
+static GPIO_TypeDef* stm32f_get_gpio(
   const stm32f_gpio_port port
 )
 {
@@ -304,7 +304,7 @@ static GPIO_TypeDef* stmf32_get_gpio(
   return ret;
 }
 
-USART_TypeDef* stmf32_uart_get_registers(
+USART_TypeDef* stm32f_uart_get_registers(
   const stm32f_uart Uart
 )
 {
@@ -369,7 +369,7 @@ USART_TypeDef* stmf32_uart_get_registers(
   return ret;
 }
 
-static void stmf32_init_dma_clock(
+static void stm32f_init_dma_clock(
   const stm32f_dma_controller controller
 )
 {
@@ -595,13 +595,13 @@ void HAL_UART_MspInit(
   stm32f_init_uart_clock(pUart->uart);
 
   // Enable GPIO clocks
-  stmf32_init_gpio_clock(pUart->tx_pin.port);
-  stmf32_init_gpio_clock(pUart->rx_pin.port);
+  stm32f_init_gpio_clock(pUart->tx_pin.port);
+  stm32f_init_gpio_clock(pUart->rx_pin.port);
 
   // Enable DMA clocks
   if ( pUart->uart_mode == STM32F_UART_MODE_DMA ) {
-    stmf32_init_dma_clock(pUart->tx_dma.controller);
-    stmf32_init_dma_clock(pUart->rx_dma.controller);
+    stm32f_init_dma_clock(pUart->tx_dma.controller);
+    stm32f_init_dma_clock(pUart->rx_dma.controller);
   }
 
   //##-2- Configure peripheral GPIO ##########################################
@@ -613,13 +613,13 @@ void HAL_UART_MspInit(
   GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
   GPIO_InitStruct.Alternate = pUart->alt_func_config;
 
-  HAL_GPIO_Init(stmf32_get_gpio(pUart->tx_pin.port), &GPIO_InitStruct);
+  HAL_GPIO_Init(stm32f_get_gpio(pUart->tx_pin.port), &GPIO_InitStruct);
 
   // UART RX GPIO pin configuration
   GPIO_InitStruct.Pin = (1 << pUart->rx_pin.pin);
   GPIO_InitStruct.Alternate = pUart->alt_func_config;
 
-  HAL_GPIO_Init(stmf32_get_gpio(pUart->rx_pin.port), &GPIO_InitStruct);
+  HAL_GPIO_Init(stm32f_get_gpio(pUart->rx_pin.port), &GPIO_InitStruct);
 
   //##-3- Configure the DMA streams ##########################################
 
@@ -689,13 +689,13 @@ void HAL_UART_MspDeInit(
   pUart = stm32f_get_base_uart_driver_entry_from_handle(huart);
 
   /*##-1- Reset peripherals ##################################################*/
-  stmf32_uart_reset(pUart->uart);
+  stm32f_uart_reset(pUart->uart);
 
   /*##-2- Disable peripherals and GPIO Clocks ################################*/
   /* Configure UART Tx as alternate function  */
-  HAL_GPIO_DeInit(stmf32_get_gpio(pUart->tx_pin.port), (1 << pUart->tx_pin.pin));
+  HAL_GPIO_DeInit(stm32f_get_gpio(pUart->tx_pin.port), (1 << pUart->tx_pin.pin));
   /* Configure UART Rx as alternate function  */
-  HAL_GPIO_DeInit(stmf32_get_gpio(pUart->rx_pin.port), (1 << pUart->rx_pin.pin));
+  HAL_GPIO_DeInit(stm32f_get_gpio(pUart->rx_pin.port), (1 << pUart->rx_pin.pin));
 
   /*##-3- Disable the DMA Streams ############################################*/
   if ( pUart->uart_mode == STM32F_UART_MODE_DMA ) {
@@ -710,7 +710,7 @@ static rtems_status_code stm32f_send_uart_event(UART_HandleTypeDef *huart, const
 
   rtems_status_code sc = RTEMS_UNSATISFIED;
 
-  stm32_uart_driver_entry* pUartDriver = stm32f_get_uart_driver_entry_from_handle (huart);
+  stm32f_uart_driver_entry* pUartDriver = stm32f_get_uart_driver_entry_from_handle (huart);
 
   if(pUartDriver != NULL) {
 
@@ -745,21 +745,10 @@ void HAL_UART_TxCpltCallback(
   UART_HandleTypeDef *huart
 )
 {
-  stm32f_console_driver_entry* pEntry =
-    stm32f_get_console_driver_entry_from_handle(huart);
+  // If this is non-console uart then send event to TX task to
+  // indicate that we are done transmitting.
+  stm32f_send_uart_event(huart, UARTCallbackType_TX);
 
-  // If there are still characters in TX fifo start sending again...
-  if ( pEntry != NULL ) {
-
-    if ( Ring_buffer_Is_empty(pEntry->fifo) == false ) {
-      stm32f_uart_get_next_tx_buf(pEntry, NULL, 0);
-    }
-  } else {
-
-    // If this is non-console uart then send event to TX task to
-    // indicate that we are done transmitting.
-    stm32f_send_uart_event(huart, UARTCallbackType_TX);
-  }
 }
 
 /**
@@ -771,3 +760,4 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   stm32f_send_uart_event(huart, UARTCallbackType_RX);
 }
+

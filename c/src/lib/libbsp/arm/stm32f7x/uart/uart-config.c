@@ -6,7 +6,7 @@
  */
 
 
-stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS] = {
+stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS] = {
 
 //          UART4
 [0] .base_driver_info = {
@@ -44,5 +44,5 @@ stm32_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS
 
 };
 
-stm32_uart_device uart_device_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
+stm32f_uart_device uart_device_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
 

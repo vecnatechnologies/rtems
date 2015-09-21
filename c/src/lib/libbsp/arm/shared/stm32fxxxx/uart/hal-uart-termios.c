@@ -77,17 +77,6 @@ BSP_polling_getchar_function_type BSP_poll_char = NULL;
 #include <console-config.c>
 
 //--------------- termios handler functions
-
-const rtems_termios_device_handler stm32f_uart_handlers_interrupt = {
-  .first_open = stm32f_uart_first_open,
-  .last_close = stm32f_uart_last_close,
-  .poll_read = stm32f_uart_poll_read,
-  .write = stm32f_uart_write,
-  .set_attributes = stm32f_uart_set_attr,
-  .mode = TERMIOS_IRQ_DRIVEN
-};
-
-
 const rtems_termios_device_handler stm32f_uart_handlers_polling = {
   .first_open = stm32f_uart_first_open,
   .last_close = stm32f_uart_last_close,
@@ -96,10 +85,6 @@ const rtems_termios_device_handler stm32f_uart_handlers_polling = {
   .set_attributes = stm32f_uart_set_attr,
   .mode = TERMIOS_POLLED
 };
-
-//============================== ISR Definitions ==========================================
-
-
 
 //============================== CONSOLE API FUNCTION ==========================================
 rtems_device_driver console_initialize(
@@ -118,7 +103,7 @@ rtems_device_driver console_initialize(
       &stm32f_console_driver_table[minor];
 
     //Configure the UART peripheral
-    pNextEntry->base_driver_info.handle->Instance = stmf32_uart_get_registers(
+    pNextEntry->base_driver_info.handle->Instance = stm32f_uart_get_registers(
       pNextEntry->base_driver_info.uart);
     pNextEntry->base_driver_info.handle->Init.BaudRate =
       pNextEntry->base_driver_info.baud;
@@ -133,10 +118,7 @@ rtems_device_driver console_initialize(
     // Initialize UART pins, clocks, and DMA controllers
     if ( HAL_UART_Init(pNextEntry->base_driver_info.handle) != HAL_OK ) {
       ret = RTEMS_UNSATISFIED;
-    }
-
-    if ( pNextEntry->base_driver_info.uart_mode == STM32F_UART_MODE_POLLING )
-      {
+    } else {
       ret = rtems_termios_device_install(
         pNextEntry->base_driver_info.device_name,
         major,
@@ -144,17 +126,6 @@ rtems_device_driver console_initialize(
         &stm32f_uart_handlers_polling,
         NULL,
         (rtems_termios_device_context*) pNextEntry);
-
-    } else {
-      ret = rtems_termios_device_install(
-        pNextEntry->base_driver_info.device_name,
-        major,
-        minor,
-        &stm32f_uart_handlers_interrupt,
-        NULL,
-        (rtems_termios_device_context*) pNextEntry);
-
-      stm32f_register_interrupt_handlers(pNextEntry->base_driver_info.handle);
     }
   }
 
@@ -181,6 +152,7 @@ static bool stm32f_uart_first_open(
   return (ret == RTEMS_SUCCESSFUL);
 }
 
+
 static void stm32f_uart_last_close(
   struct rtems_termios_tty *tty,
   rtems_termios_device_context *context,
@@ -193,6 +165,7 @@ static void stm32f_uart_last_close(
 
   stm32f_remove_interrupt_handlers(pUart->base_driver_info.handle);
 }
+
 
 static bool stm32f_uart_set_attr(
   rtems_termios_device_context *context,
@@ -228,7 +201,7 @@ static bool stm32f_uart_set_attr(
   char_size = UART_WORDLENGTH_8B;
 
   //##-1- Configure the UART peripheral ######################################
-  pUart->base_driver_info.handle->Instance = stmf32_uart_get_registers(
+  pUart->base_driver_info.handle->Instance = stm32f_uart_get_registers(
     pUart->base_driver_info.uart);
   pUart->base_driver_info.handle->Init.BaudRate = baud;
   pUart->base_driver_info.handle->Init.WordLength = char_size;
@@ -245,6 +218,7 @@ static bool stm32f_uart_set_attr(
 
   return (int) ret;
 }
+
 
 static int stm32f_uart_poll_read(
   rtems_termios_device_context *context
@@ -271,6 +245,7 @@ static int stm32f_uart_poll_read(
   return ret;
 }
 
+
 static void stm32f_uart_write(
   rtems_termios_device_context *context,
   const char *buf,
@@ -278,79 +253,24 @@ static void stm32f_uart_write(
 )
 {
   stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
+  HAL_StatusTypeDef error;
 
   if ( (len > 0) && (buf != NULL) ) {
     if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_POLLING ) {
-      HAL_UART_Transmit(
+
+      error = HAL_UART_Transmit(
         pUart->base_driver_info.handle,
         (uint8_t*) buf,
         len,
         POLLED_TX_TIMEOUT_ms);
-    } else {
-      stm32f_uart_get_next_tx_buf(pUart, (uint8_t*) buf, len);
+
+      if ( error != HAL_BUSY ) {
+        rtems_termios_dequeue_characters(pUart->tty, len);
+      }
     }
   }
 }
 
-int stm32f_uart_get_next_tx_buf(stm32f_console_driver_entry* pUart,
-  uint8_t *buf,
-  size_t len
-)
-{
-  int i;
-  int error = (int) HAL_OK;
-  uint16_t txlen;
-
-  if ( (buf != NULL) || (len == 0) ) {
-
-    // First add in any new data
-    for ( i = 0; i < len; i++ ) {
-      Ring_buffer_Add_character(pUart->fifo, buf[i]);
-    }
-
-    // if the uart is ready to transmit then transmit as much
-    // data as possible into the tx buffer including any
-    // data that was already in the ring buffer from previous
-    // calls.
-    if ( (pUart->base_driver_info.handle->State == HAL_UART_STATE_READY) ||
-      (pUart->base_driver_info.handle->State == HAL_UART_STATE_BUSY_RX) ) {
-      txlen = 0;
-
-      while ( (Ring_buffer_Is_empty(pUart->fifo) == false)
-        && (txlen < sizeof(pUart->tx_buffer)) ) {
-        Ring_buffer_Remove_character(pUart->fifo, pUart->tx_buffer[txlen]);
-        txlen++;
-      }
-    }
-
-    // Check to see if it is busy transmitting.
-    if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_DMA ) {
-      if ( pUart->tx_buffer != NULL ) {
-        error = (int) HAL_UART_Transmit_DMA(
-          pUart->base_driver_info.handle,
-          (uint8_t*) pUart->tx_buffer,
-          txlen);
-      }
-
-    } else if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_INT ) {
-      if ( pUart->tx_buffer != NULL ) {
-        error = (int) HAL_UART_Transmit_IT(
-          pUart->base_driver_info.handle,
-          (uint8_t*) pUart->tx_buffer,
-          txlen);
-      }
-    }
-
-    // If the HAL Tx call was successful then dequeue characters from the termios queue
-    if ( error != HAL_BUSY ) {
-      rtems_termios_dequeue_characters(pUart->tty, txlen);
-    }
-  } else {
-    error = -1;
-  }
-
-  return error;
-}
 
 
 

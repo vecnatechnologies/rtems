@@ -31,11 +31,6 @@
 //--- Include processor specfic uart configurations
 #include <uart-config.c>
 
-/**
- * The maximum amount of of time to wait for a UART buffer to be completely
- * transmitted.
- */
-#define STM32F_MAX_UART_TX_TIME_ms  20
 
 typedef struct {
   uint32_t len;
@@ -45,8 +40,7 @@ typedef struct {
 static uint8_t tx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_TX_MSG_SIZE];
 
 //============================== ISR Definitions ==========================================
-
-static HAL_StatusTypeDef stm32_uart_transmit(
+static HAL_StatusTypeDef stm32f_uart_transmit(
   UART_HandleTypeDef* hUartHandle,
   const stm32f_uart_type uartType,
   uint8_t * buf,
@@ -76,7 +70,8 @@ static HAL_StatusTypeDef stm32_uart_transmit(
   return ret;
 }
 
-static HAL_StatusTypeDef stm32_uart_receive(
+
+static HAL_StatusTypeDef stm32f_uart_receive(
   UART_HandleTypeDef* hUartHandle,
   const stm32f_uart_type uartType,
   uint8_t * buf,
@@ -85,7 +80,7 @@ static HAL_StatusTypeDef stm32_uart_receive(
 )
 {
   HAL_StatusTypeDef ret = HAL_ERROR;
-  stm32_uart_driver_entry* pUartDriver = stm32f_get_uart_driver_entry_from_handle (hUartHandle);
+  stm32f_uart_driver_entry* pUartDriver = stm32f_get_uart_driver_entry_from_handle (hUartHandle);
 
   if ( (len > 0) && (buf != NULL) && (hUartHandle != NULL) && (pUartDriver != NULL)) {
 
@@ -111,14 +106,14 @@ static HAL_StatusTypeDef stm32_uart_receive(
   return ret;
 }
 
-static rtems_task stm32_uart_tx_task(
+static rtems_task stm32f_uart_tx_task(
   rtems_task_argument arg
 )
 {
   size_t len;
   rtems_status_code sc;
   rtems_event_set   events_rx;
-  stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
+  stm32f_uart_driver_entry * pUart = (stm32f_uart_driver_entry *) arg;
   rtems_interval ticks_per_ms;
 
   // Calculate the ticks per ms.  This is constant during execution
@@ -138,7 +133,7 @@ static rtems_task stm32_uart_tx_task(
 
     // send tx data to UART hardware
     if ( sc == RTEMS_SUCCESSFUL ) {
-      (void) stm32_uart_transmit(pUart->base_driver_info.handle,
+      (void) stm32f_uart_transmit(pUart->base_driver_info.handle,
         pUart->base_driver_info.uart_mode, (uint8_t*) tx_msg[pUart->instance],
         len);
     }
@@ -153,7 +148,7 @@ static rtems_task stm32_uart_tx_task(
 }
 
 static void uart_obtain(
-  stm32_uart_driver_entry *pUart
+  stm32f_uart_driver_entry *pUart
 )
 {
   rtems_status_code sc;
@@ -164,7 +159,7 @@ static void uart_obtain(
 }
 
 static void uart_release(
-  stm32_uart_driver_entry * pUart
+  stm32f_uart_driver_entry * pUart
 )
 {
   rtems_status_code sc;
@@ -174,13 +169,13 @@ static void uart_release(
   (void) sc;
 }
 
-static ssize_t stm32_uart_read(
+static ssize_t stm32f_uart_read(
   rtems_libio_t *iop,
   void *buffer,
   size_t count
 )
 {
-  stm32_uart_device *pUartDevice = (stm32_uart_device *)IMFS_generic_get_context_by_iop(iop);
+  stm32f_uart_device *pUartDevice = (stm32f_uart_device *)IMFS_generic_get_context_by_iop(iop);
   ssize_t ret_size = 0;
   HAL_StatusTypeDef ret;
   rtems_status_code sc;
@@ -190,7 +185,7 @@ static ssize_t stm32_uart_read(
   if ( count <= MAX_UART_RX_MSG_SIZE ) {
 
     // collect the requested number of characters from the UART
-    ret = stm32_uart_receive(pUartDevice->pUart->base_driver_info.handle,
+    ret = stm32f_uart_receive(pUartDevice->pUart->base_driver_info.handle,
       pUartDevice->pUart->base_driver_info.uart_mode,
       (uint8_t*) buffer,
       count,
@@ -216,13 +211,13 @@ static ssize_t stm32_uart_read(
   return ret_size;
 }
 
-static ssize_t stm32_uart_write(
+static ssize_t stm32f_uart_write(
   rtems_libio_t *iop,
   const void *buffer,
   size_t count
 )
 {
-  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
+  stm32f_uart_device *pUartDevice = (stm32f_uart_device *) IMFS_generic_get_context_by_iop(iop);
   rtems_status_code sc;
 
   if ( count <= MAX_UART_TX_MSG_SIZE ) {
@@ -243,11 +238,11 @@ static ssize_t stm32_uart_write(
   return sc;
 }
 
-static int stm32_uart_close(
+static int stm32f_uart_close(
   rtems_libio_t *iop
 )
 {
-  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
+  stm32f_uart_device *pUartDevice = (stm32f_uart_device *) IMFS_generic_get_context_by_iop(iop);
   int err;
 
   uart_obtain(pUartDevice->pUart);
@@ -261,7 +256,7 @@ static int stm32_uart_close(
   }
 }
 
-static int stm32_uart_open(
+static int stm32f_uart_open(
   rtems_libio_t *iop,
   const char *path,
   int oflag,
@@ -272,7 +267,7 @@ static int stm32_uart_open(
   (void) oflag;
   (void) mode;
 
-  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
+  stm32f_uart_device *pUartDevice = (stm32f_uart_device *) IMFS_generic_get_context_by_iop(iop);
   rtems_status_code err;
 
   uart_obtain(pUartDevice->pUart);
@@ -289,13 +284,13 @@ static int stm32_uart_open(
   }
 }
 
-static int stm32_uart_ioctl(
+static int stm32f_uart_ioctl(
   rtems_libio_t *iop,
   ioctl_command_t command,
   void *arg
 )
 {
-  stm32_uart_device *pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_iop(iop);
+  stm32f_uart_device *pUartDevice = (stm32f_uart_device *) IMFS_generic_get_context_by_iop(iop);
   int err;
   uint32_t baudrate;
 
@@ -327,11 +322,11 @@ static int stm32_uart_ioctl(
 }
 
 static const rtems_filesystem_file_handlers_r uart_handler = {
-  .open_h = stm32_uart_open,
-  .close_h = stm32_uart_close,
-  .read_h = stm32_uart_read,
-  .write_h = stm32_uart_write,
-  .ioctl_h = stm32_uart_ioctl,
+  .open_h = stm32f_uart_open,
+  .close_h = stm32f_uart_close,
+  .read_h = stm32f_uart_read,
+  .write_h = stm32f_uart_write,
+  .ioctl_h = stm32f_uart_ioctl,
   .lseek_h = rtems_filesystem_default_lseek,
   .fstat_h = IMFS_stat,
   .ftruncate_h = rtems_filesystem_default_ftruncate,
@@ -348,9 +343,9 @@ static void uart_node_destroy(
   IMFS_jnode_t *node
 )
 {
-  stm32_uart_device *pUartDevice;
+  stm32f_uart_device *pUartDevice;
 
-  pUartDevice = (stm32_uart_device *) IMFS_generic_get_context_by_node(node);
+  pUartDevice = (stm32f_uart_device *) IMFS_generic_get_context_by_node(node);
   (*pUartDevice->destroy)(pUartDevice->pUart);
 
   IMFS_node_destroy_default(node);
@@ -358,7 +353,7 @@ static void uart_node_destroy(
 
 
 static int uart_init(
-  stm32_uart_driver_entry * pUart,
+  stm32f_uart_driver_entry * pUart,
   uint32_t baud
 )
 {
@@ -366,7 +361,7 @@ static int uart_init(
 
   //Configure the UART peripheral
   pUart->base_driver_info.handle->Instance =
-    stmf32_uart_get_registers(pUart->base_driver_info.uart);
+    stm32f_uart_get_registers(pUart->base_driver_info.uart);
   pUart->base_driver_info.handle->Init.BaudRate = pUart->base_driver_info.baud;
   pUart->base_driver_info.handle->Init.WordLength = UART_WORDLENGTH_8B;
   pUart->base_driver_info.handle->Init.StopBits = UART_STOPBITS_1;
@@ -387,7 +382,7 @@ static int uart_init(
 }
 
 static int uart_de_init(
-  stm32_uart_driver_entry * pUart
+  stm32f_uart_driver_entry * pUart
 )
 {
   rtems_status_code ret;
@@ -403,7 +398,7 @@ static int uart_de_init(
 }
 
 static void uart_destroy(
-  stm32_uart_driver_entry * pUart
+  stm32f_uart_driver_entry * pUart
 )
 {
   (void) uart_de_init(pUart);
@@ -417,7 +412,7 @@ static const IMFS_node_control uart_node_control =
     );
 
 static int uart_register_device_driver(
-  stm32_uart_device * pUartDevice
+  stm32f_uart_device * pUartDevice
 )
 {
   int rv;
@@ -446,7 +441,7 @@ static int uart_register_device_driver(
 }
 
 static int uart_create_rtems_objects(
-  stm32_uart_device *pUartDevice
+  stm32f_uart_device *pUartDevice
 )
 {
   rtems_status_code sc;
@@ -480,7 +475,7 @@ static int uart_create_rtems_objects(
     rtems_set_errno_and_return_minus_one(ENOMEM);
   }
 
-  pUartDevice->pUart->tx_task = stm32_uart_tx_task;
+  pUartDevice->pUart->tx_task = stm32f_uart_tx_task;
   pUartDevice->destroy = uart_destroy;
   pUartDevice->init = uart_init;
   pUartDevice->de_init = uart_de_init;
