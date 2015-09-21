@@ -193,7 +193,7 @@ rtems_task stm32_tx_task
         &len,
         RTEMS_WAIT,
         RTEMS_NO_TIMEOUT
-      );
+    );
     _Assert(len == sizeof(msg));
 
     stm32_can_start_tx(hCanHandle, &msg);
@@ -352,6 +352,14 @@ CAN_Timing_Values rtems_can_get_timing_values
 
 
 
+/**
+ * There is one TX and two RX
+ * ISRs per CAN instance. The RX interrupts correspond to 
+ * RX mailboxes.
+ *
+ * Each handler immediately calls the HAL handler provided by ST
+ *
+ */
 
 void stm32_can_isr
 (
@@ -453,13 +461,35 @@ int stm32_can_init
   hCanHandle->pTxMsg = &bus->TxMessage;
   hCanHandle->pRxMsg = &bus->RxMessage;
 
+  // Time Triggered communication mode
   hCanHandle->Init.TTCM = DISABLE;
+
+  // Automatic bus-off management
+  // TODO: Investigated this for error handling
   hCanHandle->Init.ABOM = DISABLE;
+
+  // Automatic wake up mode
   hCanHandle->Init.AWUM = DISABLE;
+
+  // No Automatic re-transmission
+  // DISABLE implies we do have automatic retransmission
   hCanHandle->Init.NART = DISABLE;
+
+  // Receive FIFO lock mode. 
+  // Disable implies new messages overwrite FIFO
   hCanHandle->Init.RFLM = DISABLE;
+
+  // Priority of TX FIFO.
+  // DISABLE (0) implies message ID will determine
+  // transmit priority
   hCanHandle->Init.TXFP = DISABLE;
+
+  // MAX amount of time CAN hardware is allowed to shorten
+  // or lengthen a bit to synchronize
   hCanHandle->Init.SJW = CAN_SJW_1TQ;
+
+  // Normal mode is fully operational and 
+  // connected to the hardware
   hCanHandle->Init.Mode = CAN_MODE_NORMAL;
 
   s_timeValues = rtems_can_get_timing_values(baudRate);
@@ -500,7 +530,6 @@ int stm32_can_init
   if (HAL_CAN_Init(hCanHandle) != HAL_OK)
   {
     /* Initialization Error */
-    //TODO::
     return CAN_ERROR;
   }
   CAN_FilterConfTypeDef sFilterConfig;
@@ -516,7 +545,7 @@ int stm32_can_init
   sFilterConfig.BankNumber = 14;
 
   if(HAL_CAN_ConfigFilter(hCanHandle, &sFilterConfig) != HAL_OK) {
-    //TODO fill in this body
+    //TODO handle error better
   }
 
   rtems_status_code sc;
@@ -614,6 +643,9 @@ int stm32_can_de_init
   return 0;
 }
 
+// Two static CAN bus instances to be 
+// registered with RTEMS 
+// They are declared here for easier reference
 stm32_can_bus * bus1;
 stm32_can_bus * bus2;
 
@@ -628,7 +660,6 @@ int stm32_bsp_register_can
 #if STM32F4_ENABLE_CAN1
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init(sizeof(*bus1));
 
-  //
   bus1->base.init     = stm32_can_init;
   bus1->base.de_init  = stm32_can_de_init;
   bus1->base.tx_task  = stm32_tx_task;

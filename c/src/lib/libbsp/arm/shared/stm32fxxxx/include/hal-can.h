@@ -71,7 +71,7 @@ typedef enum
  *    ^  ^             ^       ^
  *    |  |             |       |
  *    |  \ Start Bit   |       \ End of Bit
- *    \ Synq Seg      \ Sampling Point
+ *    \ Synq Seg       \ Sampling Point
  *
  *  There are also a Sync Segment that is 1 TQ
  *
@@ -105,7 +105,6 @@ typedef struct
   bool error;
 
 } CAN_Timing_Values;
-
 
 int stm32_bsp_register_can(void);
 
