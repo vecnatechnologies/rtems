@@ -478,17 +478,23 @@ stm32_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
   const UART_HandleTypeDef *huart
 );
 
+
 /**
- * @brief Returns the location of the UART's hardware registers
+ * @brief Returns the base uart entry from the HAL UART handle
  *
- * @param[in] Uart A specific STM32F UART
+ * This will return a pointer to the base uart driver structure
+ * (common to both console and non-console uarts) base upon the
+ * provide HAL UART handle.
  *
- * @returns The starting address of the UART's hardware registers or
- *  NULL if the processor does not implement the specified UART.
+ * @param[in] huart A STM32F HAL UART handle
+ *
+ * @return The address of the specified base uart driver handle UART
+ *  if it exists.  If it doesn't exist, then NULL is returned.
  */
-USART_TypeDef* stmf32_uart_get_registers(
-  const stm32f_uart Uart
+stm32f_base_uart_driver_entry* stm32f_get_base_uart_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart
 );
+
 
 /**
  * @brief Installs interrupt handles for particular UART
@@ -501,24 +507,39 @@ USART_TypeDef* stmf32_uart_get_registers(
  *
  * @returns 0 if successful, non 0 otherwise.
  */
-int uart_register_interrupt_handlers(
-  stm32_uart_driver_entry* pUart
+int stm32f_register_interrupt_handlers(
+  UART_HandleTypeDef* huart
 );
 
+
 /**
- * @brief Removes interrupt handles for a particular UART
+ * @brief Remove interrupt handles for particular UART
  *
- * This function removes the generic UART ISR to UART interrupt
+ * This function removes the generic UART ISR from UART interrupt
  * vector.  If the UART is configured for DMA operation then the DMA
- * TX and RX ISRs are also removed for the associated DMA streams.
+ * TX and RX ISRs are also removed from the associated DMA streams.
  *
  * @param[in] pUart The UART whose interrupts should be enabled.
  *
  * @returns 0 if successful, non 0 otherwise.
  */
-int uart_remove_interrupt_handlers(
-  stm32_uart_driver_entry* pUart
+int stm32f_remove_interrupt_handlers(
+  UART_HandleTypeDef* huart
 );
+
+
+/**
+ * @brief Returns the location of the UART's hardware registers
+ *
+ * @param[in] Uart A specific STM32F UART
+ *
+ * @returns The starting address of the UART's hardware registers or
+ *  NULL if the processor does not implement the specified UART.
+ */
+USART_TypeDef* stmf32_uart_get_registers(
+  const stm32f_uart Uart
+);
+
 
 /**
  * @brief Initializes all non-console UARTs.

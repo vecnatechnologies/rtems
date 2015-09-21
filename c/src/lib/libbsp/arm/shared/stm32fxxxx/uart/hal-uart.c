@@ -43,38 +43,8 @@ typedef struct {
 }uart_rx_request;
 
 static uint8_t tx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_TX_MSG_SIZE];
-static uint8_t rx_msg[NUM_PROCESSOR_NON_CONSOLE_UARTS][MAX_UART_RX_MSG_SIZE];
-
 
 //============================== ISR Definitions ==========================================
-static void stm32f_uart_dma_tx_isr(
-  void* argData
-)
-{
-  stm32f_base_uart_driver_entry* pUART =
-    (stm32f_base_uart_driver_entry*) argData;
-
-  HAL_DMA_IRQHandler(pUART->handle->hdmatx);
-}
-
-static void stm32f_uart_dma_rx_isr(
-  void* argData
-)
-{
-  stm32f_base_uart_driver_entry* pUART =
-    (stm32f_base_uart_driver_entry*) argData;
-
-  HAL_DMA_IRQHandler(pUART->handle->hdmarx);
-}
-
-static void stm32f_uart_isr(
-  void *arg
-)
-{
-  stm32f_base_uart_driver_entry* pUART = (stm32f_base_uart_driver_entry*) arg;
-
-  HAL_UART_IRQHandler(pUART->handle);
-}
 
 static HAL_StatusTypeDef stm32_uart_transmit(
   UART_HandleTypeDef* hUartHandle,
@@ -151,8 +121,6 @@ static rtems_task stm32_uart_tx_task(
   stm32_uart_driver_entry * pUart = (stm32_uart_driver_entry *) arg;
   rtems_interval ticks_per_ms;
 
-  static uint32_t failure_counter = 0UL, success_counter = 0UL;
-
   // Calculate the ticks per ms.  This is constant during execution
   // of the application and therefore can be calculated just once
   // at task startup.
@@ -181,13 +149,6 @@ static rtems_task stm32_uart_tx_task(
                              RTEMS_WAIT | RTEMS_EVENT_ANY,
                              ticks_per_ms * STM32F_MAX_UART_TX_TIME_ms,
                              &events_rx);
-
-    if (sc != RTEMS_SUCCESSFUL) {
-      failure_counter++;
-      //stm32f_error_handler();
-    } else {
-      success_counter++;
-    }
   }
 }
 
@@ -231,7 +192,7 @@ static ssize_t stm32_uart_read(
     // collect the requested number of characters from the UART
     ret = stm32_uart_receive(pUartDevice->pUart->base_driver_info.handle,
       pUartDevice->pUart->base_driver_info.uart_mode,
-      (uint8_t*) &(rx_msg[pUartDevice->pUart->instance]),
+      (uint8_t*) buffer,
       count,
       POLLED_TX_TIMEOUT_ms);
 
@@ -245,13 +206,10 @@ static ssize_t stm32_uart_read(
                                &events_rx);
 
       if (sc == RTEMS_SUCCESSFUL) {
-
-        // copy received data to the destination buffer
-        memcpy(buffer, (void*) &(rx_msg[pUartDevice->pUart->instance]), count);
-
         ret_size = count;
       } else {
         stm32f_error_handler();
+        ret_size = 0;
       }
     }
   }
@@ -398,104 +356,6 @@ static void uart_node_destroy(
   IMFS_node_destroy_default(node);
 }
 
-int uart_register_interrupt_handlers(
-  stm32_uart_driver_entry* pUart
-)
-{
-  rtems_status_code ret = RTEMS_SUCCESSFUL;
-
-  // Register DMA interrupt handlers (if necessary).  If they have been
-  // previously installed then update the status to successful.
-  if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_DMA ) {
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.rx_dma.DMAStreamInterruptNumber,
-        NULL,
-        RTEMS_INTERRUPT_UNIQUE,
-        stm32f_uart_dma_rx_isr,
-        &(pUart->base_driver_info)
-        );
-
-      if ( ret == RTEMS_TOO_MANY ) {
-        ret = RTEMS_SUCCESSFUL;
-      }
-    }
-
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.tx_dma.DMAStreamInterruptNumber,
-        NULL,
-        RTEMS_INTERRUPT_UNIQUE,
-        stm32f_uart_dma_tx_isr,
-        &(pUart->base_driver_info)
-        );
-
-      if ( ret == RTEMS_TOO_MANY ) {
-        ret = RTEMS_SUCCESSFUL;
-      }
-    }
-  }
-
-  // Register UART interrupt handler for either DMA or Interrupt modes.  If it has been
-  // previously installed then update the status to successful.
-  if ( pUart->base_driver_info.uart_mode != STM32F_UART_MODE_POLLING ) {
-
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.interrupt_number,
-        NULL,
-        RTEMS_INTERRUPT_UNIQUE,
-        stm32f_uart_isr,
-        &(pUart->base_driver_info)
-        );
-    }
-
-    if ( ret == RTEMS_TOO_MANY ) {
-      ret = RTEMS_SUCCESSFUL;
-    }
-  }
-
-  return ret;
-}
-
-int uart_remove_interrupt_handlers(
-  stm32_uart_driver_entry* pUart
-)
-{
-  rtems_status_code ret = RTEMS_SUCCESSFUL;
-
-  // Register DMA interrupt handlers (if necessary)
-  if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_DMA ) {
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_remove(
-        pUart->base_driver_info.rx_dma.DMAStreamInterruptNumber,
-        stm32f_uart_dma_rx_isr,
-        &pUart->base_driver_info
-        );
-    }
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_remove(
-        pUart->base_driver_info.tx_dma.DMAStreamInterruptNumber,
-        stm32f_uart_dma_tx_isr,
-        &pUart->base_driver_info
-        );
-    }
-  }
-
-  // Register UART interrupt handler for either DMA or Interrupt modes
-  if ( pUart->base_driver_info.uart_mode != STM32F_UART_MODE_POLLING ) {
-
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_remove(
-        pUart->base_driver_info.interrupt_number,
-        stm32f_uart_isr,
-        &pUart->base_driver_info
-        );
-    }
-  }
-
-  return (ret == RTEMS_SUCCESSFUL);
-}
 
 static int uart_init(
   stm32_uart_driver_entry * pUart,
@@ -640,7 +500,7 @@ void stm32f_uarts_initialize(
     stm32f_uart_driver_table[i].instance = i;
     uart_device_table[i].pUart = &stm32f_uart_driver_table[i];
     uart_create_rtems_objects(&uart_device_table[i]);
-    uart_register_interrupt_handlers(uart_device_table[i].pUart);
+    stm32f_register_interrupt_handlers(uart_device_table[i].pUart->base_driver_info.handle);
     uart_register_device_driver(&uart_device_table[i]);
   }
 }

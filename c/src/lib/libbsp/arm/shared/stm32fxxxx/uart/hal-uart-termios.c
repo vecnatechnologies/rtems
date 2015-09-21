@@ -77,6 +77,7 @@ BSP_polling_getchar_function_type BSP_poll_char = NULL;
 #include <console-config.c>
 
 //--------------- termios handler functions
+
 const rtems_termios_device_handler stm32f_uart_handlers_interrupt = {
   .first_open = stm32f_uart_first_open,
   .last_close = stm32f_uart_last_close,
@@ -85,6 +86,7 @@ const rtems_termios_device_handler stm32f_uart_handlers_interrupt = {
   .set_attributes = stm32f_uart_set_attr,
   .mode = TERMIOS_IRQ_DRIVEN
 };
+
 
 const rtems_termios_device_handler stm32f_uart_handlers_polling = {
   .first_open = stm32f_uart_first_open,
@@ -96,100 +98,8 @@ const rtems_termios_device_handler stm32f_uart_handlers_polling = {
 };
 
 //============================== ISR Definitions ==========================================
-static void stm32f_uart_dma_tx_isr(
-  void* argData
-)
-{
-  stm32f_console_driver_entry* pUART = (stm32f_console_driver_entry*) argData;
-  HAL_DMA_IRQHandler(pUART->base_driver_info.handle->hdmatx);
-}
 
-static void stm32f_uart_dma_rx_isr(
-  void* argData
-)
-{
-  stm32f_console_driver_entry* pUART = (stm32f_console_driver_entry*) argData;
-  HAL_DMA_IRQHandler(pUART->base_driver_info.handle->hdmarx);
-}
 
-static void stm32f_uart_isr(
-  void *arg
-)
-{
-  stm32f_console_driver_entry* pUART = (stm32f_console_driver_entry*) arg;
-
-  uint32_t u32_StartRxCount;
-
-  // Remember how many TX and RX bytes we had before processing the
-  // interrupt so that we can determine what happened in the HAL ISR
-  u32_StartRxCount = pUART->base_driver_info.handle->RxXferCount;
-
-  HAL_UART_IRQHandler(pUART->base_driver_info.handle);
-
-  // Check to see if we received any characters, if so then
-  // enqueue them in termios.  (The RxXferCount counts down from
-  // the expected number of characters to receive.)
-  if ( u32_StartRxCount > pUART->base_driver_info.handle->RxXferCount ) {
-
-    int rxCount = u32_StartRxCount
-      - pUART->base_driver_info.handle->RxXferCount;
-    char* pStartRx = (char*) pUART->base_driver_info.handle->pRxBuffPtr;
-    pStartRx -= rxCount;
-    rtems_termios_enqueue_raw_characters(pUART->tty, pStartRx, rxCount);
-
-    // re-enable interrupt to receive additional characters
-    HAL_UART_Receive_IT(pUART->base_driver_info.handle, &pUART->rx_char, 1);
-  }
-}
-
-int stm32f_uart_register_interrupt_handlers(
-  stm32f_console_driver_entry* pUart
-)
-{
-
-  rtems_status_code ret = RTEMS_SUCCESSFUL;
-
-  // Register DMA interrupt handlers (if necessary)
-  if ( pUart->base_driver_info.uart_mode == STM32F_UART_MODE_DMA ) {
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.rx_dma.DMAStreamInterruptNumber,
-        NULL,
-        0,
-        stm32f_uart_dma_rx_isr,
-        pUart);
-    }
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.tx_dma.DMAStreamInterruptNumber,
-        NULL,
-        0,
-        stm32f_uart_dma_tx_isr,
-        pUart);
-    }
-  }
-
-  // Register UART interrupt handler for either DMA or Interrupt modes
-  if ( pUart->base_driver_info.uart_mode != STM32F_UART_MODE_POLLING ) {
-
-    if ( ret == RTEMS_SUCCESSFUL ) {
-      ret = rtems_interrupt_handler_install(
-        pUart->base_driver_info.interrupt_number,
-        NULL,
-        0,
-        stm32f_uart_isr,
-        pUart);
-    }
-
-    //Enable RX interrupt
-    ret = (int) HAL_UART_Receive_IT(
-      pUart->base_driver_info.handle,
-      &pUart->rx_char,
-      1);
-  }
-
-  return (ret == RTEMS_SUCCESSFUL);
-}
 
 //============================== CONSOLE API FUNCTION ==========================================
 rtems_device_driver console_initialize(
@@ -244,7 +154,7 @@ rtems_device_driver console_initialize(
         NULL,
         (rtems_termios_device_context*) pNextEntry);
 
-      stm32f_uart_register_interrupt_handlers(pNextEntry);
+      stm32f_register_interrupt_handlers(pNextEntry->base_driver_info.handle);
     }
   }
 
@@ -259,7 +169,6 @@ static bool stm32f_uart_first_open(
   rtems_libio_open_close_args_t *args
 )
 {
-
   rtems_status_code ret = RTEMS_SUCCESSFUL;
   stm32f_console_driver_entry* pUart = (stm32f_console_driver_entry*) context;
 
@@ -282,12 +191,7 @@ static void stm32f_uart_last_close(
 
   pUart->tty = NULL;
 
-  if ( pUart->base_driver_info.uart_mode != STM32F_UART_MODE_POLLING ) {
-    rtems_interrupt_handler_remove(
-      pUart->base_driver_info.interrupt_number,
-      stm32f_uart_isr,
-      tty);
-  }
+  stm32f_remove_interrupt_handlers(pUart->base_driver_info.handle);
 }
 
 static bool stm32f_uart_set_attr(

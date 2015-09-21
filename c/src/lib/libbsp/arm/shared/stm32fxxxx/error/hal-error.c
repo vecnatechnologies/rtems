@@ -21,3 +21,9 @@ void stm32f_error_handler(
         ; // Stay here forever
     }
 }
+
+void stm32f_error_handler_with_reason(const char* error_text)
+{
+  printf(error_text);
+  stm32f_error_handler();
+}

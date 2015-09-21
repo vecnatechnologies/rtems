@@ -34,6 +34,41 @@ static SDRAM_HandleTypeDef hsdram;
 static FMC_SDRAM_TimingTypeDef SDRAM_Timing;
 static FMC_SDRAM_CommandTypeDef command;
 
+
+/**
+ *  @brief Calculate the MPU region size setting which is
+ *    is log2(x) - 1.
+ *
+ *    This function assumes that the memory size is prefect power
+ *    of 2.
+ *
+ *  @param region_size_in_bytes The sizeof the memory region in bytes
+ *  @return The correct MPU setting for the given memory size
+ */
+static uint8_t MPU_Get_Region_Size(const uint32_t region_size_in_bytes) {
+
+  uint8_t mpu_setting = (uint8_t) 0;
+  uint8_t i;
+
+  // The size of the region must be 2 or larger.
+  if(region_size_in_bytes > 1) {
+
+    for (i = 0; i < 32; i++) {
+      if (((region_size_in_bytes >> i) & 0x1UL) != 0) {
+        if(mpu_setting == 0) {
+          mpu_setting = i - 1;
+        }  else {
+          // Invalid input number
+          mpu_setting = 0;
+          break;
+        }
+      }
+    }
+  }
+
+  return mpu_setting;
+}
+
 /**
  * @brief  Configure the MPU attributes as Write Through for SRAM1/2.
  * @note   The Base Address is 0x20010000 since this memory interface is the AXI.
