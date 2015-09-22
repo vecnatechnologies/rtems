@@ -64,7 +64,8 @@ int stm32_i2c_set_clock(
  */
 int stm32_i2c_init( stm32_i2c_bus *bus )
 {
-  bus->handle.Instance = stm32_i2c_get_i2c_instance(bus->instance);
+
+  bus->handle.Instance = i2c_config[ bus->instance ].instance;
   bus->handle.Init.OwnAddress1 = i2c_config[ bus->instance ].address;
   bus->handle.Init.OwnAddress2 = 0xFE;
 

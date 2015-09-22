@@ -1,5 +1,6 @@
 /**
  * @file hal-startup.c
+ * @author Jay M. Doyle
  *
  * @ingroup startup
  *
@@ -21,16 +22,16 @@
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 
-#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, conf)
+#include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, conf )
 
 #include <hal-startup-interface.h>
 #include <hal-sdram-interface.h>
 #include <hal-uart-interface.h>
 
-#define HZ_TO_MHZ(x) (x/1000000)
-#define USB_OTG_CLK  48000000
+#define HZ_TO_MHZ( x ) ( x / 1000000 )
+#define USB_OTG_CLK 48000000
 
 // The STM32F HAL code requires this global variable
 uint32_t SystemCoreClock = HSI_FREQUENCY;
@@ -40,11 +41,9 @@ uint32_t SystemCoreClock = HSI_FREQUENCY;
  * @param  None
  * @retval None
  */
-static void CPU_CACHE_Enable(
-  void
-)
+static void CPU_CACHE_Enable( void )
 {
-#if defined(ENABLE_PROCESSOR_CACHES)
+#if defined( ENABLE_PROCESSOR_CACHES )
   /* Enable I-Cache */
   SCB_EnableICache();
 
@@ -85,10 +84,9 @@ static rtems_status_code set_system_clk(
   uint32_t hse_flag
 )
 {
-
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_OscInitTypeDef RCC_OscInitStruct;
-  HAL_StatusTypeDef ret = HAL_OK;
+  HAL_StatusTypeDef  ret = HAL_OK;
 
   int src_clk = 0;
 
@@ -112,7 +110,7 @@ static rtems_status_code set_system_clk(
    * It is recommended to select a frequency of 2 MHz to limit PLL jitter.
    */
 
-  if ( sys_clk > HZ_TO_MHZ(MAX_SYSCLK) ) {
+  if ( sys_clk > HZ_TO_MHZ( MAX_SYSCLK ) ) {
     return RTEMS_INVALID_NUMBER;
   } else if ( sys_clk >= 96 ) {
     pll_n = sys_clk << 1;
@@ -128,7 +126,7 @@ static rtems_status_code set_system_clk(
   }
 
   if ( hse_clk == 0 || hse_flag == 0 ) {
-    src_clk = HZ_TO_MHZ(HSI_FREQUENCY);
+    src_clk = HZ_TO_MHZ( HSI_FREQUENCY );
     hse_flag = 0;
   } else {
     src_clk = hse_clk;
@@ -139,7 +137,7 @@ static rtems_status_code set_system_clk(
   /* pll_q is a prescaler from VCO for the USB OTG FS, SDIO and RNG,
    * best if results in the 48MHz for the USB
    */
-  pll_q = ((long) (src_clk * pll_n)) / pll_m / HZ_TO_MHZ(USB_OTG_CLK);
+  pll_q = ( (long) ( src_clk * pll_n ) ) / pll_m / HZ_TO_MHZ( USB_OTG_CLK );
 
   if ( pll_q < 2 ) {
     pll_q = 2;
@@ -147,17 +145,19 @@ static rtems_status_code set_system_clk(
 
   // Apply clock configuration
   RCC_OscInitStruct.OscillatorType = (
-      (hse_flag != 0) ? RCC_OSCILLATORTYPE_HSE : RCC_OSCILLATORTYPE_HSI);
-  RCC_OscInitStruct.HSEState = ((hse_flag != 0) ? RCC_HSE_ON : RCC_HSE_OFF);
+    ( hse_flag != 0 ) ? RCC_OSCILLATORTYPE_HSE : RCC_OSCILLATORTYPE_HSI );
+  RCC_OscInitStruct.HSEState =
+    ( ( hse_flag != 0 ) ? RCC_HSE_ON : RCC_HSE_OFF );
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = (
-      (hse_flag != 0) ? RCC_PLLSOURCE_HSE : RCC_PLLSOURCE_HSI);
+    ( hse_flag != 0 ) ? RCC_PLLSOURCE_HSE : RCC_PLLSOURCE_HSI );
   RCC_OscInitStruct.PLL.PLLM = pll_m;
   RCC_OscInitStruct.PLL.PLLN = pll_n;
   RCC_OscInitStruct.PLL.PLLP = pll_p;
   RCC_OscInitStruct.PLL.PLLQ = pll_q;
 
-  ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  ret = HAL_RCC_OscConfig( &RCC_OscInitStruct );
+
   if ( ret != HAL_OK ) {
     while ( 1 ) {
       ;
@@ -167,15 +167,19 @@ static rtems_status_code set_system_clk(
   SystemCoreClock = src_clk;
 
   // Activate the OverDrive in case it is necessary to achieve desired frequency
-#if defined(ENABLE_PROCESSOR_OVERDRIVE)
+#if defined( ENABLE_PROCESSOR_OVERDRIVE )
   ret = HAL_PWREx_EnableOverDrive();
-  if(ret != HAL_OK) {
-    while(1) {;}
+
+  if ( ret != HAL_OK ) {
+    while ( 1 ) {
+      ;
+    }
   }
+
 #endif
 
   // APB1 prescaler, APB1 clock must be < 45MHz
-  apbpre1 = (sys_clk * 100) / HZ_TO_MHZ(APB1_CLK);
+  apbpre1 = ( sys_clk * 100 ) / HZ_TO_MHZ( APB1_CLK );
 
   if ( apbpre1 <= 100 ) {
     apbpre1 = RCC_HCLK_DIV1;
@@ -190,7 +194,7 @@ static rtems_status_code set_system_clk(
   }
 
   // APB2 prescaler, APB2 clock must be < 90MHz
-  apbpre2 = (sys_clk * 100) / HZ_TO_MHZ(APB2_CLK);
+  apbpre2 = ( sys_clk * 100 ) / HZ_TO_MHZ( APB2_CLK );
 
   if ( apbpre2 <= 100 ) {
     apbpre2 = RCC_HCLK_DIV1;
@@ -205,16 +209,16 @@ static rtems_status_code set_system_clk(
   }
 
   // Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK
-    | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+  RCC_ClkInitStruct.ClockType = ( RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK |
+                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2 );
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = ahbpre;
   RCC_ClkInitStruct.APB1CLKDivider = apbpre1;
   RCC_ClkInitStruct.APB2CLKDivider = apbpre2;
 
-  ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, STM32F_FLASH_LATENCY);
-  if ( ret != HAL_OK )
-    {
+  ret = HAL_RCC_ClockConfig( &RCC_ClkInitStruct, STM32F_FLASH_LATENCY );
+
+  if ( ret != HAL_OK ) {
     while ( 1 ) {
       ;
     }
@@ -223,21 +227,15 @@ static rtems_status_code set_system_clk(
   return RTEMS_SUCCESSFUL;
 }
 
-void configure_external_memories(
-  void
-)
+void configure_external_memories( void )
 {
-
 #ifdef EXTERNAL_SDRAM
   MPU_Config();
   BSP_SDRAM_Config();
 #endif
-
 }
 
-void bsp_start(
-  void
-)
+void bsp_start( void )
 {
   // enable the CPU Cache (if available)
   CPU_CACHE_Enable();
@@ -246,21 +244,18 @@ void bsp_start(
   HAL_Init();
 
   // configure all system clocks
-  (void) set_system_clk(HZ_TO_MHZ(SYSCLK_FREQUENCY),
-    HZ_TO_MHZ(HSE_VALUE),
-    HSE_AVAILABLE);
+  (void) set_system_clk( HZ_TO_MHZ( SYSCLK_FREQUENCY ),
+    HZ_TO_MHZ( HSE_VALUE ),
+    HSE_AVAILABLE );
 
   // configure external memories (if available)
   configure_external_memories();
 
   // initialize interrupt vectors with default handler
   bsp_interrupt_initialize();
-
 }
 
-void bsp_predriver_hook(
-  void
-)
+void bsp_predriver_hook( void )
 {
   stm32f_uarts_initialize();
   stm32_bsp_register_can();

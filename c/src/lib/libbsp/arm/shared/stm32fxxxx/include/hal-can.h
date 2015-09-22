@@ -21,8 +21,7 @@
 #include <stdbool.h>
 
 /* CAN Status*/
-typedef enum
-{
+typedef enum {
   CAN_OK = 0,
   CAN_ERROR,
   CAN_BUSY,
@@ -30,23 +29,19 @@ typedef enum
 } CAN_Status;
 
 /*CAN Instance*/
-typedef enum
-{
+typedef enum {
   CAN_ONE = 0,
   CAN_TWO
 } CAN_Instance;
 
 /* Interrupt Enale */
-typedef enum
-{
+typedef enum {
   DISABLE_INT = 0,
   ENABLE_INT
-
 } CAN_InterruptEnable;
 
 /* CAN Hardware FIFOs*/
-typedef enum
-{
+typedef enum {
   FIFO0 = 0,
   FIFO1
 } CAN_FIFO;
@@ -60,7 +55,7 @@ typedef enum
  *
  * 1 BS = 1 Time Quata, or TQ.
  *
- * A TQ is the smallest unit of time that can be used to 
+ * A TQ is the smallest unit of time that can be used to
  * create a CAN timing profile. It is Preescaler * (1 / Peripheral Clock)
  *
  * A CAN bit is divided up as follows:
@@ -85,14 +80,13 @@ typedef enum
  *  baud = 1 / (TQ * (1 + BS1 + BS2))
  *
  */
-typedef struct
-{
+typedef struct {
   /**
    * Bit segment 1
    */
   uint32_t s1;
 
-  /** 
+  /**
    * Bit segment 2
    */
   uint32_t s2;
@@ -103,9 +97,8 @@ typedef struct
   uint8_t prescaler;
 
   bool error;
-
 } CAN_Timing_Values;
 
-int stm32_bsp_register_can(void);
+int stm32_bsp_register_can( void );
 
 #endif

@@ -1,5 +1,6 @@
 /**
  * @file sdram.c
+ * @author Jay M. Doyle
  *
  * @ingroup sdram
  *
@@ -20,20 +21,19 @@
 #include <hal-sdram-interface.h>
 #include <hal-error.h>
 
-#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, dma)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, sdram)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, cortex)
-#include stm_ll_header(TARGET_STM_PROCESSOR_PREFIX, fmc)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, gpio)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, rcc_ex)
+#include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, dma )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, sdram )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, cortex )
+#include stm_ll_header( TARGET_STM_PROCESSOR_PREFIX, fmc )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, gpio )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc_ex )
 
-#if defined(EXTERNAL_SDRAM)
+#if defined( EXTERNAL_SDRAM )
 
-static SDRAM_HandleTypeDef hsdram;
-static FMC_SDRAM_TimingTypeDef SDRAM_Timing;
+static SDRAM_HandleTypeDef      hsdram;
+static FMC_SDRAM_TimingTypeDef  SDRAM_Timing;
 static FMC_SDRAM_CommandTypeDef command;
-
 
 /**
  *  @brief Calculate the MPU region size setting which is
@@ -45,19 +45,18 @@ static FMC_SDRAM_CommandTypeDef command;
  *  @param region_size_in_bytes The sizeof the memory region in bytes
  *  @return The correct MPU setting for the given memory size
  */
-static uint8_t MPU_Get_Region_Size(const uint32_t region_size_in_bytes) {
-
+static uint8_t MPU_Get_Region_Size( const uint32_t region_size_in_bytes )
+{
   uint8_t mpu_setting = (uint8_t) 0;
   uint8_t i;
 
   // The size of the region must be 2 or larger.
-  if(region_size_in_bytes > 1) {
-
-    for (i = 0; i < 32; i++) {
-      if (((region_size_in_bytes >> i) & 0x1UL) != 0) {
-        if(mpu_setting == 0) {
+  if ( region_size_in_bytes > 1 ) {
+    for ( i = 0; i < 32; i++ ) {
+      if ( ( ( region_size_in_bytes >> i ) & 0x1UL ) != 0 ) {
+        if ( mpu_setting == 0 ) {
           mpu_setting = i - 1;
-        }  else {
+        } else {
           // Invalid input number
           mpu_setting = 0;
           break;
@@ -76,9 +75,7 @@ static uint8_t MPU_Get_Region_Size(const uint32_t region_size_in_bytes) {
  * @param  None
  * @retval None
  */
-void MPU_Config(
-  void
-)
+void MPU_Config( void )
 {
   MPU_Region_InitTypeDef MPU_InitStruct;
 
@@ -86,37 +83,37 @@ void MPU_Config(
   HAL_MPU_Disable();
 
   /* Configure the MPU attributes as WT for SRAM */
-  MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress      = 0x20010000;
-  MPU_InitStruct.Size             = MPU_REGION_SIZE_256KB;
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x20010000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
-  MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
-  MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.Number           = MPU_REGION_NUMBER0;
-  MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL0;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.SubRegionDisable = 0x00;
-  MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  HAL_MPU_ConfigRegion( &MPU_InitStruct );
 
   /* Configure the MPU attributes as WT and WA for SDRAM */
-  MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress      = 0xC0000000;
-  MPU_InitStruct.Size             = MPU_REGION_SIZE_8MB;
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0xC0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;
-  MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
-  MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.Number           = MPU_REGION_NUMBER1;
-  MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL0;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.SubRegionDisable = 0x00;
-  MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  HAL_MPU_ConfigRegion( &MPU_InitStruct );
 
   /* Enable the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+  HAL_MPU_Enable( MPU_PRIVILEGED_DEFAULT );
 }
 
 /**
@@ -126,12 +123,11 @@ void MPU_Config(
  * @retval None
  */
 static void BSP_SDRAM_Initialization_Sequence(
-  SDRAM_HandleTypeDef *hsdram,
+  SDRAM_HandleTypeDef      *hsdram,
   FMC_SDRAM_CommandTypeDef *Command
 )
 {
-
-  __IO uint32_t tmpmrd =0;
+  __IO uint32_t tmpmrd = 0;
 
   /* Step 3:  Configure a clock configuration enable command */
   Command->CommandMode = FMC_SDRAM_CMD_CLK_ENABLE;
@@ -140,11 +136,11 @@ static void BSP_SDRAM_Initialization_Sequence(
   Command->ModeRegisterDefinition = 0;
 
   /* Send the command */
-  HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
+  HAL_SDRAM_SendCommand( hsdram, Command, SDRAM_TIMEOUT );
 
   /* Step 4: Insert 100 us minimum delay */
   /* Inserted delay is equal to 1 ms due to systick time base unit (ms) */
-  HAL_Delay(1);
+  HAL_Delay( 1 );
 
   /* Step 5: Configure a PALL (precharge all) command */
   Command->CommandMode = FMC_SDRAM_CMD_PALL;
@@ -153,7 +149,7 @@ static void BSP_SDRAM_Initialization_Sequence(
   Command->ModeRegisterDefinition = 0;
 
   /* Send the command */
-  HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
+  HAL_SDRAM_SendCommand( hsdram, Command, SDRAM_TIMEOUT );
 
   /* Step 6 : Configure a Auto-Refresh command */
   Command->CommandMode = FMC_SDRAM_CMD_AUTOREFRESH_MODE;
@@ -162,14 +158,14 @@ static void BSP_SDRAM_Initialization_Sequence(
   Command->ModeRegisterDefinition = 0;
 
   /* Send the command */
-  HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
+  HAL_SDRAM_SendCommand( hsdram, Command, SDRAM_TIMEOUT );
 
   /* Step 7: Program the external memory mode register */
-  tmpmrd = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_1 |
-  SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL |
-  SDRAM_MODEREG_CAS_LATENCY_2 |
-  SDRAM_MODEREG_OPERATING_MODE_STANDARD |
-  SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
+  tmpmrd = (uint32_t) SDRAM_MODEREG_BURST_LENGTH_1 |
+           SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL |
+           SDRAM_MODEREG_CAS_LATENCY_2 |
+           SDRAM_MODEREG_OPERATING_MODE_STANDARD |
+           SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
 
   Command->CommandMode = FMC_SDRAM_CMD_LOAD_MODE;
   Command->CommandTarget = FMC_SDRAM_CMD_TARGET_BANK1;
@@ -177,51 +173,47 @@ static void BSP_SDRAM_Initialization_Sequence(
   Command->ModeRegisterDefinition = tmpmrd;
 
   /* Send the command */
-  HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
+  HAL_SDRAM_SendCommand( hsdram, Command, SDRAM_TIMEOUT );
 
   /* Step 8: Set the refresh rate counter */
   /* (15.62 us x Freq) - 20 */
   /* Set the device refresh counter */
-  hsdram->Instance->SDRTR |= ((uint32_t)((1292)<< 1));
+  hsdram->Instance->SDRTR |= ( (uint32_t) ( ( 1292 ) << 1 ) );
 }
 
-void BSP_SDRAM_Config(
-  void
-)
+void BSP_SDRAM_Config( void )
 {
   /*##-1- Configure the SDRAM device #########################################*/
   /* SDRAM device configuration */
   hsdram.Instance = FMC_SDRAM_DEVICE;
 
-  SDRAM_Timing.LoadToActiveDelay    = 2;
+  SDRAM_Timing.LoadToActiveDelay = 2;
   SDRAM_Timing.ExitSelfRefreshDelay = 7;
-  SDRAM_Timing.SelfRefreshTime      = 4;
-  SDRAM_Timing.RowCycleDelay        = 7;
-  SDRAM_Timing.WriteRecoveryTime    = 2;
-  SDRAM_Timing.RPDelay              = 2;
-  SDRAM_Timing.RCDDelay             = 2;
+  SDRAM_Timing.SelfRefreshTime = 4;
+  SDRAM_Timing.RowCycleDelay = 7;
+  SDRAM_Timing.WriteRecoveryTime = 2;
+  SDRAM_Timing.RPDelay = 2;
+  SDRAM_Timing.RCDDelay = 2;
 
-
-  hsdram.Init.SDBank             = FMC_SDRAM_BANK1;
-  hsdram.Init.ColumnBitsNumber   = FMC_SDRAM_COLUMN_BITS_NUM_8;
-  hsdram.Init.RowBitsNumber      = FMC_SDRAM_ROW_BITS_NUM_12;
-  hsdram.Init.MemoryDataWidth    = SDRAM_MEMORY_WIDTH;
+  hsdram.Init.SDBank = FMC_SDRAM_BANK1;
+  hsdram.Init.ColumnBitsNumber = FMC_SDRAM_COLUMN_BITS_NUM_8;
+  hsdram.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_12;
+  hsdram.Init.MemoryDataWidth = SDRAM_MEMORY_WIDTH;
   hsdram.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
-  hsdram.Init.CASLatency         = FMC_SDRAM_CAS_LATENCY_2;
-  hsdram.Init.WriteProtection    = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
-  hsdram.Init.SDClockPeriod      = SDCLOCK_PERIOD;
-  hsdram.Init.ReadBurst          = FMC_SDRAM_RBURST_ENABLE;
-  hsdram.Init.ReadPipeDelay      = FMC_SDRAM_RPIPE_DELAY_0;
+  hsdram.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;
+  hsdram.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
+  hsdram.Init.SDClockPeriod = SDCLOCK_PERIOD;
+  hsdram.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;
+  hsdram.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_0;
 
   /* Initialize the SDRAM controller */
-  if(HAL_SDRAM_Init(&hsdram, &SDRAM_Timing) != HAL_OK)
-  {
+  if ( HAL_SDRAM_Init( &hsdram, &SDRAM_Timing ) != HAL_OK ) {
     /* Initialization Error */
     stm32f_error_handler();
   }
 
   /* Program the SDRAM external device */
-  BSP_SDRAM_Initialization_Sequence(&hsdram, &command);
+  BSP_SDRAM_Initialization_Sequence( &hsdram, &command );
 }
 
 /**
@@ -232,9 +224,7 @@ void BSP_SDRAM_Config(
  * @param hsram: SDRAM handle pointer
  * @retval None
  */
-void HAL_SDRAM_MspInit(
-  SDRAM_HandleTypeDef *hsdram
-)
+void HAL_SDRAM_MspInit( SDRAM_HandleTypeDef *hsdram )
 {
   GPIO_InitTypeDef GPIO_Init_Structure;
 
@@ -258,34 +248,34 @@ void HAL_SDRAM_MspInit(
 
   /* GPIOC configuration */
   GPIO_Init_Structure.Pin = GPIO_PIN_3;
-  HAL_GPIO_Init(GPIOC, &GPIO_Init_Structure);
+  HAL_GPIO_Init( GPIOC, &GPIO_Init_Structure );
 
   /* GPIOD configuration */
-  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_3 | GPIO_PIN_8 | GPIO_PIN_9 |
-  GPIO_PIN_10 | GPIO_PIN_14 | GPIO_PIN_15;
-  HAL_GPIO_Init(GPIOD, &GPIO_Init_Structure);
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_3 | GPIO_PIN_8 |
+                            GPIO_PIN_9 |
+                            GPIO_PIN_10 | GPIO_PIN_14 | GPIO_PIN_15;
+  HAL_GPIO_Init( GPIOD, &GPIO_Init_Structure );
 
   /* GPIOE configuration */
-  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7| GPIO_PIN_8 | GPIO_PIN_9 |\
- GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 |\
- GPIO_PIN_15;
-  HAL_GPIO_Init(GPIOE, &GPIO_Init_Structure);
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7 | GPIO_PIN_8 |
+                            GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |
+                            GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+  HAL_GPIO_Init( GPIOE, &GPIO_Init_Structure );
 
   /* GPIOF configuration */
-  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2| GPIO_PIN_3 | GPIO_PIN_4 |\
- GPIO_PIN_5 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 |\
- GPIO_PIN_15;
-  HAL_GPIO_Init(GPIOF, &GPIO_Init_Structure);
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
+                            GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_11 | GPIO_PIN_12 |
+                            GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+  HAL_GPIO_Init( GPIOF, &GPIO_Init_Structure );
 
   /* GPIOG configuration */
-  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_4| GPIO_PIN_5 | GPIO_PIN_8 |\
- GPIO_PIN_15;
-  HAL_GPIO_Init(GPIOG, &GPIO_Init_Structure);
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5 |
+                            GPIO_PIN_8 | GPIO_PIN_15;
+  HAL_GPIO_Init( GPIOG, &GPIO_Init_Structure );
 
   /* GPIOH configuration */
   GPIO_Init_Structure.Pin = GPIO_PIN_3 | GPIO_PIN_5;
-  HAL_GPIO_Init(GPIOH, &GPIO_Init_Structure);
-
+  HAL_GPIO_Init( GPIOH, &GPIO_Init_Structure );
 }
 
 /**
@@ -296,23 +286,27 @@ void HAL_SDRAM_MspInit(
  * @param hsram: SDRAM handle pointer
  * @retval None
  */
-void HAL_SDRAM_MspDeInit(SDRAM_HandleTypeDef *hsdram)
+void HAL_SDRAM_MspDeInit( SDRAM_HandleTypeDef *hsdram )
 {
   /*## Disable peripherals and GPIO Clocks ###################################*/
   /* Configure FMC as alternate function  */
-  HAL_GPIO_DeInit(GPIOD, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_3| GPIO_PIN_4 | GPIO_PIN_5 |\
- GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |\
- GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+  HAL_GPIO_DeInit( GPIOD,
+    GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 |
+    GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |
+    GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15 );
 
-  HAL_GPIO_DeInit(GPIOE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_3| GPIO_PIN_4 | GPIO_PIN_7 |\
- GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |\
- GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+  HAL_GPIO_DeInit( GPIOE,
+    GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_7 |
+    GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 |
+    GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15 );
 
-  HAL_GPIO_DeInit(GPIOF, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2| GPIO_PIN_3 | GPIO_PIN_4 |\
- GPIO_PIN_5 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+  HAL_GPIO_DeInit( GPIOF,
+    GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 |
+    GPIO_PIN_5 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15 );
 
-  HAL_GPIO_DeInit(GPIOG, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2| GPIO_PIN_3 | GPIO_PIN_4 |\
- GPIO_PIN_5 | GPIO_PIN_10);
+  HAL_GPIO_DeInit( GPIOG,
+    GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 |
+    GPIO_PIN_5 | GPIO_PIN_10 );
 }
 
 #endif

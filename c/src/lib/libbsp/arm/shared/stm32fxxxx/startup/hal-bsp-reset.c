@@ -1,5 +1,6 @@
 /**
  * @file hal-bsp-reset.c
+ * @author Jay M. Doyle
  *
  * @ingroup startup
  *
@@ -18,12 +19,12 @@
 
 #include <bsp/bootcard.h>
 
-void bsp_reset(void)
+void bsp_reset( void )
 {
   rtems_interrupt_level level;
 
   (void) level;
-  rtems_interrupt_disable(level);
+  rtems_interrupt_disable( level );
 
-  while (1);
+  while ( 1 );
 }

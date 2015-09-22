@@ -1,5 +1,6 @@
 /**
  * @file hal-uart-interface.h
+ * @author Jay M. Doyle
  *
  * @ingroup uart
  *
@@ -25,9 +26,9 @@ extern "C" {
 
 #include <hal-utils.h>
 
-#include stm_processor_header(TARGET_STM_PROCESSOR_PREFIX)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, dma)
-#include stm_header(TARGET_STM_PROCESSOR_PREFIX, uart)
+#include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, dma )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, uart )
 
 #include <rtems.h>
 #include <termios.h>
@@ -43,7 +44,7 @@ extern "C" {
  * The maximum number of characters that can be queued for transmission
  * on a console (termios) UART.
  */
-#define SERIAL_TERMIOS_FIFO_SIZE     256
+#define SERIAL_TERMIOS_FIFO_SIZE 256
 
 /**
  * The maximum size of single UART TX
@@ -59,12 +60,12 @@ extern "C" {
  * The maximum number of messages that can be queued for transmission
  * on each UART
  **/
-#define UART_TX_QUEUE_LEN       4
+#define UART_TX_QUEUE_LEN 4
 
 /**
  * The RTEMS task priority of the UART TX task
  **/
-#define UART_TX_TASK_PRIORITY   10
+#define UART_TX_TASK_PRIORITY 10
 
 /**
  * The maximum amount of time the RTOS will wait for a single character to
@@ -76,12 +77,12 @@ extern "C" {
 /**
  * The ioctl type for UARTs.
  */
-#define IOCTL_UART_TYPE      73
+#define IOCTL_UART_TYPE 73
 
 /**
  * The ioctl baud rate argument definition.
  */
-#define UART_BAUDRATE        _IOW(IOCTL_UART_TYPE, 1, uint32_t)
+#define UART_BAUDRATE _IOW( IOCTL_UART_TYPE, 1, uint32_t )
 
 #define UART_TX_DONE RTEMS_EVENT_1
 
@@ -91,13 +92,12 @@ extern "C" {
  * The maximum amount of of time to wait for a UART buffer to be completely
  * transmitted.
  */
-#define STM32F_MAX_UART_TX_TIME_ms  20
+#define STM32F_MAX_UART_TX_TIME_ms 20
 
 /**
  * The various modes of UART operation supported in the STM32F processor
  */
 typedef enum {
-
   /**
    * The mode in which the UART register are periodically polling to see if
    * either data has been transmitted for received.
@@ -112,9 +112,9 @@ typedef enum {
   STM32F_UART_MODE_INT,
 
   /**
-    * The mode in which the UART transmission and reception is controlled by
-    * the UART's associated DMA controller.
-    */
+   * The mode in which the UART transmission and reception is controlled by
+   * the UART's associated DMA controller.
+   */
   STM32F_UART_MODE_DMA
 } stm32f_uart_type;
 
@@ -124,7 +124,6 @@ typedef enum {
  * the BSP config.ac file.
  */
 typedef enum {
-
   /** UART 1 (/dev/ttyS0) */
   STM32F_UART1,
 
@@ -161,7 +160,6 @@ typedef enum {
  * Note: not all processors implement all GPIO ports.
  */
 typedef enum {
-
   /** Port A */
   STM32F_GOIO_PORTA,
 
@@ -194,7 +192,6 @@ typedef enum {
  * A structure used to identify a particular STM32F GPIO pin.
  */
 typedef struct {
-
   /**
    * The STM32F GPIO port.
    */
@@ -205,14 +202,12 @@ typedef struct {
    * This value should be within the range of [0-31].
    */
   uint32_t pin;
-
 } stm32f_gpio_pin;
 
 /**
  * The STM32F DMA controllers.
  */
 typedef enum {
-
   /** DMA controller 1*/
   STM32F_DMA1_CONTROLLER,
 
@@ -225,7 +220,6 @@ typedef enum {
  * of a particular DMA stream.
  */
 typedef struct {
-
   /**
    * The DMA controller that handles the stream.
    */
@@ -245,7 +239,6 @@ typedef struct {
    * The stream number within the DMA controller.
    */
   uint32_t stream;
-
 } stm32f_dma_config;
 
 /**
@@ -254,17 +247,16 @@ typedef struct {
  * structure is defined for both termios and normal UARTs.
  */
 typedef struct {
-
   /**
    * The STM32F HAL UART handle.
    */
-  UART_HandleTypeDef* handle;
+  UART_HandleTypeDef *handle;
 
   /**
    * The path at which the UART should installed in the file system
    * (e.g., /dev/console,  /dev/ttyS0, ...)
    */
-  const char* device_name;
+  const char *device_name;
 
   /**
    * The processor interrupt number associated with the UART.
@@ -274,12 +266,12 @@ typedef struct {
   /**
    * The DMA stream associated receiving data for this particular UART.
    */
-  DMA_Stream_TypeDef* rx_dma_stream;
+  DMA_Stream_TypeDef *rx_dma_stream;
 
   /**
    * The DMA stream associated transmitting data for this particular UART.
    */
-  DMA_Stream_TypeDef* tx_dma_stream;
+  DMA_Stream_TypeDef *tx_dma_stream;
 
   /**
    * The current baud rate of the UART.
@@ -322,7 +314,6 @@ typedef struct {
    * is associated with.
    */
   stm32f_uart uart;
-
 } stm32f_base_uart_driver_entry;
 
 /**
@@ -330,7 +321,6 @@ typedef struct {
  * information associated with a console UART using termios.
  */
 typedef struct {
-
   /**
    * The basic termios device context.
    * (This data member must be first, because the device context pointer
@@ -351,8 +341,7 @@ typedef struct {
   /**
    * The termios tty associated with the UART.
    */
-  struct rtems_termios_tty* tty;
-
+  struct rtems_termios_tty *tty;
 } stm32f_console_driver_entry;
 
 /**
@@ -360,7 +349,6 @@ typedef struct {
  * UART.
  */
 typedef struct {
-
   /**
    * The UART configuration data.
    */
@@ -398,35 +386,36 @@ typedef struct {
    * driver's state variables.
    */
   rtems_id mutex;
-
 } stm32f_uart_driver_entry;
 
 /**
  * This structure is used to register a non-console UART device driver.
  */
 typedef struct {
-
   /**
    * The object that describes the configuration and state of the
    * non-console UART.
    */
-  stm32f_uart_driver_entry* pUart;
+  stm32f_uart_driver_entry *pUart;
 
   /**
    * The initialization function for the device.
    */
-  int (*init)(stm32f_uart_driver_entry * pUart, uint32_t baud);
+  int ( *init )(
+    stm32f_uart_driver_entry *pUart,
+    uint32_t                  baud
+  );
 
   /**
    * The de-initialization routine that closes the UART.
    */
-  int (*de_init)(stm32f_uart_driver_entry * pUart);
+  int ( *de_init )( stm32f_uart_driver_entry *pUart );
 
   /**
    * The destroy routine used to clean up the driver when it is no
    * longer required.
    */
-  void (*destroy)(stm32f_uart_driver_entry * pUart);
+  void ( *destroy )( stm32f_uart_driver_entry *pUart );
 } stm32f_uart_device;
 
 /**
@@ -440,7 +429,7 @@ typedef struct {
 rtems_device_driver console_initialize(
   rtems_device_major_number major,
   rtems_device_minor_number minor,
-  void* arg
+  void                     *arg
 );
 
 /**
@@ -454,10 +443,8 @@ rtems_device_driver console_initialize(
  * @return The address of the specified UART in the stm32f_console_driver_table
  *  if it exists.  If it doesn't exist, then NULL is returned.
  */
-stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
-  const UART_HandleTypeDef *huart
-);
-
+stm32f_console_driver_entry *stm32f_get_console_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart );
 
 /**
  * @brief Returns the uart from the HAL UART handle
@@ -470,10 +457,8 @@ stm32f_console_driver_entry* stm32f_get_console_driver_entry_from_handle(
  * @return The address of the specified UART in the stm32f_uart_driver_table
  *  if it exists.  If it doesn't exist, then NULL is returned.
  */
-stm32f_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
-  const UART_HandleTypeDef *huart
-);
-
+stm32f_uart_driver_entry *stm32f_get_uart_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart );
 
 /**
  * @brief Returns the base uart entry from the HAL UART handle
@@ -487,10 +472,8 @@ stm32f_uart_driver_entry* stm32f_get_uart_driver_entry_from_handle(
  * @return The address of the specified base uart driver handle UART
  *  if it exists.  If it doesn't exist, then NULL is returned.
  */
-stm32f_base_uart_driver_entry* stm32f_get_base_uart_driver_entry_from_handle(
-  const UART_HandleTypeDef *huart
-);
-
+stm32f_base_uart_driver_entry *stm32f_get_base_uart_driver_entry_from_handle(
+  const UART_HandleTypeDef *huart );
 
 /**
  * @brief Installs interrupt handles for particular UART
@@ -503,10 +486,7 @@ stm32f_base_uart_driver_entry* stm32f_get_base_uart_driver_entry_from_handle(
  *
  * @returns 0 if successful, non 0 otherwise.
  */
-int stm32f_register_interrupt_handlers(
-  UART_HandleTypeDef* huart
-);
-
+int stm32f_register_interrupt_handlers( UART_HandleTypeDef *huart );
 
 /**
  * @brief Remove interrupt handles for particular UART
@@ -519,10 +499,7 @@ int stm32f_register_interrupt_handlers(
  *
  * @returns 0 if successful, non 0 otherwise.
  */
-int stm32f_remove_interrupt_handlers(
-  UART_HandleTypeDef* huart
-);
-
+int stm32f_remove_interrupt_handlers( UART_HandleTypeDef *huart );
 
 /**
  * @brief Returns the location of the UART's hardware registers
@@ -532,38 +509,33 @@ int stm32f_remove_interrupt_handlers(
  * @returns The starting address of the UART's hardware registers or
  *  NULL if the processor does not implement the specified UART.
  */
-USART_TypeDef* stm32f_uart_get_registers(
-  const stm32f_uart Uart
-);
-
+USART_TypeDef *stm32f_uart_get_registers( const stm32f_uart Uart );
 
 /**
  * @brief Initializes all non-console UARTs.
  */
-void stm32f_uarts_initialize(
-  void
-);
-
+void stm32f_uarts_initialize( void );
 
 /**
  * This array will hold all the STM32F HAL UART handles.  The handles are
  * allocated to the console UARTs first, and then to the non-console UARTs.
  */
-extern UART_HandleTypeDef UartHandles[NUM_PROCESSOR_CONSOLE_UARTS + NUM_PROCESSOR_NON_CONSOLE_UARTS];
+extern UART_HandleTypeDef UartHandles[ NUM_PROCESSOR_CONSOLE_UARTS +
+                                       NUM_PROCESSOR_NON_CONSOLE_UARTS ];
 
 /**
  * The following array should be defined in the specific BSP directory
  * in a file named console-config.c.  This array should contain information
  * about which console UARTs should be defined for the processor.
  */
-extern stm32f_console_driver_entry stm32f_console_driver_table[NUM_PROCESSOR_CONSOLE_UARTS];
+extern stm32f_console_driver_entry stm32f_console_driver_table[ NUM_PROCESSOR_CONSOLE_UARTS ];
 
 /**
  * The following array should be defined in the specific BSP directory
  * in a file named uart-config.c.  This array should contain information
  * about which non-console UARTs should be defined for the processor.
  */
-extern stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
+extern stm32f_uart_driver_entry stm32f_uart_driver_table[ NUM_PROCESSOR_NON_CONSOLE_UARTS ];
 
 #ifdef __cplusplus
 }

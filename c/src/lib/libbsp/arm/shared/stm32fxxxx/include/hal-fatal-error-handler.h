@@ -23,6 +23,6 @@
 /**
  * @brief HAL fatal error handler function.
  */
-rtems_status_code stm32f_initialize_user_extensions(void);
+rtems_status_code stm32f_initialize_user_extensions( void );
 
 #endif /* HAL_FATAL_ERROR_HANDLER_H_ */

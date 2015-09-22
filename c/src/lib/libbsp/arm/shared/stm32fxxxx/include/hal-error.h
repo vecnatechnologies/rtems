@@ -1,5 +1,6 @@
 /**
  * @file hal-error.h
+ * @author Jay M. Doyle
  *
  * @ingroup error
  *
@@ -22,13 +23,13 @@
 /**
  * @brief HAL ST32F error handler function.
  */
-void stm32f_error_handler(void);
+void stm32f_error_handler( void );
 
 /**
  * @brief HAL ST32F error handler function.
  *
  * @param error_text Text describing the source of the error
  */
-void stm32f_error_handler_with_reason(const char* error_text);
+void stm32f_error_handler_with_reason( const char *error_text );
 
 #endif /* INCLUDE_HAL_ERROR_H_ */

@@ -1,8 +1,11 @@
-/*
- * error.c
+/**
+ * @file hal-error.c
+ * @author Jay M. Doyle
  *
- *  Created on: Jul 28, 2015
- *      Author: jay.doyle
+ * @ingroup error
+ *
+ * @brief A set of utility functions to handle errors found
+ *   while executing the application.
  */
 
 /*
@@ -13,17 +16,15 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
-void stm32f_error_handler(
-  void
-)
+void stm32f_error_handler( void )
 {
-    while(1) {
-        ; // Stay here forever
-    }
+  while ( 1 ) {
+    ;     // Stay here forever
+  }
 }
 
-void stm32f_error_handler_with_reason(const char* error_text)
+void stm32f_error_handler_with_reason( const char *error_text )
 {
-  printf(error_text);
+  printf( error_text );
   stm32f_error_handler();
 }
