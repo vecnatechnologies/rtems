@@ -447,7 +447,7 @@ static int stm32_spi_deinit_destroy( stm32_spi_bus *bus )
 }
 
 /* Register SPI Driver to RTEMS */
-static int stm32_bsp_register_spi( void )
+int stm32_bsp_register_spi( void )
 {
   rtems_status_code sc;
   int err = 0;
