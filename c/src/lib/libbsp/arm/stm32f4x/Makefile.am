@@ -130,6 +130,7 @@ include_bsp_HEADERS += hal/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 # Shared driver headers
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-spi.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-fatal-error-handler.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
@@ -179,6 +180,9 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 #I2C
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
 libbsp_a_SOURCES += i2c/hal-i2c-init.c
+
+#SPI
+libbsp_a_SOURCES += ../shared/stm32fxxxx/spi/hal-spi.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c

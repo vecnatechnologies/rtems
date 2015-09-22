@@ -130,9 +130,4 @@ typedef struct {
   rtems_id task_id;
 } stm32_i2c_bus;
 
-/**
- * Returns the base address of the I2C instances
- */
-I2C_TypeDef *stm32_i2c_get_spi_instance( I2C_Instance i2c_instance );
-
 #endif /* STM32_I2C_H */

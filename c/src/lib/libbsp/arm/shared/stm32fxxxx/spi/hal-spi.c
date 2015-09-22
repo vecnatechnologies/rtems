@@ -134,23 +134,23 @@ static GPIO_TypeDef *stm32_spi_get_gpio_port( gpio_port port )
  */
 static void stm32_spi_initialize_gpio_clock( SPI_Instance spi_instance )
 {
-  switch ( spi_config[ spi_instance ].port ) {
-    case GPIOA:
+  switch ( (uint32_t) spi_config[ spi_instance ].port ) {
+    case (uint32_t)GPIOA:
       __HAL_RCC_GPIOA_CLK_ENABLE();
       break;
-    case GPIOB:
+    case (uint32_t)GPIOB:
       __HAL_RCC_GPIOB_CLK_ENABLE();
       break;
-    case GPIOC:
+    case (uint32_t)GPIOC:
       __HAL_RCC_GPIOC_CLK_ENABLE();
       break;
-    case GPIOD:
+    case (uint32_t)GPIOD:
       __HAL_RCC_GPIOD_CLK_ENABLE();
       break;
-    case GPIOE:
+    case (uint32_t)GPIOE:
       __HAL_RCC_GPIOE_CLK_ENABLE();
       break;
-    case GPIOH:
+    case (uint32_t)GPIOH:
       __HAL_RCC_GPIOH_CLK_ENABLE();
       break;
   }
@@ -254,7 +254,7 @@ static int stm32_spi_ioctl(
 
     default:
 
-      return rtems_set_errno_and_return_minus_one( ENOTTY );
+      rtems_set_errno_and_return_minus_one( ENOTTY );
   }
 }
 
@@ -412,7 +412,7 @@ static int stm32_spi_init( stm32_spi_bus *bus )
   /* Install SPI vectors */
   sc = rtems_interrupt_handler_install(
     spi_config[ bus->instance ].vector_num,
-    "SPI Event Insturrpt",
+    "SPI Event Interrupt",
     RTEMS_INTERRUPT_UNIQUE,
     stm32_spi_event_irq,
     &bus->handle

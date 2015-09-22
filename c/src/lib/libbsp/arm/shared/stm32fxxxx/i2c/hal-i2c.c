@@ -252,7 +252,7 @@ int stm32_bsp_register_i2c( void )
     /* Install I2C vectors */
     sc = rtems_interrupt_handler_install(
       i2c_config[ inst_num ].vector_num,
-      "I2C Event Insturrpt",
+      "I2C Event Interrupt",
       RTEMS_INTERRUPT_UNIQUE,
       stm32_i2c_event_irq,
       &bus[ inst_num ]->handle
