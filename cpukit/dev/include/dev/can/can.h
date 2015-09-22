@@ -60,6 +60,9 @@ typedef struct can_filter can_filter;
 #define CAN_SET_BAUDRATE        _IOW(IOCTL_CAN_TYPE, 1, unsigned long)
 #define CAN_GET_NUM_FILTERS     _IOR(IOCTL_CAN_TYPE, 2, void )
 #define CAN_SET_FILTER          _IOW(IOCTL_CAN_TYPE, 3, can_filter)
+#define CAN_SET_FLAGS           _IOR(IOCTL_CAN_TYPE, 4, uint32_t)
+
+#define CAN_FLAG_LOOPBACK_MODE (1<<1)
 
 
 uint32_t can_filter_stdid(uint32_t id);

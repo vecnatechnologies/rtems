@@ -69,6 +69,7 @@ struct can_bus {
    *
    */
   int (*set_filter)       (can_bus * bus, can_filter * filter);
+  int (*set_flags)        (can_bus * bus, uint32_t flags);
 
 
   /*
