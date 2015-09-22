@@ -204,7 +204,6 @@ static int stm32_spi_ioctl(
   unsigned long arg
 )
 {
-  rtems_status_code sc = RTEMS_SUCCESSFUL;
   _Assert( base != NULL );
 
   stm32_spi_bus *bus = (stm32_spi_bus *) base;
@@ -264,9 +263,9 @@ static int stm32_spi_ioctl(
 static void stm32_spi_event_irq( void *arg )
 {
   rtems_status_code sc;
-  stm32_i2c_bus *bus = arg;
+  stm32_spi_bus * bus = arg;
 
-  HAL_SPI_IRQHandler( (SPI_HandleTypeDef *) &bus->handle );
+  HAL_SPI_IRQHandler( (SPI_HandleTypeDef *) &(bus->handle) );
 
   sc = rtems_event_transient_send( bus->task_id );
   if ( sc != RTEMS_SUCCESSFUL ) {
@@ -294,7 +293,7 @@ static int stm32_spi_transfer(
   tickstart = rtems_clock_get_ticks_since_boot();
 
   /* Wait for the SPI bus to be ready */
-  while ( HAL_SPI_GetState( &bus->handle ) != HAL_SPI_STATE_READY ) {
+  while ( HAL_SPI_GetState( (SPI_HandleTypeDef *) &bus->handle ) != HAL_SPI_STATE_READY ) {
     if ( ( rtems_clock_get_ticks_since_boot() - tickstart ) >
          SPI_WAIT_TIMEOUT )
       rtems_set_errno_and_return_minus_one( ETIMEDOUT );

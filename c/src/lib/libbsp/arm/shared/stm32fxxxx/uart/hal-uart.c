@@ -460,7 +460,7 @@ static int uart_create_rtems_objects( stm32f_uart_device *pUartDevice )
   return 0;
 }
 
-void stm32f_uarts_initialize( void )
+void stm32_bsp_register_uart( void )
 {
   uint32_t i;
 

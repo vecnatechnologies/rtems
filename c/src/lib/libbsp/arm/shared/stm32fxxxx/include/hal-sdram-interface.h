@@ -35,4 +35,18 @@ void BSP_SDRAM_Config( void );
  */
 void MPU_Config( void );
 
+/**
+ * @brief A helper function used to configure the MPU
+ *   sections.
+ *
+ * @param region_size_in_bytes [in] The size of the memory region
+ *   in bytes.  This must be power of 2 and must be >= 32 bytes and
+ *   <= 4GB.
+ *
+ * @return The proper value for the Size member of MPU_Region_InitTypeDef
+ *   for the specific memory region size.  If the input value is not a
+ *   power of 2 then 0 is returned.
+ */
+uint8_t MPU_Get_Region_Size( const uint64_t region_size_in_bytes );
+
 #endif /* INCLUDE_HAL_SDRAM_INTERFACE_H_ */

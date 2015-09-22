@@ -161,31 +161,31 @@ typedef enum {
  */
 typedef enum {
   /** Port A */
-  STM32F_GOIO_PORTA,
+  STM32F_GPIO_PORTA,
 
   /** Port B */
-  STM32F_GOIO_PORTB,
+  STM32F_GPIO_PORTB,
 
   /** Port C */
-  STM32F_GOIO_PORTC,
+  STM32F_GPIO_PORTC,
 
   /** Port D */
-  STM32F_GOIO_PORTD,
+  STM32F_GPIO_PORTD,
 
   /** Port E */
-  STM32F_GOIO_PORTE,
+  STM32F_GPIO_PORTE,
 
   /** Port F */
-  STM32F_GOIO_PORTF,
+  STM32F_GPIO_PORTF,
 
   /** Port G */
-  STM32F_GOIO_PORTG,
+  STM32F_GPIO_PORTG,
 
   /** Port H */
-  STM32F_GOIO_PORTH,
+  STM32F_GPIO_PORTH,
 
   /** Port I */
-  STM32F_GOIO_PORTI
+  STM32F_GPIO_PORTI
 } stm32f_gpio_port;
 
 /**
@@ -514,7 +514,7 @@ USART_TypeDef *stm32f_uart_get_registers( const stm32f_uart Uart );
 /**
  * @brief Initializes all non-console UARTs.
  */
-void stm32f_uarts_initialize( void );
+void stm32_bsp_register_uart( void );
 
 /**
  * This array will hold all the STM32F HAL UART handles.  The handles are

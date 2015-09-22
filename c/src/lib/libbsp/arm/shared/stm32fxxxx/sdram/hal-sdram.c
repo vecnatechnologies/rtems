@@ -20,6 +20,7 @@
 #include <stm32f-processor-specific.h>
 #include <hal-sdram-interface.h>
 #include <hal-error.h>
+#include <bspopts.h>
 
 #include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, dma )
@@ -29,7 +30,10 @@
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, gpio )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc_ex )
 
-#if defined( EXTERNAL_SDRAM )
+#if ( STM32_SDRAM_SIZE > 0 )
+
+#define MINIMUM_MPU_REGION_SIZE 32
+#define MAXIMUM_MPU_REGION_SIZE (0x100000000) // 4GB
 
 static SDRAM_HandleTypeDef      hsdram;
 static FMC_SDRAM_TimingTypeDef  SDRAM_Timing;
@@ -39,20 +43,20 @@ static FMC_SDRAM_CommandTypeDef command;
  *  @brief Calculate the MPU region size setting which is
  *    is log2(x) - 1.
  *
- *    This function assumes that the memory size is prefect power
+ *    This function assumes that the memory size is perfect power
  *    of 2.
  *
  *  @param region_size_in_bytes The sizeof the memory region in bytes
  *  @return The correct MPU setting for the given memory size
  */
-static uint8_t MPU_Get_Region_Size( const uint32_t region_size_in_bytes )
+uint8_t MPU_Get_Region_Size( const uint64_t region_size_in_bytes )
 {
   uint8_t mpu_setting = (uint8_t) 0;
   uint8_t i;
 
-  // The size of the region must be 2 or larger.
-  if ( region_size_in_bytes > 1 ) {
-    for ( i = 0; i < 32; i++ ) {
+  // The size of the region must be 32 or larger.
+  if (( region_size_in_bytes >= MINIMUM_MPU_REGION_SIZE ) && (region_size_in_bytes <= MAXIMUM_MPU_REGION_SIZE)){
+    for ( i = 0; i <= 32; i++ ) {
       if ( ( ( region_size_in_bytes >> i ) & 0x1UL ) != 0 ) {
         if ( mpu_setting == 0 ) {
           mpu_setting = i - 1;
@@ -84,8 +88,8 @@ void MPU_Config( void )
 
   /* Configure the MPU attributes as WT for SRAM */
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = 0x20010000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
+  MPU_InitStruct.BaseAddress = STM32_START_INTERNAL_SRAM;
+  MPU_InitStruct.Size = MPU_Get_Region_Size(STM32_INTERNAL_SRAM_SIZE);
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
@@ -95,12 +99,17 @@ void MPU_Config( void )
   MPU_InitStruct.SubRegionDisable = 0x00;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 
+  // Check for valid memory region sizes first
+  if (MPU_InitStruct.Size == 0 ) {
+    stm32f_error_handler_with_reason("Invalid memory region size specified for internal SRAM");
+  }
+
   HAL_MPU_ConfigRegion( &MPU_InitStruct );
 
   /* Configure the MPU attributes as WT and WA for SDRAM */
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = 0xC0000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
+  MPU_InitStruct.BaseAddress = STM32_START_SDRAM;
+  MPU_InitStruct.Size = MPU_Get_Region_Size(STM32_SDRAM_SIZE);
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
@@ -109,6 +118,11 @@ void MPU_Config( void )
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.SubRegionDisable = 0x00;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+
+  // Check for valid memory region sizes first
+  if (MPU_InitStruct.Size == 0 ) {
+    stm32f_error_handler_with_reason("Invalid memory region size specified for external SDRAM");
+  }
 
   HAL_MPU_ConfigRegion( &MPU_InitStruct );
 

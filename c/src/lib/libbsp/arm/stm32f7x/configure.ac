@@ -17,14 +17,28 @@ AM_CONDITIONAL(HAS_NETWORKING,test "$HAS_NETWORKING" = "yes")
 RTEMS_BSPOPTS_SET([STM32F7_FAMILY_F7XXXX],[stm32f7*],[1])
 RTEMS_BSPOPTS_HELP([STM32F7_FAMILY_F7XXXX],[Chip belongs to the STM32F7XXXX family.])
 
-#System Memory Address
+####################sud System Memory Address #########
 RTEMS_BSPOPTS_SET([SYS_MEM_ADDR],[*],[0x1FF00000])
 RTEMS_BSPOPTS_HELP([SYS_MEM_ADDR],[System Memory Address])
 
-#Bootloader firmware address offset in system memory
+#################### Bootloader firmware address offset in system memory #########
 RTEMS_BSPOPTS_SET([BOOTLOADER_OFFSET],[*],[0x4])
 RTEMS_BSPOPTS_HELP([BOOTLOADER_OFFSET],[Bootloader firmware address offset in system memory])
 
+#################### Memory Configuration ###############
+RTEMS_BSPOPTS_SET([STM32_START_SDRAM],[*],[0xC0000000])
+RTEMS_BSPOPTS_HELP([STM32_START_SDRAM],[The starting address of SDRAM])
+
+RTEMS_BSPOPTS_SET([STM32_SDRAM_SIZE],[*],[0x800000])
+RTEMS_BSPOPTS_HELP([STM32_SDRAM_SIZE],[The size of the external SDRAM])
+
+RTEMS_BSPOPTS_SET([STM32_START_INTERNAL_SRAM],[*],[0x20010000])
+RTEMS_BSPOPTS_HELP([STM32_START_INTERNAL_SRAM],[The starting address of SDRAM])
+
+RTEMS_BSPOPTS_SET([STM32_INTERNAL_SRAM_SIZE],[*],[0x40000])
+RTEMS_BSPOPTS_HELP([STM32_INTERNAL_SRAM_SIZE],[The size of the internal SRAM])
+
+#################### Clock Configuration ###############
 RTEMS_BSPOPTS_SET([STM32F7_HSE_OSCILLATOR],[*],[25000000])
 RTEMS_BSPOPTS_HELP([STM32F7_HSE_OSCILLATOR],[HSE oscillator frequency in Hz])
 
@@ -61,6 +75,7 @@ RTEMS_BSPOPTS_HELP([STM32F7_USART_BAUD],[baud for USARTs])
 RTEMS_BSPOPTS_SET([HSE_AVAILABLE],[*],[1])
 RTEMS_BSPOPTS_HELP([HSE_AVAILABLE],[Is external high speed oscillator present])
 
+#################### Uart / Console Configuration ###############
 RTEMS_BSPOPTS_SET([NUM_PROCESSOR_CONSOLE_UARTS],[*],[1])
 RTEMS_BSPOPTS_HELP([NUM_PROCESSOR_CONSOLE_UARTS],[Number of UARTs used for serial consoles])
 
@@ -85,8 +100,10 @@ RTEMS_BSPOPTS_HELP([STM32_ENABLE_USART_5],[disable UART 5])
 RTEMS_BSPOPTS_SET([STM32_ENABLE_USART_6],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_USART_6],[enable USART 6])
 
-#I2C
-######### I2C 1 ###############
+RTEMS_BSPOPTS_SET([STM32_ENABLE_USART_7],[*],[1])
+RTEMS_BSPOPTS_HELP([STM32_ENABLE_USART_7],[enable USART 7])
+
+#################### I2C 1 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_I2C1],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_I2C1],[enable I2C 1])
 
@@ -102,16 +119,15 @@ RTEMS_BSPOPTS_HELP([STM32_I2C1_SCL_PIN],[SCK pin for I2C 1])
 RTEMS_BSPOPTS_SET([STM32_I2C1_SDA_PIN],[*],[GPIO_PIN_7])
 RTEMS_BSPOPTS_HELP([STM32_I2C1_SDA_PIN],[SDA pin for I2C 1])
 
-#################### I2C2 ########################
+#################### I2C2 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_I2C2],[*],[0])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_I2C2],[enable I2C 2])
 
-#################### I2C3 ########################
+#################### I2C3 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_I2C3],[*],[0])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_I2C3],[enable I2C 3])
 
-#SPI
-######### SPI 1 ###############
+#################### SPI 1 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_SPI1],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_SPI1],[enable SPI 1])
 
@@ -127,11 +143,11 @@ RTEMS_BSPOPTS_HELP([STM32_SPI1_MISO_PIN],[MISO pin for SPI 1])
 RTEMS_BSPOPTS_SET([STM32_SPI1_MOSI_PIN],[*],[GPIO_PIN_7])
 RTEMS_BSPOPTS_HELP([STM32_SPI1_MOSI_PIN],[MOSI pin for SPI 1])
 
-######### SPI 2 ###############
+#################### SPI 2 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_SPI2],[*],[0])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_SPI2],[enable SPI 2])
 
-
+#################### CAN 1 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_CAN1],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_CAN1],[enable CAN 1])
 
@@ -144,8 +160,7 @@ RTEMS_BSPOPTS_HELP([STM32_CAN1_RX_PIN],[RX pin for CAN 1])
 RTEMS_BSPOPTS_SET([STM32_CAN1_GPIO_PORT],[*],[GPIOB])
 RTEMS_BSPOPTS_HELP([STM32_CAN1_GPIO_PORT],[GPIO Port for CAN 1])
 
-
-
+#################### CAN 2 ####################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_CAN2],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_CAN2],[enable CAN 2])
 

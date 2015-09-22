@@ -257,7 +257,7 @@ void bsp_start( void )
 
 void bsp_predriver_hook( void )
 {
-  stm32f_uarts_initialize();
+  stm32_bsp_register_uart();
   stm32_bsp_register_can();
   stm32_bsp_register_i2c();
   stm32_bsp_register_spi();

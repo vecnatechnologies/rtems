@@ -1,10 +1,10 @@
 /**
- * @file uart_test.c
+ * @file uart_unit.c
  * @author Jay M. Doyle
  *
  * @ingroup test
  *
- * @brief CppUnit test code for testing the function implemented in
+ * @brief CppUnit test code for testing the functions implemented in
  *   hal-uart*.c
  *
  */
@@ -19,18 +19,22 @@
 
 #include <CppUTest/TestHarness.h>
 #include <stdio.h>
+
+extern "C"
+{
 #include <hal-utils.h>
 #include <hal-uart-interface.h>
 #include <bspopts.h>
+}
 
-TEST_GROUP(hal_uart_interface) {
+TEST_GROUP(hal_uart_unit) {
 
   void setup() {
-    printf("hal_uart_interface setup\n");
+
   }
 
   void teardown() {
-    printf("hal_uart_interface teardown\n");
+
   }
 };
 
@@ -59,61 +63,61 @@ static void uartRegisterAddAddress(
 }
 
 
-TEST(hal_uart_interface, stmf32_uart_get_registers) {
+TEST(hal_uart_unit, stm32f_uart_get_registers) {
 
   USART_TypeDef* register_list[8] = {0};
   USART_TypeDef* reg;
 
-#if defined(STM32F7_ENABLE_USART_1)
-  reg = stmf32_uart_get_registers(STM32F_UART1);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART1");
+#if defined(STM32_ENABLE_USART_1)
+  reg = stm32f_uart_get_registers(STM32F_UART1);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART1");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
-#if defined(STM32F7_ENABLE_USART_2)
-  reg = stmf32_uart_get_registers(STM32F_UART2);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART2");
-  uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
-#endif
-
-
-#if defined(STM32F7_ENABLE_USART_3)
-  reg = stmf32_uart_get_registers(STM32F_UART3);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART3");
+#if defined(STM32_ENABLE_USART_2)
+  reg = stm32f_uart_get_registers(STM32F_UART2);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART2");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
 
-#if defined(STM32F7_ENABLE_USART_4)
-  reg = stmf32_uart_get_registers(STM32F_UART4);
-  CHECK(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART1");
+#if defined(STM32_ENABLE_USART_3)
+  reg = stm32f_uart_get_registers(STM32F_UART3);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART3");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
 
-#if defined(STM32F7_ENABLE_USART_5)
-  reg = stmf32_uart_get_registers(STM32F_UART5);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART5");
+#if defined(STM32_ENABLE_USART_4)
+  reg = stm32f_uart_get_registers(STM32F_UART4);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART1");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
 
-#if defined(STM32F7_ENABLE_USART_6)
-  reg = stmf32_uart_get_registers(STM32F_UART6);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART6");
+#if defined(STM32_ENABLE_USART_5)
+  reg = stm32f_uart_get_registers(STM32F_UART5);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART5");
+  uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
+#endif
+
+
+#if defined(STM32_ENABLE_USART_6)
+  reg = stm32f_uart_get_registers(STM32F_UART6);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART6");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
 #if defined(STM32F7_ENABLE_USART_7)
-  reg = stmf32_uart_get_registers(STM32F_UART7);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART7");
+  reg = stm32f_uart_get_registers(STM32F_UART7);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART7");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
 
-#if defined(STM32F7_ENABLE_USART_8)
-  reg = stmf32_uart_get_registers(STM32F_UART8);
-  CHECK_TEXT(reg != NULL, "stmf32_uart_get_registers returned NULL porter for UART8");
+#if defined(STM32_ENABLE_USART_8)
+  reg = stm32f_uart_get_registers(STM32F_UART8);
+  CHECK_TEXT(reg != NULL, "stm32f_uart_get_registers returned NULL porter for UART8");
   uartRegisterAddAddress(reg, (USART_TypeDef**) register_list, COUNTOF(register_list));
 #endif
 
