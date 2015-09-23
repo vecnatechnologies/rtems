@@ -28,7 +28,7 @@
 /* Convert to string */
 #define STRINGIFY( x ) #x
 
-/* The followign two macros are used to get the GPIO pin base - GPIO_PIN_x, where x=1-15 */
+/* The following two macros are used to get the GPIO pin base - GPIO_PIN_x, where x=1-15 */
 #define _PIN( x ) GPIO_PIN_##x
 #define PIN( x ) STRINGIFY( _PIN( x ) )
 
@@ -41,6 +41,9 @@
 
 /* SPI timeout value */
 #define SPI_WAIT_TIMEOUT 10
+
+/* Max charactors for bus path */
+#define MAX_PATH_CHAR   12
 
 /* SPI1 Pin Configuration */
 #if ( STM32_ENABLE_SPI1 )

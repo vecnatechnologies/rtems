@@ -124,12 +124,14 @@ static void stm32_i2c_initialize_i2c_clock( I2C_Instance i2c_instance )
 static void stm32_i2c_event_irq( void *arg )
 {
   rtems_status_code sc;
-  stm32_i2c_bus *bus;
+  stm32_i2c_bus *bus = arg;
 
-  HAL_I2C_EV_IRQHandler( (I2C_HandleTypeDef *) arg );
+  HAL_I2C_EV_IRQHandler( (I2C_HandleTypeDef *) &bus->handle );
 
   sc = rtems_event_transient_send( bus->task_id );
-  _Assert( sc == RTEMS_SUCCESSFUL );
+  if ( sc != RTEMS_SUCCESSFUL ) {
+      rtems_set_errno_and_return_minus_one( EFAULT );
+    }
 }
 
 /**
@@ -186,7 +188,7 @@ static int stm32_i2c_deinit_destroy( stm32_i2c_bus *bus )
 
   sc = rtems_interrupt_handler_remove( i2c_config[ bus->instance ].vector_num,
     stm32_i2c_event_irq,
-    &bus->handle );
+    bus );
 
   _Assert( sc == RTEMS_SUCCESSFUL );
 
@@ -228,7 +230,7 @@ int stm32_bsp_register_i2c( void )
 {
   rtems_status_code sc;
   int err, inst_num = 0;
-  char bus_path[ 12 ];
+  char bus_path[ MAX_PATH_CHAR ];
 
   for ( inst_num = 0; inst_num < MAX_I2C_INSTANCES; inst_num++ ) {
     bus[ inst_num ] =
@@ -255,7 +257,7 @@ int stm32_bsp_register_i2c( void )
       "I2C Event Interrupt",
       RTEMS_INTERRUPT_UNIQUE,
       stm32_i2c_event_irq,
-      &bus[ inst_num ]->handle
+      bus[ inst_num ]
          );
 
     if ( sc != RTEMS_SUCCESSFUL ) {

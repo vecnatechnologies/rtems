@@ -29,12 +29,15 @@
 /* Convert to string */
 #define STRINGIFY( x ) #x
 
-/* The followign two macro is used to get the IRQ number I2Cx_IRQn, where x=1-4 */
+/* The following two macro is used to get the IRQ number I2Cx_IRQn, where x=1-4 */
 #define _GET_I2C_VEC( x ) I2C##x_EV_IRQn
 #define GET_I2C_VEC( instance ) STRINGIFY( _GET_I2C_VEC( instance ) )
 
 /* SPI timeout value */
 #define I2C_WAIT_TIMEOUT 10
+
+/* Max charactors for bus path */
+#define MAX_PATH_CHAR   12
 
 /* I2C1 Pin Configuration */
 #if ( STM32_ENABLE_I2C1 )
@@ -112,7 +115,7 @@ typedef struct {
   uint32_t sck_pin;
   /* SDA pin */
   uint32_t sda_pin;
-  /* Alternamte function */
+  /* Alternate function */
   uint32_t alternate_func;
 } stm32_i2c_config;
 

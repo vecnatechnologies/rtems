@@ -264,11 +264,11 @@ static int stm32_spi_ioctl(
 static void stm32_spi_event_irq( void *arg )
 {
   rtems_status_code sc;
-  stm32_spi_bus    *bus;
+  stm32_i2c_bus *bus = arg;
 
-  HAL_SPI_IRQHandler( (SPI_HandleTypeDef *) arg );
+  HAL_SPI_IRQHandler( (SPI_HandleTypeDef *) &bus->handle );
 
-  rtems_event_transient_send( bus->task_id );
+  sc = rtems_event_transient_send( bus->task_id );
   if ( sc != RTEMS_SUCCESSFUL ) {
     rtems_set_errno_and_return_minus_one( EFAULT );
   }
@@ -415,7 +415,7 @@ static int stm32_spi_init( stm32_spi_bus *bus )
     "SPI Event Interrupt",
     RTEMS_INTERRUPT_UNIQUE,
     stm32_spi_event_irq,
-    &bus->handle
+    bus
        );
 
   if ( sc != RTEMS_SUCCESSFUL ) {
@@ -437,7 +437,7 @@ static int stm32_spi_deinit_destroy( stm32_spi_bus *bus )
 
   sc = rtems_interrupt_handler_remove( spi_config[ bus->instance ].vector_num,
     stm32_spi_event_irq,
-    &bus->handle );
+    bus );
   _Assert( sc == RTEMS_SUCCESSFUL );
   (void) sc;
 
@@ -452,7 +452,7 @@ int stm32_bsp_register_spi( void )
   rtems_status_code sc;
   int err = 0;
   int inst_num = 0;
-  char bus_path[ 12 ];
+  char bus_path[ MAX_PATH_CHAR ];
 
   for ( inst_num = 0; inst_num < MAX_SPI_INSTANCES; inst_num++ ) {
     bus[ inst_num ] =
