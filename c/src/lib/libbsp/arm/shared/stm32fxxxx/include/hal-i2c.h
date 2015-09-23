@@ -33,7 +33,7 @@
 #define _GET_I2C_VEC( x ) I2C##x_EV_IRQn
 #define GET_I2C_VEC( instance ) STRINGIFY( _GET_I2C_VEC( instance ) )
 
-/* SPI timeout value */
+/* I2C timeout value */
 #define I2C_WAIT_TIMEOUT 10
 
 /* Max charactors for bus path */
@@ -102,7 +102,7 @@ typedef enum {
  */
 typedef struct {
   /* Pointer to the instance base address */
-  SPI_TypeDef *instance;
+  I2C_TypeDef *instance;
   /* I2C instance number */
   uint8_t instance_num;
   /* IRQ vector number */

@@ -211,44 +211,44 @@ static int stm32_spi_ioctl(
   switch ( ioctl_cmd ) {
     /* Two line half-duplex mode */
     case SPI_IOCTL_DIR_2LINE:
-      __HAL_SPI_DISABLE( bus->handle );
-      bus->handle->Instance->CR1 &= ~( SPI_CR1_BIDIMODE );
-      __HAL_SPI_ENABLE( bus->handle );
+      __HAL_SPI_DISABLE( &bus->handle );
+      bus->handle.Instance->CR1 &= ~( SPI_CR1_BIDIMODE );
+      __HAL_SPI_ENABLE( &bus->handle );
       return 0;
 
     /* bi-direction line full-duplex mode */
     case SPI_IOCTL_DIR_1LINE:
-      __HAL_SPI_DISABLE( bus->handle );
-      bus->handle->Instance->CR1 |= SPI_CR1_BIDIMODE;
-      __HAL_SPI_ENABLE( bus->handle );
+      __HAL_SPI_DISABLE( &bus->handle );
+      bus->handle.Instance->CR1 |= SPI_CR1_BIDIMODE;
+      __HAL_SPI_ENABLE( &bus->handle );
       return 0;
 
     /* Configure SPI instance to Master mode */
     case SPI_IOCTL_MODE_MASTER:
-      __HAL_SPI_DISABLE( bus->handle );
-      bus->handle->Instance->CR1 |= ( SPI_CR1_MSTR | SPI_CR1_SSI );
-      __HAL_SPI_ENABLE( bus->handle );
+      __HAL_SPI_DISABLE( &bus->handle );
+      bus->handle.Instance->CR1 |= ( SPI_CR1_MSTR | SPI_CR1_SSI );
+      __HAL_SPI_ENABLE( &bus->handle );
       return 0;
 
     /* Configure SPI instance to Slave mode */
     case SPI_IOCTL_MODE_SLAVE:
-      __HAL_SPI_DISABLE( bus->handle );
-      bus->handle->Instance->CR1 &= ~( SPI_CR1_MSTR | SPI_CR1_SSI );
-      __HAL_SPI_ENABLE( bus->handle );
+      __HAL_SPI_DISABLE( &bus->handle );
+      bus->handle.Instance->CR1 &= ~( SPI_CR1_MSTR | SPI_CR1_SSI );
+      __HAL_SPI_ENABLE( &bus->handle );
       return 0;
 
     /* Enable CRC Calculation */
     case SPI_IOCTL_ENABLE_CRC:
-      __HAL_SPI_DISABLE( bus->handle );
-      bus->handle->Instance->CR1 |= SPI_CR1_CRCEN;
-      __HAL_SPI_ENABLE( bus->handle );
+      __HAL_SPI_DISABLE( &bus->handle );
+      bus->handle.Instance->CR1 |= SPI_CR1_CRCEN;
+      __HAL_SPI_ENABLE( &bus->handle );
       return 0;
 
     /* Disable CRC Calculation */
     case SPI_IOCTL_DISABLE_CRC:
-      __HAL_SPI_DISABLE( bus->handle );
-      bus->handle->Instance->CR1 &= ~( SPI_CR1_CRCEN );
-      __HAL_SPI_ENABLE( bus->handle );
+      __HAL_SPI_DISABLE( &bus->handle );
+      bus->handle.Instance->CR1 &= ~( SPI_CR1_CRCEN );
+      __HAL_SPI_ENABLE( &bus->handle );
       return 0;
 
     default:
@@ -388,20 +388,20 @@ static int stm32_spi_init( stm32_spi_bus *bus )
 
   /* Initialize SPI */
   /* Set the SPI parameters */
-  bus->handle->Instance = spi_config[ bus->instance ].instance;
+  bus->handle.Instance = spi_config[ bus->instance ].instance;
 
-  bus->handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
-  bus->handle->Init.Direction = SPI_DIRECTION_1LINE;
-  bus->handle->Init.CLKPhase = SPI_PHASE_1EDGE;
-  bus->handle->Init.CLKPolarity = SPI_POLARITY_LOW;
-  bus->handle->Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  bus->handle->Init.CRCPolynomial = 7;
-  bus->handle->Init.DataSize = SPI_DATASIZE_16BIT;
-  bus->handle->Init.FirstBit = SPI_FIRSTBIT_MSB;
-  bus->handle->Init.NSS = SPI_NSS_SOFT;
-  bus->handle->Init.TIMode = SPI_TIMODE_DISABLE;
+  bus->handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  bus->handle.Init.Direction = SPI_DIRECTION_1LINE;
+  bus->handle.Init.CLKPhase = SPI_PHASE_1EDGE;
+  bus->handle.Init.CLKPolarity = SPI_POLARITY_LOW;
+  bus->handle.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  bus->handle.Init.CRCPolynomial = 7;
+  bus->handle.Init.DataSize = SPI_DATASIZE_16BIT;
+  bus->handle.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  bus->handle.Init.NSS = SPI_NSS_SOFT;
+  bus->handle.Init.TIMode = SPI_TIMODE_DISABLE;
 
-  bus->handle->Init.Mode = SPI_MODE_MASTER;
+  bus->handle.Init.Mode = SPI_MODE_MASTER;
 
   if ( HAL_SPI_Init( &bus->handle ) != HAL_OK ) {
     ( *bus->base.destroy )( &bus->base );

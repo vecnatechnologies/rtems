@@ -157,7 +157,7 @@ typedef struct {
   /* SPI base registered to RTEMS fielsystem */
   spi_bus base;
   /* SPI handle */
-  SPI_HandleTypeDef *handle;
+  SPI_HandleTypeDef handle;
   /* Instance number */
   SPI_Instance instance;
   /* task ID */
