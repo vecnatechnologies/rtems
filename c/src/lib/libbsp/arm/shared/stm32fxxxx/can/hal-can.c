@@ -83,7 +83,7 @@ struct stm32_can_bus {
 #define CAN2_GPIO_PORT STM32_CAN2_GPIO_PORT
 #define CAN2_AF GPIO_AF9_CAN2
 
-#define MAX_FILTERS 14
+const uint32_t MAX_FILTERS = 14;
 
 CAN_Status stm32_can_start_tx
 (
@@ -137,10 +137,7 @@ void HAL_CAN_RxCpltCallback
   // Wakeup RX Task
   rtems_status_code sc;
   stm32_can_bus    *bus = ( ( (HandleWrapper *) hCanHandle )->bus );
-  volatile int      a;
-
   sc = rtems_event_transient_send( bus->base.rx_task_id );
-  a++;
 }
 
 rtems_task stm32_rx_task
@@ -148,7 +145,6 @@ rtems_task stm32_rx_task
 {
   rtems_status_code sc;
   can_msg           msg;
-  size_t            len;
 
   stm32_can_bus     *bus = (stm32_can_bus *) arg;
   CAN_HandleTypeDef *hCanHandle = (CAN_HandleTypeDef *) &bus->wrapper;
@@ -192,7 +188,11 @@ rtems_task stm32_tx_task
          );
     _Assert( len == sizeof( msg ) );
 
-    stm32_can_start_tx( hCanHandle, &msg );
+    CAN_Status status =  stm32_can_start_tx( hCanHandle, &msg );
+    while (status != CAN_OK) {
+        rtems_task_wake_after(1);
+        status =  stm32_can_start_tx( hCanHandle, &msg );
+    }
   }
 }
 
@@ -379,6 +379,13 @@ void stm32_can_rx1_isr
   ( void *arg )
 {
   HAL_CAN_IRQHandler( (CAN_HandleTypeDef *) arg );
+}
+
+int stm32_can_get_num_filters(
+can_bus *self
+)
+{
+  return MAX_FILTERS;
 }
 
 int stm32_can_set_filter
@@ -662,13 +669,14 @@ int stm32_bsp_register_can
 #if STM32_ENABLE_CAN1
   bus1 = (stm32_can_bus *) can_bus_alloc_and_init( sizeof( *bus1 ) );
 
-  bus1->base.init = stm32_can_init;
-  bus1->base.de_init = stm32_can_de_init;
-  bus1->base.tx_task = stm32_tx_task;
-  bus1->base.rx_task = stm32_rx_task;
-  bus1->base.set_filter = stm32_can_set_filter;
-  bus1->base.set_flags = stm32_can_set_flags;
-  bus1->instance = CAN_ONE;
+  bus1->base.init            = stm32_can_init;
+  bus1->base.de_init         = stm32_can_de_init;
+  bus1->base.tx_task         = stm32_tx_task;
+  bus1->base.rx_task         = stm32_rx_task;
+  bus1->base.set_filter      = stm32_can_set_filter;
+  bus1->base.get_num_filters = stm32_can_get_num_filters;
+  bus1->base.set_flags       = stm32_can_set_flags;
+  bus1->instance             = CAN_ONE;
 
   if ( bus1 == NULL ) {
     return -ENOMEM;
@@ -681,13 +689,14 @@ int stm32_bsp_register_can
 #if STM32_ENABLE_CAN2
   bus2 = (stm32_can_bus *) can_bus_alloc_and_init( sizeof( *bus2 ) );
 
-  bus2->base.init = stm32_can_init;
-  bus2->base.de_init = stm32_can_de_init;
-  bus2->base.tx_task = stm32_tx_task;
-  bus2->base.rx_task = stm32_rx_task;
-  bus2->base.set_filter = stm32_can_set_filter;
-  bus2->base.set_flags = stm32_can_set_flags;
-  bus2->instance = CAN_TWO;
+  bus2->base.init            = stm32_can_init;
+  bus2->base.de_init         = stm32_can_de_init;
+  bus2->base.tx_task         = stm32_tx_task;
+  bus2->base.rx_task         = stm32_rx_task;
+  bus2->base.get_num_filters = stm32_can_get_num_filters;
+  bus2->base.set_filter      = stm32_can_set_filter;
+  bus2->base.set_flags       = stm32_can_set_flags;
+  bus2->instance             = CAN_TWO;
 
   if ( bus2 == NULL ) {
     return -ENOMEM;

@@ -114,7 +114,9 @@ RTEMS_BSPOPTS_HELP([STM32_SPI1_MOSI_PIN],[MOSI pin for SPI 1])
 RTEMS_BSPOPTS_SET([STM32_ENABLE_SPI2],[*],[0])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_SPI2],[enable SPI 2])
 
-
+#####################################################
+# CAN 1
+#####################################################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_CAN1],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_CAN1],[enable CAN 1])
 
@@ -129,6 +131,9 @@ RTEMS_BSPOPTS_HELP([STM32_CAN1_GPIO_PORT],[GPIO Port for CAN 1])
 
 
 
+#####################################################
+# CAN 2
+#####################################################
 RTEMS_BSPOPTS_SET([STM32_ENABLE_CAN2],[*],[1])
 RTEMS_BSPOPTS_HELP([STM32_ENABLE_CAN2],[enable CAN 2])
 

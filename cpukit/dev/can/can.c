@@ -35,15 +35,15 @@
 #define CAN_QUEUE_LEN 10
 #define CAN_TASK_PRIORITY 70
 
-static bool free_busses[ 10 ] = { true };
+static bool used_busses[ 10 ] = { false };
 
 int get_free_bus_number( void )
 {
   int i;
 
   for ( i = 1; i < 10; i++ ) {
-    if ( true == free_busses[ i ] ) {
-      free_busses[ i ] = false;
+    if ( false == used_busses[ i ] ) {
+      used_busses[ i ] = true;
       return i;
     }
   }
@@ -219,7 +219,7 @@ static ssize_t can_bus_write(
   }
 
   if ( err == 0 ) {
-    return 0;
+    return count;
   } else {
     rtems_set_errno_and_return_minus_one( -err );
   }
