@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <fcntl.h>
 
 #define CAN_QUEUE_LEN 10
 #define CAN_TASK_PRIORITY 70
@@ -169,10 +170,18 @@ static ssize_t can_bus_read(
     return 0;
   }
 
+  rtems_option options;
+
+  if (bus->oflag & O_NONBLOCK) {
+    options = RTEMS_NO_WAIT;
+  } else {
+    options = RTEMS_WAIT; 
+  }
+
   sc = rtems_message_queue_receive( bus->rx_msg_queue,
     &msg,
     &len,
-    RTEMS_WAIT,
+    options,
     RTEMS_NO_TIMEOUT );
 
   if ( RTEMS_SUCCESSFUL != sc ) {
@@ -251,6 +260,7 @@ static int can_bus_open(
   rtems_status_code sc;
   can_bus          *bus = IMFS_generic_get_context_by_iop( iop );
   int               err = 0;
+  bus->oflag = oflag;
 
   can_bus_obtain( bus );
   err = bus->init( bus, bus->default_baud );
@@ -278,6 +288,7 @@ static int can_bus_ioctl(
   can_bus    *bus = IMFS_generic_get_context_by_iop( iop );
   can_filter *filter;
   uint32_t    flags;
+  int32_t baud_rate = (int32_t) arg;
   int         err = 0;
 
   switch ( command ) {
@@ -290,13 +301,21 @@ static int can_bus_ioctl(
       return bus->get_num_filters( bus );
       break;
 
-    case CAN_FLAG_LOOPBACK_MODE:
+    case CAN_SET_BAUDRATE:
+      if (baud_rate < 0 || baud_rate > 1000000) {
+        err = EINVAL;
+      } else {
+        err = can_bus_change_baudrate( bus, baud_rate );
+      }
+      break;
+      
+    case CAN_SET_FLAGS:
       flags = (uint32_t) arg;
-      return bus->set_flags( bus, flags );
+      err = bus->set_flags( bus, flags );
       break;
 
     default:
-      err = -ENOTTY;
+      err = ENOTTY;
       break;
   }
 
