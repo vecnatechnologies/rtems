@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include <hal-can.h>
 
 #define MAX_NUMBER_OF_CAN_BUSES 3
 #define NUM_TEST_TX_MESSAGES 10
@@ -64,13 +65,13 @@ struct can_config {
 static can_config can_buses[NUM_CAN_INSTANCES] = {0};
 static int num_can_buses = 0;
 
-TEST_GROUP(hal_can_unit)
+TEST_GROUP(hal_can_fit)
 {
   void setup() {
 
-    CAN_Instance can_instance;
+    uint32_t i;
 
-    for(can_instance = CAN_ONE; can_instance < COUNTOF(can_buses); can_instance++){
+    for(i = 0; i < COUNTOF(can_buses); i++){
       snprintf((char*)can_buses[num_can_buses].name, sizeof(can_buses[num_can_buses].name), "/dev/can%lu", i+1);
 
       if( access( can_buses[num_can_buses].name, F_OK ) != -1 ) {
@@ -80,7 +81,7 @@ TEST_GROUP(hal_can_unit)
         // If everything worked correctly then increment the number of buses
         if(can_buses[num_can_buses].handle > 0) {
           num_can_buses++;
-          can_buses[num_can_buses].instance = can_instance;
+          can_buses[num_can_buses].instance = (CAN_Instance ) i;
         }
       }
     }
@@ -186,7 +187,6 @@ TEST(hal_can_fit, can_fit_loopback){
 void can_fit_can_blaster(can_config* pBus, uint32_t baudrate) {
 
   int ret_val;
-  int i;
   uint64_t tx_count;
 
   can_msg tx_msg = {
@@ -223,16 +223,11 @@ TEST(hal_can_fit, can_fit_blaster){
 void can_fit_ioctl(can_config* pBus) {
 
   int ret_val;
-  int i;
   uint32_t baudrate;
   uint32_t loopback_mode;
   uint32_t num_filter;
 
-  can_filter  test_filter = {
-    .number = 0;
-    .mask   = 0x3;
-    .filter = 0x
-  };
+  can_filter  test_filter;
 
   // Check that handle is non-null
   CHECK_TEXT(pBus->handle != 0, "Invalid can bus handle");
@@ -249,16 +244,14 @@ void can_fit_ioctl(can_config* pBus) {
   CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_FLAGS");
 
   num_filter = ioctl(pBus->handle, CAN_GET_NUM_FILTERS, NULL);
-  CHECK_TEXT(filter > 0, "Invalid return value ioctl command for CAN_GET_NUM_FILTERS");
+  CHECK_TEXT(num_filter == stm32_can_get_num_filters(NULL), "Invalid return value ioctl command for CAN_GET_NUM_FILTERS");
 
-  can_filter = 0x1;
-  ret_val = ioctl(pBus->handle, CAN_SET_FILTER, &can_filter);
+  ret_val = ioctl(pBus->handle, CAN_SET_FILTER, &test_filter);
   CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_FILTER");
 
   // test that bogus IOW will return error
-  ret_val = ioctl(pBus->handle, 0xFFFFUL, &can_filter);
+  ret_val = ioctl(pBus->handle, 0xFFFFUL, NULL);
   CHECK_TEXT(ret_val != 0, "Invalid return value ioctl invocation with invalid value");
-
 }
 
 TEST(hal_can_fit, can_fit_ioctl){
@@ -268,5 +261,6 @@ TEST(hal_can_fit, can_fit_ioctl){
     can_fit_ioctl((can_config*) &(can_buses[i]));
   }
 }
+
 
 
