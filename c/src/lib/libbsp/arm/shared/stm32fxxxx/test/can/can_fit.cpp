@@ -53,28 +53,35 @@
 #include <string.h>
 
 #define MAX_NUMBER_OF_CAN_BUSES 3
+#define NUM_TEST_TX_MESSAGES 10
 
 struct can_config {
     char name[16];
     int handle;
+    CAN_Instance instance;
 };
 
-static can_config can_buses[MAX_NUMBER_OF_CAN_BUSES] = {0};
+static can_config can_buses[NUM_CAN_INSTANCES] = {0};
 static int num_can_buses = 0;
 
-TEST_GROUP(hal_can_fit)
+TEST_GROUP(hal_can_unit)
 {
   void setup() {
 
-    uint32_t i;
+    CAN_Instance can_instance;
 
-    for(i = 0; i < COUNTOF(can_buses); i++){
-      snprintf((char*)can_buses[num_can_buses].name, sizeof(can_buses[num_can_buses].name), "/dev/can%lu", i+i);
-      can_buses[num_can_buses].handle = open((char*)can_buses[num_can_buses].name, O_RDWR | O_APPEND);
+    for(can_instance = CAN_ONE; can_instance < COUNTOF(can_buses); can_instance++){
+      snprintf((char*)can_buses[num_can_buses].name, sizeof(can_buses[num_can_buses].name), "/dev/can%lu", i+1);
 
-      // If everything worked correctly then increment the number of buses
-      if(can_buses[num_can_buses].handle > 0) {
-        num_can_buses++;
+      if( access( can_buses[num_can_buses].name, F_OK ) != -1 ) {
+
+        can_buses[num_can_buses].handle = open((char*)can_buses[num_can_buses].name, O_RDWR | O_APPEND);
+
+        // If everything worked correctly then increment the number of buses
+        if(can_buses[num_can_buses].handle > 0) {
+          num_can_buses++;
+          can_buses[num_can_buses].instance = can_instance;
+        }
       }
     }
   }
@@ -149,30 +156,90 @@ void can_fit_loopback_test(can_config* pBus) {
   CHECK_TEXT(handle != 0, "Invalid can bus handle");
 
   // Enable loop back mode
-  ret_val = ioctl(handle, CAN_SET_FLAGS, &loopback_mode);
+  ret_val = ioctl(pBus->handle, CAN_SET_FLAGS, &loopback_mode);
   CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN loopback mode");
 
-  ret_val = write(handle, &tx_msg, sizeof(tx_msg));
+  ret_val = write(pBus->handle, &tx_msg, sizeof(tx_msg));
   CHECK_TEXT(ret_val == 0, "Invalid return value write");
 
-  ret_val = read(handle, &rx_msg, sizeof(rx_msg));
+  ret_val = read(pBus->handle, &rx_msg, sizeof(rx_msg));
   CHECK_TEXT(ret_val == 0, "Invalid return value read");
   CHECK_TEXT((memcmp((void*)&tx_msg, (void*)&rx_msg, sizeof(tx_msg)) == 0), "Did not receive test CAN message");
 
   // Disable loop back mode
   loopback_mode = 0;
-  ret_val = ioctl(handle, CAN_SET_FLAGS, &loopback_mode);
+  ret_val = ioctl(pBus->handle, CAN_SET_FLAGS, &loopback_mode);
   CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for disabling CAN loopback mode");
 }
 
-TEST(hal_can_fit, can_loopback){
+
+TEST(hal_can_fit, can_fit_loopback){
   int i;
 
   for(i  = 0; i < num_can_buses; i++) {
-    can_fit_loopback_test(h_can[i]);
+    can_fit_loopback_test((can_config*) &(can_buses[i]));
   }
 }
 
 #endif
+
+void can_fit_can_blaster(can_config* pBus, uint32_t baudrate) {
+
+  int ret_val;
+  int i;
+  uint64_t tx_count;
+
+  can_msg tx_msg = {
+    .id = 0xDEADBEEFUL,
+    .len = 8,
+    .data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+  };
+
+  // Check that handle is non-null
+  CHECK_TEXT(pBus->handle != 0, "Invalid can bus handle");
+
+  //TODO: Set baud rate
+  ret_val = ioctl(pBus->handle, CAN_SET_BAUDRATE, &baudrate);
+  //CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_BAUDRATE");
+
+  tx_count = stm32_can_get_tx_count(pBus->instance);
+
+  ret_val = write(pBus->handle, &tx_msg, sizeof(tx_msg));
+  CHECK_TEXT(ret_val == sizeof(tx_msg), "Invalid return value write");
+  CHECK_TEXT(stm32_can_get_tx_count(pBus->instance) == (tx_count + 1), "TX interrupt not received as expected");
+
+}
+
+// This  test requires and externally connected CAN bus to
+TEST(hal_can_fit, can_fit_blaster){
+  int i;
+
+  for(i  = 0; i < num_can_buses; i++) {
+    can_fit_can_blaster((can_config*) &(can_buses[i]), 2500000);
+  }
+}
+
+
+void can_fit_ioctl(can_config* pBus) {
+
+  int ret_val;
+  int i;
+  uint32_t baudrate;
+
+  // Check that handle is non-null
+  CHECK_TEXT(pBus->handle != 0, "Invalid can bus handle");
+
+  ret_val = ioctl(pBus->handle, CAN_SET_BAUDRATE, &baudrate);
+  CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_BAUDRATE");
+}
+
+// This  test requires and externally connected CAN bus to
+TEST(hal_can_fit, can_fit_ioctl){
+  int i;
+
+  for(i  = 0; i < num_can_buses; i++) {
+    can_fit_can_blaster((can_config*) &(can_buses[i]), 2500000);
+  }
+}
 
 

@@ -31,7 +31,9 @@ typedef enum {
 /*CAN Instance*/
 typedef enum {
   CAN_ONE = 0,
-  CAN_TWO
+  CAN_TWO,
+
+  NUM_CAN_INSTANCES
 } CAN_Instance;
 
 /* Interrupt Enale */
@@ -99,6 +101,8 @@ typedef struct {
   bool error;
 } CAN_Timing_Values;
 
-int stm32_bsp_register_can( void );
+int      stm32_bsp_register_can( void );
+uint64_t stm32_can_get_tx_count( const CAN_Instance can_bus );
+uint64_t stm32_can_get_rx_count( const CAN_Instance can_bus );
 
 #endif

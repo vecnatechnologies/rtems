@@ -57,10 +57,15 @@ TEST_GROUP(hal_uart_fit) {
     }
 
 // This causes problems with the shell
-#if 0
+#if 1
     // check for console
     snprintf((char*)configured_uarts[num_uarts].name, sizeof(configured_uarts[num_uarts].name), "/dev/console");
-    configured_uarts[num_uarts].handle = open((char*)configured_uarts[num_uarts].name, O_RDWR | O_APPEND);
+
+    if( access( configured_uarts[num_uarts].name, F_OK ) != -1 ) {
+      configured_uarts[num_uarts].handle = 1;
+    }
+
+    //configured_uarts[num_uarts].handle = open((char*)configured_uarts[num_uarts].name, O_RDWR | O_APPEND);
 
     // If everything worked correctly then increment the number of buses
     if(configured_uarts[num_uarts].handle > 0) {
