@@ -225,20 +225,47 @@ void can_fit_ioctl(can_config* pBus) {
   int ret_val;
   int i;
   uint32_t baudrate;
+  uint32_t loopback_mode;
+  uint32_t num_filter;
+
+  can_filter  test_filter = {
+    .number = 0;
+    .mask   = 0x3;
+    .filter = 0x
+  };
 
   // Check that handle is non-null
   CHECK_TEXT(pBus->handle != 0, "Invalid can bus handle");
 
   ret_val = ioctl(pBus->handle, CAN_SET_BAUDRATE, &baudrate);
   CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_BAUDRATE");
+
+  loopback_mode = CAN_FLAG_LOOPBACK_MODE;
+  ret_val = ioctl(pBus->handle, CAN_SET_FLAGS, &loopback_mode);
+  CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_FLAGS");
+
+  loopback_mode = 0;
+  ret_val = ioctl(pBus->handle, CAN_SET_FLAGS, &loopback_mode);
+  CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_FLAGS");
+
+  num_filter = ioctl(pBus->handle, CAN_GET_NUM_FILTERS, NULL);
+  CHECK_TEXT(filter > 0, "Invalid return value ioctl command for CAN_GET_NUM_FILTERS");
+
+  can_filter = 0x1;
+  ret_val = ioctl(pBus->handle, CAN_SET_FILTER, &can_filter);
+  CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN_SET_FILTER");
+
+  // test that bogus IOW will return error
+  ret_val = ioctl(pBus->handle, 0xFFFFUL, &can_filter);
+  CHECK_TEXT(ret_val != 0, "Invalid return value ioctl invocation with invalid value");
+
 }
 
-// This  test requires and externally connected CAN bus to
 TEST(hal_can_fit, can_fit_ioctl){
   int i;
 
   for(i  = 0; i < num_can_buses; i++) {
-    can_fit_can_blaster((can_config*) &(can_buses[i]), 2500000);
+    can_fit_ioctl((can_config*) &(can_buses[i]));
   }
 }
 
