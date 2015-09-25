@@ -75,11 +75,17 @@ int can_bus_change_baudrate(
   uint32_t baud
 )
 {
+  int ret = 0;
   can_bus_obtain( bus );
   bus->de_init( bus );
-  bus->init( bus, baud );
+  ret = bus->init( bus, baud );
   can_bus_release( bus );
-  return 0;
+
+  if(ret != 0){
+    return -1;
+  } else {
+    return 0;
+  }
 }
 
 int can_bus_set_filter(
