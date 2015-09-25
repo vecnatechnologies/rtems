@@ -39,6 +39,28 @@ $(PROJECT_INCLUDE)/dev/i2c/switch-nxp-pca9548a.h: include/dev/i2c/switch-nxp-pca
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/dev/i2c/switch-nxp-pca9548a.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/dev/i2c/switch-nxp-pca9548a.h
 
+$(PROJECT_INCLUDE)/dev/can/$(dirstamp):
+	@$(MKDIR_P) $(PROJECT_INCLUDE)/dev/can
+	@: > $(PROJECT_INCLUDE)/dev/can/$(dirstamp)
+PREINSTALL_DIRS += $(PROJECT_INCLUDE)/dev/can/$(dirstamp)
+
+$(PROJECT_INCLUDE)/dev/can/can.h: include/dev/can/can.h $(PROJECT_INCLUDE)/dev/can/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/dev/can/can.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/dev/can/can.h
+
+$(PROJECT_INCLUDE)/dev/can/can-internal.h: include/dev/can/can-internal.h $(PROJECT_INCLUDE)/dev/can/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/dev/can/can-internal.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/dev/can/can-internal.h
+
+$(PROJECT_INCLUDE)/dev/spi/$(dirstamp):
+	@$(MKDIR_P) $(PROJECT_INCLUDE)/dev/spi
+	@: > $(PROJECT_INCLUDE)/dev/spi/$(dirstamp)
+PREINSTALL_DIRS += $(PROJECT_INCLUDE)/dev/spi/$(dirstamp)
+
+$(PROJECT_INCLUDE)/dev/spi/spi.h: include/dev/spi/spi.h $(PROJECT_INCLUDE)/dev/spi/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/dev/spi/spi.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/dev/spi/spi.h
+
 $(PROJECT_INCLUDE)/linux/$(dirstamp):
 	@$(MKDIR_P) $(PROJECT_INCLUDE)/linux
 	@: > $(PROJECT_INCLUDE)/linux/$(dirstamp)
