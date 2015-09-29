@@ -30,10 +30,12 @@
 #include "lwip/api.h"
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
+
 #include "string.h"
 #include "cmsis_os.h"
 #include <httpserver-socket.h>
 #include <hal-ethernetif.h>
+#include <cmsis_os.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -47,6 +49,11 @@ static   portCHAR PAGE_HEADER_DYNAMIC[512] = "<!DOCTYPE html PUBLIC \"-//W3C//DT
 static   portCHAR DYNAMIC_PAGE_CONTENT[2048];
 static   portCHAR main_page[4096] = "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title>Next Gen Main Page</title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">Vecna NextGen Platform Web Server</font></h1><p><a href=\"/list_of_tasks.html\">List of tasks</a></body></html>";
 static   portCHAR error_page[4096] = "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title></title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">404: Requested page does not exist</font></h1><p><br><br></p><a href=\"/\">Main page</a></body></html>";
+
+
+
+static osThreadDef_t web_server_task;
+
 
 __attribute__ ((weak)) bool http_server_server_app_specific(char* recv_buffer, portCHAR** output_buffer)
 {
@@ -98,13 +105,13 @@ __attribute__ ((weak))  void http_server_serve(int conn)
   * @param arg: pointer on argument(not used here) 
   * @retval None
   */
-static void http_server_socket_thread(void *arg)
+void http_server_socket_thread(void *arg)
 {
   int sock, newconn, size;
   struct sockaddr_in address, remotehost;
 
  /* create a TCP socket */
-  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+  if ((sock = socket(AF_INET, SOCK_STREAM, 0 )) < 0)
   {
     return;
   }
@@ -129,7 +136,6 @@ static void http_server_socket_thread(void *arg)
     newconn = accept(sock, (struct sockaddr *)&remotehost, (socklen_t *)&size);
     http_server_serve(newconn);
   }
-
 }
 
 /**
@@ -139,7 +145,15 @@ static void http_server_socket_thread(void *arg)
   */
 void http_server_socket_init()
 {
- sys_thread_new("HTTP", http_server_socket_thread, NULL, (8*1024), WEBSERVER_THREAD_PRIO);
+
+ web_server_task.pthread   = http_server_socket_thread;
+ web_server_task.tpriority = osPriorityNormal;
+ web_server_task.instances = 1;
+ web_server_task.stacksize = 10*1024;
+
+ osThreadCreate (&web_server_task, NULL);
+
+ //sys_thread_new("HTTP", http_server_socket_thread, NULL, 16*1024, WEBSERVER_THREAD_PRIO);
 }
 
 portCHAR* http_generate_platform_stats_page(void){

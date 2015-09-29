@@ -35,7 +35,7 @@
 #define __CMSIS_GENERIC
 
 #define os_thread_cb rtems_id
-#define CMSIS_THREAD_BASE_PRIORITY 128
+#define NUM_CMSIS_TASK_PRIORITIES 7
 
 #include <cmsis_os.h>
 #include <sched.h>
@@ -354,13 +354,34 @@ __NO_RETURN void osThreadExit (void);
 
 // Thread Public API
 
+static rtems_task_priority convertTaskPriority(const osPriority priority) {
+
+  rtems_task_priority ret;
+  uint8_t task_priority_step_size = (PRIORITY_MAXIMUM - PRIORITY_MINIMUM) / (uint8_t) (NUM_CMSIS_TASK_PRIORITIES - 1);
+
+  //uint8_t task_priority_step_size = (PRIORITY_MAXIMUM - 128) / (uint8_t) (NUM_CMSIS_TASK_PRIORITIES - 1);
+
+
+  // In RTEMS the higher the numerical value the lower the
+  // priority.  RTEMS provide macros for highest and lowest
+  // priority level.
+  if(priority != osPriorityError) {
+    ret = (rtems_task_priority) (PRIORITY_MAXIMUM - ((uint8_t) (priority - osPriorityIdle)* task_priority_step_size));
+  } else {
+    stm32f_error_handler_with_reason("convertTaskPriority: Invalid task priority\n");
+    ret = PRIORITY_DEFAULT_MAXIMUM;
+  }
+
+  return ret;
+}
+
 /// Create a thread and add it to Active Threads and set it to state READY
 osThreadId osThreadCreate (const osThreadDef_t *thread_def, void *argument) {
 
   static uint8_t cmsis_task_counter = (uint8_t) '1';
 
   rtems_status_code ret;
-  rtems_task_priority task_priority = (rtems_task_priority) thread_def->tpriority + CMSIS_THREAD_BASE_PRIORITY;
+  rtems_task_priority task_priority = convertTaskPriority(thread_def->tpriority);
   rtems_id new_task_id;
 
   // Create the rtems task.
@@ -415,7 +436,7 @@ osStatus osThreadYield (void) {
 /// Change priority of an active thread
 osStatus osThreadSetPriority (osThreadId thread_id, osPriority priority) {
 
-  rtems_task_priority task_priority = priority + CMSIS_THREAD_BASE_PRIORITY;
+  rtems_task_priority task_priority = convertTaskPriority(priority);
   rtems_task_priority old_task_priority;
   rtems_status_code   rtems_ret;
 
@@ -761,20 +782,17 @@ osSemaphoreId osSemaphoreCreate (const osSemaphoreDef_t *semaphore_def, int32_t 
   rtems_status_code ret;
   rtems_id          semaphore_id;
 
-  sema_attributes =  RTEMS_FIFO | RTEMS_LOCAL | RTEMS_NO_INHERIT_PRIORITY |
-                     RTEMS_NO_PRIORITY_CEILING | RTEMS_NO_MULTIPROCESSOR_RESOURCE_SHARING;
-
   if(count > 1) {
-    sema_attributes |= RTEMS_COUNTING_SEMAPHORE;
+    sema_attributes = RTEMS_DEFAULT_ATTRIBUTES;
   } else {
-    sema_attributes |= RTEMS_BINARY_SEMAPHORE;
+    sema_attributes = RTEMS_SIMPLE_BINARY_SEMAPHORE;
   }
 
    ret = rtems_semaphore_create  (
     rtems_build_name('C', 'S', 'M', cmsis_semaphore_counter),
     count,
     sema_attributes,
-    PRIORITY_DEFAULT_MAXIMUM,
+    RTEMS_NO_PRIORITY,
     &semaphore_id
   );
 
@@ -789,10 +807,17 @@ osSemaphoreId osSemaphoreCreate (const osSemaphoreDef_t *semaphore_def, int32_t 
 /// Wait until a Semaphore becomes available
 int32_t osSemaphoreWait (osSemaphoreId semaphore_id, uint32_t millisec) {
 
+  rtems_status_code ret;
   rtems_interval ticks_per_millisec = rtems_clock_get_ticks_per_second() / 1000UL;
 
   // wait for specified semaphore for the maximum amount of time
-  return  rtems_semaphore_obtain ((rtems_id) semaphore_id, RTEMS_WAIT, (ticks_per_millisec * millisec));
+  ret = rtems_semaphore_obtain ((rtems_id) semaphore_id, RTEMS_WAIT, (ticks_per_millisec * millisec));
+
+  if(ret == RTEMS_SUCCESSFUL) {
+    return osOK;
+  } else {
+    return -1;
+  }
 }
 
 /// Release a Semaphore

@@ -247,8 +247,8 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/stm32fxxxx/cmsis_rtos/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 
 # lwip include directories
-libbsp_a_CPPFLAGS += -I$(srcdir)/../../../../../../../../rtems-source-builder/rtems/sources/git/lwip.git/src/include
-libbsp_a_CPPFLAGS += -I$(srcdir)/../../../../../../../../rtems-source-builder/rtems/sources/git/lwip.git/ports/include
+libbsp_a_CPPFLAGS += -I$(srcdir)/../../../../../../../../rsb/rtems-source-builder/rtems/sources/git/lwip.git/src/include
+libbsp_a_CPPFLAGS += -I$(srcdir)/../../../../../../../../rsb/rtems-source-builder/rtems/sources/git/lwip.git/ports/include
 
 libbsp_a_CPPFLAGS += -D STM32F746xx -D TARGET_STM_PROCESSOR_PREFIX=7xx -DTARGET_STM_PROCESSOR=746
 

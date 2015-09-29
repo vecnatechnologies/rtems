@@ -230,9 +230,6 @@ void BSP_SDRAM_Config( void )
 
   /* Program the SDRAM external device */
   BSP_SDRAM_Initialization_Sequence( &hsdram, &command );
-
-  // Clear the BSS section located in SDRAM
-  bsp_start_clear_bss();
 }
 
 /**

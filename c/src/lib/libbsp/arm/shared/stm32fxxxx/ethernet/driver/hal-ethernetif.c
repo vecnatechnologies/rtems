@@ -40,7 +40,7 @@
 /* The time to block waiting for input. */
 #define TIME_WAITING_FOR_INPUT                 ( 100 )
 /* Stack size of the interface thread */
-#define INTERFACE_THREAD_STACK_SIZE            ( 350 )
+#define INTERFACE_THREAD_STACK_SIZE            ( 4 * 1024 )
 
 /* Define those to better describe your network interface. */
 #define IFNAME0 'e'
@@ -259,10 +259,10 @@ static void low_level_init(struct netif *netif)
 
   /* create a binary semaphore used for informing ethernetif of frame reception */
   osSemaphoreDef(SEM);
-  s_xSemaphore = osSemaphoreCreate(osSemaphore(SEM) , 1 );
+  s_xSemaphore = osSemaphoreCreate(osSemaphore(SEM) , 0 );
 
   /* create the task that handles the ETH_MAC */
-  osThreadDef(EthIf, ethernetif_input, osPriorityRealtime, 0, INTERFACE_THREAD_STACK_SIZE);
+  osThreadDef(EthIf, ethernetif_input, osPriorityRealtime, 1, INTERFACE_THREAD_STACK_SIZE);
   osThreadCreate (osThread(EthIf), netif);
 
   /* Enable MAC and DMA transmission and reception */
