@@ -81,6 +81,71 @@ TEST(cmsis_os_unit, osSemaphoreCreate) {
   CHECK_TEXT(s_xSemaphore != 0, "osSemaphore returned an invalid value (0)");
 }
 
+static void sample_task(const void* pArg) {
+  printf("sample_task executing...\n");
+}
+
+TEST(cmsis_os_unit, osThreadCreate_and_Terminate) {
+
+  osThreadDef_t thread_def;
+  osThreadId thread_id;
+  osStatus   ret;
+
+  thread_def.pthread   = NULL;
+  thread_def.tpriority = osPriorityLow;
+  thread_def.instances = 1;
+  thread_def.stacksize = 1024;
+
+  // Check for non-null ptThread definition
+  thread_id = osThreadCreate (&thread_def, NULL);
+  CHECK_TEXT(thread_id == 0, "osThreadCreate returned a non-null value when created with an invalid pthread value");
+
+  thread_def.pthread   = sample_task;
+  thread_def.tpriority = osPriorityError;
+  thread_def.instances = 1;
+  thread_def.stacksize = 1024;
+
+  // Check for invalid priority
+  thread_id = osThreadCreate (&thread_def, NULL);
+  CHECK_TEXT(thread_id == 0, "osThreadCreate returned a non-null value when created with an invalid priority");
+
+  thread_def.pthread   = sample_task;
+  thread_def.tpriority = osPriorityLow;
+  thread_def.instances = 0;
+  thread_def.stacksize = 1024;
+
+  // Check for invalid instance number
+  thread_id = osThreadCreate (&thread_def, NULL);
+  CHECK_TEXT(thread_id == 0, "osThreadCreate returned a non-null value when created with a 0 instance count");
+
+  thread_def.pthread   = sample_task;
+  thread_def.tpriority = osPriorityLow;
+  thread_def.instances = 1;
+  thread_def.stacksize = 0;
+
+  // Check for invalid stack size
+  thread_id = osThreadCreate (&thread_def, NULL);
+  CHECK_TEXT(thread_id == 0, "osThreadCreate returned a non-null value when created with an invalid stack size");
+
+  thread_def.pthread   = sample_task;
+  thread_def.tpriority = osPriorityLow;
+  thread_def.instances = 1;
+  thread_def.stacksize = 1024;
+
+  // Check for valid thread creation
+  thread_id = osThreadCreate (&thread_def, NULL);
+  CHECK_TEXT(thread_id != 0, "osThreadCreate returned null task id unexpectedly");
+
+  // Check for valid terminate
+  ret = osThreadTerminate (thread_id);
+  CHECK_TEXT(ret == osOK, "osThreadTerminate returned non osOK return value");
+
+  // Check for invalid terminate
+  ret = osThreadTerminate (thread_id);
+  CHECK_TEXT(ret == osErrorParameter, "osThreadTerminate osErrorParameter not returned when called on not-existent thread");
+
+}
+
 TEST(cmsis_os_unit, sanity_test) {
 
   rtems_id test_semaphore;

@@ -359,17 +359,14 @@ static rtems_task_priority convertTaskPriority(const osPriority priority) {
   rtems_task_priority ret;
   uint8_t task_priority_step_size = (PRIORITY_MAXIMUM - PRIORITY_MINIMUM) / (uint8_t) (NUM_CMSIS_TASK_PRIORITIES - 1);
 
-  //uint8_t task_priority_step_size = (PRIORITY_MAXIMUM - 128) / (uint8_t) (NUM_CMSIS_TASK_PRIORITIES - 1);
-
-
   // In RTEMS the higher the numerical value the lower the
   // priority.  RTEMS provide macros for highest and lowest
   // priority level.
   if(priority != osPriorityError) {
     ret = (rtems_task_priority) (PRIORITY_MAXIMUM - ((uint8_t) (priority - osPriorityIdle)* task_priority_step_size));
   } else {
-    stm32f_error_handler_with_reason("convertTaskPriority: Invalid task priority\n");
-    ret = PRIORITY_DEFAULT_MAXIMUM;
+    stm32f_error_handler_with_reason_conditional("convertTaskPriority: Invalid task priority\n", false);
+    ret = PRIORITY_DEFAULT_MAXIMUM + 1;
   }
 
   return ret;
@@ -382,30 +379,36 @@ osThreadId osThreadCreate (const osThreadDef_t *thread_def, void *argument) {
 
   rtems_status_code ret;
   rtems_task_priority task_priority = convertTaskPriority(thread_def->tpriority);
-  rtems_id new_task_id;
+  rtems_id new_task_id = 0;
 
-  // Create the rtems task.
-  ret = rtems_task_create(
-    rtems_build_name('C', 'T', 'K', cmsis_task_counter),
-    task_priority,
-    (size_t) thread_def->stacksize,
-    RTEMS_DEFAULT_MODES,
-    RTEMS_DEFAULT_ATTRIBUTES,
-    &new_task_id
-  );
+  if((thread_def->pthread != NULL) &&
+     (task_priority  <= PRIORITY_MAXIMUM) &&
+     (thread_def->instances > 0) &&
+     (thread_def->stacksize > 0)){
 
-  // Start the task if the create was successful
-  if(ret == RTEMS_SUCCESSFUL) {
-    cmsis_task_counter++;
+    // Create the rtems task.
+    ret = rtems_task_create(
+      rtems_build_name('C', 'T', 'K', cmsis_task_counter),
+      task_priority,
+      (size_t) thread_def->stacksize,
+      RTEMS_DEFAULT_MODES,
+      RTEMS_DEFAULT_ATTRIBUTES,
+      &new_task_id
+    );
 
-    ret = rtems_task_start(
-      new_task_id,
-      (rtems_task_entry) thread_def->pthread,
-      (rtems_task_argument) argument
-      );
+    // Start the task if the create was successful
+    if(ret == RTEMS_SUCCESSFUL) {
+      cmsis_task_counter++;
+
+      ret = rtems_task_start(
+        new_task_id,
+        (rtems_task_entry) thread_def->pthread,
+        (rtems_task_argument) argument
+        );
+    }
   }
 
-  return (osThreadId) ret;
+  return (osThreadId) new_task_id;
 }
 
 

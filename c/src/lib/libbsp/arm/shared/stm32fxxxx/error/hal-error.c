@@ -16,6 +16,8 @@
  * http://www.rtems.com/license/LICENSE.
  */
 
+#include <hal-error.h>
+
 void stm32f_error_handler( void )
 {
   while ( 1 ) {
@@ -25,6 +27,18 @@ void stm32f_error_handler( void )
 
 void stm32f_error_handler_with_reason( const char *error_text )
 {
+  stm32f_error_handler_with_reason_conditional(error_text, true);
+}
+
+
+void stm32f_error_handler_with_reason_conditional( const char *error_text,
+                                                   const bool stop_executing)
+{
+  printf("\n**** ");
   printf( error_text );
-  stm32f_error_handler();
+  printf("****\n");
+
+  if(stop_executing) {
+    stm32f_error_handler();
+  }
 }

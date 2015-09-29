@@ -146,14 +146,16 @@ void http_server_socket_thread(void *arg)
 void http_server_socket_init()
 {
 
+#if 0
  web_server_task.pthread   = http_server_socket_thread;
  web_server_task.tpriority = osPriorityNormal;
  web_server_task.instances = 1;
  web_server_task.stacksize = 10*1024;
 
  osThreadCreate (&web_server_task, NULL);
-
- //sys_thread_new("HTTP", http_server_socket_thread, NULL, 16*1024, WEBSERVER_THREAD_PRIO);
+#else
+ sys_thread_new("HTTP", http_server_socket_thread, NULL, 0, WEBSERVER_THREAD_PRIO);
+#endif
 }
 
 portCHAR* http_generate_platform_stats_page(void){
