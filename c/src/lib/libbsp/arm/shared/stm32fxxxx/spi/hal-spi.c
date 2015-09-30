@@ -211,45 +211,39 @@ static int stm32_spi_ioctl(
   switch ( ioctl_cmd ) {
     /* Two line half-duplex mode */
     case SPI_IOCTL_DIR_2LINE:
-      __HAL_SPI_DISABLE( &bus->handle );
-      bus->handle.Instance->CR1 &= ~( SPI_CR1_BIDIMODE );
-      __HAL_SPI_ENABLE( &bus->handle );
-      return 0;
+      HAL_SPI_DeInit( &bus->handle );
+      bus->handle.Init.Direction = SPI_DIRECTION_2LINES;
+      return ( HAL_SPI_Init( &bus->handle ) );
 
     /* bi-direction line full-duplex mode */
     case SPI_IOCTL_DIR_1LINE:
-      __HAL_SPI_DISABLE( &bus->handle );
+      HAL_SPI_DeInit( &bus->handle );
       bus->handle.Instance->CR1 |= SPI_CR1_BIDIMODE;
-      __HAL_SPI_ENABLE( &bus->handle );
-      return 0;
+      return( HAL_SPI_Init( &bus->handle ) );
 
     /* Configure SPI instance to Master mode */
     case SPI_IOCTL_MODE_MASTER:
-      __HAL_SPI_DISABLE( &bus->handle );
+      HAL_SPI_DeInit( &bus->handle );
       bus->handle.Instance->CR1 |= ( SPI_CR1_MSTR | SPI_CR1_SSI );
-      __HAL_SPI_ENABLE( &bus->handle );
-      return 0;
+      return( HAL_SPI_Init( &bus->handle ) );
 
     /* Configure SPI instance to Slave mode */
     case SPI_IOCTL_MODE_SLAVE:
-      __HAL_SPI_DISABLE( &bus->handle );
+      HAL_SPI_DeInit( &bus->handle );
       bus->handle.Instance->CR1 &= ~( SPI_CR1_MSTR | SPI_CR1_SSI );
-      __HAL_SPI_ENABLE( &bus->handle );
-      return 0;
+      return( HAL_SPI_Init( &bus->handle ) );
 
     /* Enable CRC Calculation */
     case SPI_IOCTL_ENABLE_CRC:
-      __HAL_SPI_DISABLE( &bus->handle );
+      HAL_SPI_DeInit( &bus->handle );
       bus->handle.Instance->CR1 |= SPI_CR1_CRCEN;
-      __HAL_SPI_ENABLE( &bus->handle );
-      return 0;
+      return( HAL_SPI_Init( &bus->handle ) );
 
     /* Disable CRC Calculation */
     case SPI_IOCTL_DISABLE_CRC:
-      __HAL_SPI_DISABLE( &bus->handle );
+      HAL_SPI_DeInit( &bus->handle );
       bus->handle.Instance->CR1 &= ~( SPI_CR1_CRCEN );
-      __HAL_SPI_ENABLE( &bus->handle );
-      return 0;
+      return( HAL_SPI_Init( &bus->handle ) );
 
     default:
 
@@ -438,9 +432,8 @@ static int stm32_spi_deinit_destroy( stm32_spi_bus *bus )
     stm32_spi_event_irq,
     bus );
   _Assert( sc == RTEMS_SUCCESSFUL );
-  (void) sc;
 
-  spi_bus_destroy_and_free( &bus->base );
+  //spi_bus_destroy_and_free( &bus->base );
 
   return ( HAL_SPI_DeInit( &bus->handle ) );
 }

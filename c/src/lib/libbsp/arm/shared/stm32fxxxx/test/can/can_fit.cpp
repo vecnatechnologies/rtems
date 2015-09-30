@@ -183,11 +183,11 @@ TEST_GROUP(hal_can_fit)
 
     // close all can buses
     for(i  = 0; i < num_can_buses; i++) {
-      close(can_buses[num_can_buses].handle);
-      can_buses[num_can_buses].handle = 0;
-      can_buses[num_can_buses].name[0] = '\0';
-      num_can_buses--;
+      close(can_buses[i].handle);
+      can_buses[i].handle = 0;
+      can_buses[i].name[0] = '\0';
     }
+    num_can_buses = 0;
   }
 };
 
