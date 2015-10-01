@@ -318,7 +318,7 @@ TEST(hal_spi_fit, spi_open_again) {
   for( count = 0; count < num_spi_buses; count++)
     {
       handle = open((char*)spi_buses[num_spi_buses].name, O_RDWR | O_APPEND);
-      CHECK_TEXT(handle != 0, "Error - Able to open() again. This return error");
+      CHECK_TEXT(handle != 0, "Error - Able to open() again. This should return error");
     }
 }
 
