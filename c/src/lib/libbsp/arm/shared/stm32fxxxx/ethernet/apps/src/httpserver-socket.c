@@ -36,23 +36,50 @@
 #include <httpserver-socket.h>
 #include <hal-ethernetif.h>
 #include <cmsis_os.h>
+#include <hal-utils.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 #define WEBSERVER_THREAD_PRIO    ( tskIDLE_PRIORITY + 4 )
+#define WEBSERVER_STACK_SIZE     (10 * 1024)
+#define WEBSERVER_RX_BUFFER_SIZE 1500
 
 u32_t nPageHits = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
-static   portCHAR PAGE_HEADER_DYNAMIC[512] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>Next Gen Control Platform Task List</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"0.5\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body><h1>List of NextGen Tasks</h1><a href=\"/\">Main Page</a><p>";
+static void http_server_socket_thread(void *arg);
+
+/**
+ * @brief generates an HTML page with platform diagnostic information
+ *
+ * @retval A pointer to string containing the entire HTML content for
+ *   a platform diagnostic page.
+ */
+static portCHAR* http_generate_platform_stats_page(void);
+
+/**
+ * @brief generates a HTML page with a generic main
+ *  page for the http server
+ *
+ * @retval A pointer to string containing the entire HTML content for
+ *   a main page
+ */
+static portCHAR* http_generate_main_page(void);
+
+/**
+ * @brief generates an HTML page with a generic 404 error
+ *
+ * @retval A pointer to string containing the entire HTML content for
+ *   the 404 error page
+ */
+static portCHAR* http_generate_error_page(void);
+
+/* Private Data ---------------------------------------------------------*/
 static   portCHAR DYNAMIC_PAGE_CONTENT[10*1024];
-static   portCHAR main_page[4096] = "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title>Next Gen Main Page</title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">Vecna NextGen Platform Web Server</font></h1><p><a href=\"/list_of_tasks.html\">List of tasks</a></body></html>";
-static   portCHAR error_page[4096] = "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title></title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">404: Requested page does not exist</font></h1><p><br><br></p><a href=\"/\">Main page</a></body></html>";
-static   portCHAR test_page[4096] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>NextGen Test Page</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"0.5\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body>kasdfjoaswejfw9e=wfkdfjlsdfjawefwkfjasldkfjlsadkfjalskdfjaskdfj;akdfalskdjfaskdfjalsdfwoejfwoeifjdkfwoeifjwoeifjawefowiefjoweifjaoweifjwoiefjwoefjksldfjalskdfhellowworldasdfasdfsdfasdf</body></html>";
-
-
-static osThreadDef_t web_server_task;
+static   portCHAR PAGE_HEADER_DYNAMIC[512] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>Next Gen Control Platform Task List</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"0.5\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body><h1>List of NextGen Tasks</h1><a href=\"/\">Main Page</a><p>";
+static   portCHAR main_page[4096] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title>Next Gen Main Page</title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">Vecna NextGen Platform Web Server</font></h1><p><a href=\"/list_of_tasks.html\">List of tasks</a></body></html>";
+static   portCHAR error_page[4096] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title></title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">404: Requested page does not exist</font></h1><p><br><br></p><a href=\"/\">Main page</a></body></html>";
+static   osThreadDef_t web_server_task;
 
 
 __attribute__ ((weak)) bool http_server_server_app_specific(char* recv_buffer, portCHAR** output_buffer)
@@ -63,22 +90,33 @@ __attribute__ ((weak)) bool http_server_server_app_specific(char* recv_buffer, p
 }
 
 /**
+  * @brief  Initialize the HTTP server (start its thread)
+  * @param  none
+  * @retval None
+  */
+void http_server_socket_init()
+{
+ web_server_task.pthread   = http_server_socket_thread;
+ web_server_task.tpriority = osPriorityNormal;
+ web_server_task.instances = 1;
+ web_server_task.stacksize = WEBSERVER_STACK_SIZE;
+
+ osThreadCreate (&web_server_task, NULL);
+}
+
+/**
   * @brief serve tcp connection  
   * @param conn: connection sockestm32f_ethernet_get_num_rx_msgt
   * @retval None
   */
 __attribute__ ((weak))  void http_server_serve(int conn)
 {
-  int buflen = 1500;
   int ret;
-  char recv_buffer[1500];
+  char recv_buffer[WEBSERVER_RX_BUFFER_SIZE];
   portCHAR* pageContent;
-  int bytes_written;
-  int expected_num_bytes;
-  static uint32_t error_counter = 0;
 				
   // Read in the request
-  ret = read(conn, recv_buffer, buflen);
+  ret = read(conn, recv_buffer, COUNTOF(recv_buffer));
 
   if(ret < 0) return;
 
@@ -97,28 +135,26 @@ __attribute__ ((weak))  void http_server_serve(int conn)
     pageContent = http_generate_error_page();
   }
 
-  expected_num_bytes = strlen(pageContent);
-  bytes_written = write(conn, pageContent, expected_num_bytes);
-
-  if(expected_num_bytes != bytes_written) {
-    error_counter++;
-  }
+  // write page content to socket
+  write(conn, pageContent, strlen(pageContent));
 
   // close connection socket
   close(conn);
 }
 
+
+/* Private Functions ---------------------------------------------------------*/
 /**
   * @brief  http server thread 
   * @param arg: pointer on argument(not used here) 
   * @retval None
   */
-void http_server_socket_thread(void *arg)
+static void http_server_socket_thread(void *arg)
 {
   int sock, newconn, size;
   struct sockaddr_in address, remotehost;
 
- /* create a TCP socket */
+  /* create a TCP socket */
   if ((sock = socket(AF_INET, SOCK_STREAM, 0 )) < 0)
   {
     return;
@@ -146,93 +182,35 @@ void http_server_socket_thread(void *arg)
   }
 }
 
-/**
-  * @brief  Initialize the HTTP server (start its thread) 
-  * @param  none
-  * @retval None
-  */
-void http_server_socket_init()
-{
 
-#if 0
- web_server_task.pthread   = http_server_socket_thread;
- web_server_task.tpriority = osPriorityNormal;
- web_server_task.instances = 1;
- web_server_task.stacksize = 10*1024;
-
- osThreadCreate (&web_server_task, NULL);
-#else
- sys_thread_new("HTTP", http_server_socket_thread, NULL, 0, WEBSERVER_THREAD_PRIO);
-#endif
-}
-
-portCHAR* http_generate_platform_stats_page(void){
-  portCHAR dynamic_text[64] = {0};
+static portCHAR* http_generate_platform_stats_page(void){
+  portCHAR dynamic_text[128] = {0};
   portCHAR headerRow[128];
   memset(DYNAMIC_PAGE_CONTENT, 0, sizeof(DYNAMIC_PAGE_CONTENT));
 
-#if 0
   /* Update the hit count */
   nPageHits++;
-  strcat(DYNAMIC_PAGE_CONTENT, PAGE_HEADER_DYNAMIC);
-  sprintf(dynamic_text, "Page refresh count %d", (int)nPageHits);
-  strcat(DYNAMIC_PAGE_CONTENT, dynamic_text);
-  sprintf(dynamic_text, "<p>Number of Ethernet Packets (RX: %lu, TX %lu, TX DMA buffer err: %lu)", stm32f_ethernet_get_num_rx_msg(), stm32f_ethernet_get_num_tx_msg(), stm32f_ethernet_get_num_tx_dma_buffer_unavailable());
-  strcat(DYNAMIC_PAGE_CONTENT, dynamic_text);
+  strncat(DYNAMIC_PAGE_CONTENT, PAGE_HEADER_DYNAMIC, sizeof(DYNAMIC_PAGE_CONTENT) - strlen(DYNAMIC_PAGE_CONTENT));
+  snprintf(dynamic_text, sizeof(dynamic_text), "Page refresh count %d", (int)nPageHits);
+  strncat(DYNAMIC_PAGE_CONTENT, dynamic_text, sizeof(DYNAMIC_PAGE_CONTENT) - strlen(DYNAMIC_PAGE_CONTENT));
+  snprintf(dynamic_text, sizeof(dynamic_text), "<p>Number of Ethernet Packets (RX: %lu, TX %lu, TX DMA buffer err: %lu)", stm32f_ethernet_get_num_rx_msg(), stm32f_ethernet_get_num_tx_msg(), stm32f_ethernet_get_num_tx_dma_buffer_unavailable());
+  strncat(DYNAMIC_PAGE_CONTENT, dynamic_text, sizeof(DYNAMIC_PAGE_CONTENT) - strlen(DYNAMIC_PAGE_CONTENT));
   snprintf(headerRow, sizeof(headerRow), "<pre><br>%4s\t%16s\t%8s\t%10s\t%8s", "Name", "Task State", "Stk Addr", "Stk Sz", "rtems_id");
-  strcat((char *)DYNAMIC_PAGE_CONTENT, headerRow);
-  strcat((char *)DYNAMIC_PAGE_CONTENT, "<br>------------------------------------------------------------------------------<br>");
+  strncat((char *)DYNAMIC_PAGE_CONTENT, headerRow, sizeof(DYNAMIC_PAGE_CONTENT) - strlen(DYNAMIC_PAGE_CONTENT));
+  strncat((char *)DYNAMIC_PAGE_CONTENT, "<br>------------------------------------------------------------------------------<br>", sizeof(DYNAMIC_PAGE_CONTENT) - strlen(DYNAMIC_PAGE_CONTENT));
 
   /* The list of tasks and their status */
   osThreadList((unsigned char *)(DYNAMIC_PAGE_CONTENT + strlen(DYNAMIC_PAGE_CONTENT)));
-  strcat((char *)DYNAMIC_PAGE_CONTENT, "<br>--------------------------------------------------------------------------</body></html>");
+  strncat((char *)DYNAMIC_PAGE_CONTENT, "<br>--------------------------------------------------------------------------</pre></body></html>", sizeof(DYNAMIC_PAGE_CONTENT) - strlen(DYNAMIC_PAGE_CONTENT));
 
-  sprintf(dynamic_text, "Page size %d", strlen(DYNAMIC_PAGE_CONTENT));
-  strcat((char *)DYNAMIC_PAGE_CONTENT, dynamic_text);
-
-  #else
-  int num_bytes_left = sizeof(DYNAMIC_PAGE_CONTENT);
-  char* pBuf;
-  int length;
-
-  length = strlen(PAGE_HEADER_DYNAMIC);
-  strncpy(DYNAMIC_PAGE_CONTENT, PAGE_HEADER_DYNAMIC, sizeof(DYNAMIC_PAGE_CONTENT));
-  num_bytes_left -= length;
-  pBuf = (char*) &(DYNAMIC_PAGE_CONTENT[length]);
-
-  while(num_bytes_left > 32) {
-    *pBuf = '0' + (num_bytes_left % 10);
-    pBuf++;
-
-    if(num_bytes_left % 100 == 0) {
-      *pBuf = '<';
-      pBuf++;
-
-      *pBuf = 'P';
-      pBuf++;
-
-      *pBuf = '>';
-      pBuf++;
-
-      num_bytes_left -= 3;
-    }
-
-    num_bytes_left--;
-  }
-  pBuf = '\0';
-#endif
   return (portCHAR*) DYNAMIC_PAGE_CONTENT;
 }
 
-portCHAR* http_generate_main_page(void){
+static portCHAR* http_generate_main_page(void){
   return (portCHAR*) main_page;
 }
 
-portCHAR* http_generate_test_page(void){
-  return (portCHAR*) test_page;
-}
-
-portCHAR* http_generate_error_page(void){
+static portCHAR* http_generate_error_page(void){
   return (portCHAR*) error_page;
 }
 

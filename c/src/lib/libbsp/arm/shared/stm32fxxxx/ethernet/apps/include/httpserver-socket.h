@@ -50,32 +50,6 @@ void http_server_socket_init(void);
   */
 void http_server_serve(int conn);
 
-/**
- * @brief generates an HTML page with platform diagnostic information
- *
- * @retval A pointer to string containing the entire HTML content for
- *   a platform diagnostic page.
- */
-portCHAR* http_generate_platform_stats_page(void);
-
-/**
- * @brief generates a HTML page with a generic main
- *  page for the http server
- *
- * @retval A pointer to string containing the entire HTML content for
- *   a main page
- */
-portCHAR* http_generate_main_page(void);
-
-/**
- * @brief generates an HTML page with a generic 404 error
- *
- * @retval A pointer to string containing the entire HTML content for
- *   the 404 error page
- */
-portCHAR* http_generate_error_page(void);
-
-
 #endif /* __HTTPSERVER_SOCKET_H__ */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
