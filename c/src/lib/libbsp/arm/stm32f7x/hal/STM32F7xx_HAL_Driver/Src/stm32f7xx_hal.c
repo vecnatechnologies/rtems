@@ -314,6 +314,7 @@ __weak uint32_t HAL_GetTick(void)
   * @param Delay: specifies the delay time length, in milliseconds.
   * @retval None
   */
+/*
 __weak void HAL_Delay(__IO uint32_t Delay)
 {
   uint32_t tickstart = 0;
@@ -322,7 +323,7 @@ __weak void HAL_Delay(__IO uint32_t Delay)
   {
   }
 }
-
+*/
 /**
   * @brief Suspend Tick increment.
   * @note In the default implementation , SysTick timer is the source of time base. It is

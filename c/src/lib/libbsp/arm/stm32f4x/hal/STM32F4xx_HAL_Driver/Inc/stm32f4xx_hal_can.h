@@ -48,6 +48,7 @@
 	defined(STM32F446xx) || defined(STM32F469xx) || defined(STM32F479xx) 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal_def.h"
+#include <rtems.h>
 
 /** @addtogroup STM32F4xx_HAL_Driver
   * @{
@@ -234,6 +235,8 @@ typedef struct
   __IO HAL_CAN_StateTypeDef   State;      /*!< CAN communication state        */
 
   HAL_LockTypeDef             Lock;       /*!< CAN locking object             */
+
+  rtems_id                    lock;
 
   __IO uint32_t               ErrorCode;  /*!< CAN Error code                 */
 

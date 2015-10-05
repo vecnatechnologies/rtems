@@ -101,6 +101,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
+#include <rtems.h>
 
 /** @addtogroup STM32F4xx_HAL_Driver
   * @{
@@ -123,6 +124,15 @@
   * @{
   */
 #define CAN_TIMEOUT_VALUE  10
+
+
+
+#define CAN_LOCK(__HANDLE__) do { \
+                            rtems_semaphore_obtain((__HANDLE__)->lock, \
+                                                  RTEMS_NO_WAIT,      \
+                                                  RTEMS_NO_TIMEOUT);   \
+                            } while (0)
+#define CAN_UNLOCK(__HANDLE__) rtems_semaphore_release((__HANDLE__)->lock)
 /**
   * @}
   */
@@ -194,7 +204,12 @@ HAL_StatusTypeDef HAL_CAN_Init(CAN_HandleTypeDef* hcan)
   if(hcan->State == HAL_CAN_STATE_RESET)
   {    
     /* Allocate lock resource and initialize it */
-    hcan->Lock = HAL_UNLOCKED;
+    rtems_semaphore_create(
+            rtems_build_name('C', 's', 'e', 'm'),
+            1,
+            RTEMS_BINARY_SEMAPHORE,
+            50,
+            hcan->lock);
     /* Init the low level hardware */
     HAL_CAN_MspInit(hcan);
   }
@@ -207,7 +222,7 @@ HAL_StatusTypeDef HAL_CAN_Init(CAN_HandleTypeDef* hcan)
 
   /* Request initialisation */
   hcan->Instance->MCR |= CAN_MCR_INRQ ;
-  
+
   /* Get tick */
   tickstart = HAL_GetTick();
 
@@ -218,7 +233,7 @@ HAL_StatusTypeDef HAL_CAN_Init(CAN_HandleTypeDef* hcan)
     {
       hcan->State= HAL_CAN_STATE_TIMEOUT;
       /* Process unlocked */
-      __HAL_UNLOCK(hcan);
+      CAN_UNLOCK(hcan);
       return HAL_TIMEOUT;
     }
   }
@@ -310,7 +325,7 @@ HAL_StatusTypeDef HAL_CAN_Init(CAN_HandleTypeDef* hcan)
      {
        hcan->State= HAL_CAN_STATE_TIMEOUT;
        /* Process unlocked */
-       __HAL_UNLOCK(hcan);
+       CAN_UNLOCK(hcan);
        return HAL_TIMEOUT;
      }
    }
@@ -478,7 +493,7 @@ HAL_StatusTypeDef HAL_CAN_DeInit(CAN_HandleTypeDef* hcan)
   hcan->State = HAL_CAN_STATE_RESET;
 
   /* Release Lock */
-  __HAL_UNLOCK(hcan);
+  CAN_UNLOCK(hcan);
 
   /* Return function status */
   return HAL_OK;
@@ -549,7 +564,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit(CAN_HandleTypeDef* hcan, uint32_t Timeout)
   assert_param(IS_CAN_DLC(hcan->pTxMsg->DLC));
   
   /* Process locked */
-  __HAL_LOCK(hcan);
+  CAN_LOCK(hcan);
   
   if(hcan->State == HAL_CAN_STATE_BUSY_RX) 
   {
@@ -628,7 +643,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit(CAN_HandleTypeDef* hcan, uint32_t Timeout)
        {
          hcan->State = HAL_CAN_STATE_TIMEOUT;
          /* Process unlocked */
-         __HAL_UNLOCK(hcan);
+         CAN_UNLOCK(hcan);
          return HAL_TIMEOUT;
         }
       }
@@ -639,7 +654,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit(CAN_HandleTypeDef* hcan, uint32_t Timeout)
       hcan->State = HAL_CAN_STATE_BUSY_RX;
       
       /* Process unlocked */
-      __HAL_UNLOCK(hcan);
+      CAN_UNLOCK(hcan);
     }
     else
     {
@@ -647,7 +662,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit(CAN_HandleTypeDef* hcan, uint32_t Timeout)
       hcan->State = HAL_CAN_STATE_READY;
       
       /* Process unlocked */
-      __HAL_UNLOCK(hcan);
+      CAN_UNLOCK(hcan);
     }
     
     /* Return function status */
@@ -659,7 +674,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit(CAN_HandleTypeDef* hcan, uint32_t Timeout)
     hcan->State = HAL_CAN_STATE_ERROR; 
 
     /* Process unlocked */
-    __HAL_UNLOCK(hcan);
+    CAN_UNLOCK(hcan);
 
     /* Return function status */
     return HAL_ERROR;
@@ -686,7 +701,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit_IT(CAN_HandleTypeDef* hcan)
   if((tmp == HAL_CAN_STATE_READY) || (tmp == HAL_CAN_STATE_BUSY_RX))
   {
     /* Process Locked */
-    __HAL_LOCK(hcan);
+    CAN_LOCK(hcan);
     
     /* Select one empty transmit mailbox */
     if((hcan->Instance->TSR&CAN_TSR_TME0) == CAN_TSR_TME0)
@@ -754,7 +769,7 @@ HAL_StatusTypeDef HAL_CAN_Transmit_IT(CAN_HandleTypeDef* hcan)
       hcan->ErrorCode = HAL_CAN_ERROR_NONE;
       
       /* Process Unlocked */
-      __HAL_UNLOCK(hcan);
+      CAN_UNLOCK(hcan);
       
       /* Enable Error warning Interrupt */
       __HAL_CAN_ENABLE_IT(hcan, CAN_IT_EWG);
@@ -802,7 +817,7 @@ HAL_StatusTypeDef HAL_CAN_Receive(CAN_HandleTypeDef* hcan, uint8_t FIFONumber, u
   assert_param(IS_CAN_FIFO(FIFONumber));
   
   /* Process locked */
-  __HAL_LOCK(hcan);
+  CAN_LOCK(hcan);
   
   if(hcan->State == HAL_CAN_STATE_BUSY_TX) 
   {
@@ -828,7 +843,7 @@ HAL_StatusTypeDef HAL_CAN_Receive(CAN_HandleTypeDef* hcan, uint8_t FIFONumber, u
       {
         hcan->State = HAL_CAN_STATE_TIMEOUT;
         /* Process unlocked */
-        __HAL_UNLOCK(hcan);
+        CAN_UNLOCK(hcan);
         return HAL_TIMEOUT;
       }
     }
@@ -878,7 +893,7 @@ HAL_StatusTypeDef HAL_CAN_Receive(CAN_HandleTypeDef* hcan, uint8_t FIFONumber, u
     hcan->State = HAL_CAN_STATE_BUSY_TX;
     
     /* Process unlocked */
-    __HAL_UNLOCK(hcan);
+    CAN_UNLOCK(hcan);
   }
   else
   {
@@ -886,7 +901,7 @@ HAL_StatusTypeDef HAL_CAN_Receive(CAN_HandleTypeDef* hcan, uint8_t FIFONumber, u
     hcan->State = HAL_CAN_STATE_READY;
     
     /* Process unlocked */
-    __HAL_UNLOCK(hcan);
+    CAN_UNLOCK(hcan);
   }
   
   /* Return function status */
@@ -911,7 +926,7 @@ HAL_StatusTypeDef HAL_CAN_Receive_IT(CAN_HandleTypeDef* hcan, uint8_t FIFONumber
   if((tmp == HAL_CAN_STATE_READY) || (tmp == HAL_CAN_STATE_BUSY_TX))
   {
     /* Process locked */
-    __HAL_LOCK(hcan);
+    CAN_LOCK(hcan);
   
     if(hcan->State == HAL_CAN_STATE_BUSY_TX) 
     {
@@ -943,7 +958,7 @@ HAL_StatusTypeDef HAL_CAN_Receive_IT(CAN_HandleTypeDef* hcan, uint8_t FIFONumber
     __HAL_CAN_ENABLE_IT(hcan, CAN_IT_ERR);
 
     /* Process unlocked */
-    __HAL_UNLOCK(hcan);
+    CAN_UNLOCK(hcan);
 
     if(FIFONumber == CAN_FIFO0)
     {
@@ -977,7 +992,7 @@ HAL_StatusTypeDef HAL_CAN_Sleep(CAN_HandleTypeDef* hcan)
   uint32_t tickstart = 0;
    
   /* Process locked */
-  __HAL_LOCK(hcan);
+  CAN_LOCK(hcan);
   
   /* Change CAN state */
   hcan->State = HAL_CAN_STATE_BUSY; 
@@ -989,7 +1004,7 @@ HAL_StatusTypeDef HAL_CAN_Sleep(CAN_HandleTypeDef* hcan)
   if ((hcan->Instance->MSR & (CAN_MSR_SLAK|CAN_MSR_INAK)) != CAN_MSR_SLAK)
   {
     /* Process unlocked */
-    __HAL_UNLOCK(hcan);
+    CAN_UNLOCK(hcan);
 
     /* Return function status */
     return HAL_ERROR;
@@ -1005,7 +1020,7 @@ HAL_StatusTypeDef HAL_CAN_Sleep(CAN_HandleTypeDef* hcan)
     {
       hcan->State = HAL_CAN_STATE_TIMEOUT;
       /* Process unlocked */
-      __HAL_UNLOCK(hcan);
+      CAN_UNLOCK(hcan);
       return HAL_TIMEOUT;
     }
   }
@@ -1014,7 +1029,7 @@ HAL_StatusTypeDef HAL_CAN_Sleep(CAN_HandleTypeDef* hcan)
   hcan->State = HAL_CAN_STATE_READY;
   
   /* Process unlocked */
-  __HAL_UNLOCK(hcan);
+  CAN_UNLOCK(hcan);
   
   /* Return function status */
   return HAL_OK;
@@ -1032,7 +1047,7 @@ HAL_StatusTypeDef HAL_CAN_WakeUp(CAN_HandleTypeDef* hcan)
   uint32_t tickstart = 0;
     
   /* Process locked */
-  __HAL_LOCK(hcan);
+  CAN_LOCK(hcan);
   
   /* Change CAN state */
   hcan->State = HAL_CAN_STATE_BUSY;  
@@ -1050,14 +1065,14 @@ HAL_StatusTypeDef HAL_CAN_WakeUp(CAN_HandleTypeDef* hcan)
     {
       hcan->State= HAL_CAN_STATE_TIMEOUT;
       /* Process unlocked */
-      __HAL_UNLOCK(hcan);
+      CAN_UNLOCK(hcan);
       return HAL_TIMEOUT;
     }
   }
   if((hcan->Instance->MSR & CAN_MSR_SLAK) == CAN_MSR_SLAK)
   {
     /* Process unlocked */
-    __HAL_UNLOCK(hcan);
+    CAN_UNLOCK(hcan);
  
     /* Return function status */
     return HAL_ERROR;
@@ -1067,7 +1082,7 @@ HAL_StatusTypeDef HAL_CAN_WakeUp(CAN_HandleTypeDef* hcan)
   hcan->State = HAL_CAN_STATE_READY; 
   
   /* Process unlocked */
-  __HAL_UNLOCK(hcan);
+  CAN_UNLOCK(hcan);
   
   /* Return function status */
   return HAL_OK;
