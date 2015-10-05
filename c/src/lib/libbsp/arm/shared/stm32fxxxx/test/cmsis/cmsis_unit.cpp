@@ -46,17 +46,16 @@ TEST(cmsis_os_unit, osSemaphoreRelease) {
   CHECK_TEXT(s_xSemaphore != 0, "osSemaphore returned an invalid value (0)");
 
   // This wait should timeout since semaphore was created with an initial value of 0
-  ret = osSemaphoreWait(s_xSemaphore, 100);
-  CHECK_TEXT(ret != osOK, "osSemaphoreWait did not wait as expected");
+  ret = osSemaphoreWait(s_xSemaphore, 1);
+  CHECK_TEXT(ret == osEventTimeout, "osSemaphoreWait did not wait as expected");
 
   // Release semaphore
   ret = osSemaphoreRelease(s_xSemaphore);
   CHECK_TEXT(ret == osOK, "osSemaphoreRelease did not return osOK as expected");
 
   // Now check that semaphore is avaiable as expected
-  ret = osSemaphoreWait(s_xSemaphore, 100);
+  ret = osSemaphoreWait(s_xSemaphore, 1);
   CHECK_TEXT(ret == osOK, "osSemaphoreWait did return immediately as expected");
-
 }
 
 TEST(cmsis_os_unit, osSemaphoreWait) {
@@ -68,8 +67,8 @@ TEST(cmsis_os_unit, osSemaphoreWait) {
   CHECK_TEXT(s_xSemaphore != 0, "osSemaphore returned an invalid value (0)");
 
   // This wait should timeout since semaphore was created with an initial value of 0
-  int ret = osSemaphoreWait(s_xSemaphore, 100);
-  CHECK_TEXT(ret != osOK, "osSemaphoreWait did not wait as expected");
+  int ret = osSemaphoreWait(s_xSemaphore, 1);
+  CHECK_TEXT(ret == osEventTimeout, "osSemaphoreWait did not wait as expected");
 }
 
 TEST(cmsis_os_unit, osSemaphoreCreate) {
@@ -162,12 +161,11 @@ TEST(cmsis_os_unit, sanity_test) {
   CHECK_TEXT(ret == RTEMS_SUCCESSFUL, "rtems_semaphore_create did not return RTEMS_SUCCESS");
   CHECK_TEXT(test_semaphore != 0, "rtems_semaphore_create did not return valid value");
 
-  ret = rtems_semaphore_obtain(test_semaphore, RTEMS_WAIT, 1000);
+  ret = rtems_semaphore_obtain(test_semaphore, RTEMS_WAIT, 1);
   CHECK_TEXT(ret == RTEMS_SUCCESSFUL, "rtems_semaphore_obtain did not work as expected");
 
-  ret = rtems_semaphore_obtain(test_semaphore, RTEMS_WAIT, 100);
+  ret = rtems_semaphore_obtain(test_semaphore, RTEMS_WAIT, 1);
   CHECK_TEXT(ret != RTEMS_SUCCESSFUL, "rtems_semaphore_obtain did not work as expected");
-
 }
 
 

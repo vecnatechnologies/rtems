@@ -235,11 +235,14 @@ static osStatus rtemsConvertReturnCode(
     ret = osErrorParameter;
     break;
 
+  case RTEMS_TIMEOUT:
+    ret = osEventTimeout;
+    break;
+
   case RTEMS_TASK_EXITTED:
   case RTEMS_MP_NOT_CONFIGURED:
   case RTEMS_INVALID_NAME:
   case RTEMS_TOO_MANY:
-  case RTEMS_TIMEOUT:
   case RTEMS_OBJECT_WAS_DELETED:
   case RTEMS_INVALID_SIZE:
   case RTEMS_INVALID_ADDRESS:
@@ -814,13 +817,7 @@ int32_t osSemaphoreWait (osSemaphoreId semaphore_id, uint32_t millisec) {
   rtems_interval ticks_per_millisec = rtems_clock_get_ticks_per_second() / 1000UL;
 
   // wait for specified semaphore for the maximum amount of time
-  ret = rtems_semaphore_obtain ((rtems_id) semaphore_id, RTEMS_WAIT, (ticks_per_millisec * millisec));
-
-  if(ret == RTEMS_SUCCESSFUL) {
-    return osOK;
-  } else {
-    return -1;
-  }
+  return rtemsConvertReturnCode(rtems_semaphore_obtain ((rtems_id) semaphore_id, RTEMS_WAIT, (ticks_per_millisec * millisec)));
 }
 
 /// Release a Semaphore

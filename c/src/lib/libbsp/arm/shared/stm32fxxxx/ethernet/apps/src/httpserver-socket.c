@@ -45,11 +45,11 @@ u32_t nPageHits = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
-static   portCHAR PAGE_HEADER_DYNAMIC[512] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>Next Gen Control Platform Task List</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"1\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body><h1>List of NextGen Tasks</h1><a href=\"/\">Main Page</a><p>";
-static   portCHAR DYNAMIC_PAGE_CONTENT[2048];
+static   portCHAR PAGE_HEADER_DYNAMIC[512] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>Next Gen Control Platform Task List</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"0.5\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body><h1>List of NextGen Tasks</h1><a href=\"/\">Main Page</a><p>";
+static   portCHAR DYNAMIC_PAGE_CONTENT[10*1024];
 static   portCHAR main_page[4096] = "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title>Next Gen Main Page</title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">Vecna NextGen Platform Web Server</font></h1><p><a href=\"/list_of_tasks.html\">List of tasks</a></body></html>";
 static   portCHAR error_page[4096] = "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title></title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">404: Requested page does not exist</font></h1><p><br><br></p><a href=\"/\">Main page</a></body></html>";
-
+static   portCHAR test_page[4096] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>NextGen Test Page</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"0.5\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body>kasdfjoaswejfw9e=wfkdfjlsdfjawefwkfjasldkfjlsadkfjalskdfjaskdfj;akdfalskdjfaskdfjalsdfwoejfwoeifjdkfwoeifjwoeifjawefowiefjoweifjaoweifjwoiefjwoefjksldfjalskdfhellowworldasdfasdfsdfasdf</body></html>";
 
 
 static osThreadDef_t web_server_task;
@@ -73,6 +73,9 @@ __attribute__ ((weak))  void http_server_serve(int conn)
   int ret;
   char recv_buffer[1500];
   portCHAR* pageContent;
+  int bytes_written;
+  int expected_num_bytes;
+  static uint32_t error_counter = 0;
 				
   // Read in the request
   ret = read(conn, recv_buffer, buflen);
@@ -94,7 +97,12 @@ __attribute__ ((weak))  void http_server_serve(int conn)
     pageContent = http_generate_error_page();
   }
 
-  write(conn, pageContent, strlen(pageContent));
+  expected_num_bytes = strlen(pageContent);
+  bytes_written = write(conn, pageContent, expected_num_bytes);
+
+  if(expected_num_bytes != bytes_written) {
+    error_counter++;
+  }
 
   // close connection socket
   close(conn);
@@ -163,6 +171,7 @@ portCHAR* http_generate_platform_stats_page(void){
   portCHAR headerRow[128];
   memset(DYNAMIC_PAGE_CONTENT, 0, sizeof(DYNAMIC_PAGE_CONTENT));
 
+#if 0
   /* Update the hit count */
   nPageHits++;
   strcat(DYNAMIC_PAGE_CONTENT, PAGE_HEADER_DYNAMIC);
@@ -176,8 +185,42 @@ portCHAR* http_generate_platform_stats_page(void){
 
   /* The list of tasks and their status */
   osThreadList((unsigned char *)(DYNAMIC_PAGE_CONTENT + strlen(DYNAMIC_PAGE_CONTENT)));
-  strcat((char *)DYNAMIC_PAGE_CONTENT, "<br>--------------------------------------------------------------------------");
+  strcat((char *)DYNAMIC_PAGE_CONTENT, "<br>--------------------------------------------------------------------------</body></html>");
 
+  sprintf(dynamic_text, "Page size %d", strlen(DYNAMIC_PAGE_CONTENT));
+  strcat((char *)DYNAMIC_PAGE_CONTENT, dynamic_text);
+
+  #else
+  int num_bytes_left = sizeof(DYNAMIC_PAGE_CONTENT);
+  char* pBuf;
+  int length;
+
+  length = strlen(PAGE_HEADER_DYNAMIC);
+  strncpy(DYNAMIC_PAGE_CONTENT, PAGE_HEADER_DYNAMIC, sizeof(DYNAMIC_PAGE_CONTENT));
+  num_bytes_left -= length;
+  pBuf = (char*) &(DYNAMIC_PAGE_CONTENT[length]);
+
+  while(num_bytes_left > 32) {
+    *pBuf = '0' + (num_bytes_left % 10);
+    pBuf++;
+
+    if(num_bytes_left % 100 == 0) {
+      *pBuf = '<';
+      pBuf++;
+
+      *pBuf = 'P';
+      pBuf++;
+
+      *pBuf = '>';
+      pBuf++;
+
+      num_bytes_left -= 3;
+    }
+
+    num_bytes_left--;
+  }
+  pBuf = '\0';
+#endif
   return (portCHAR*) DYNAMIC_PAGE_CONTENT;
 }
 
@@ -185,10 +228,12 @@ portCHAR* http_generate_main_page(void){
   return (portCHAR*) main_page;
 }
 
+portCHAR* http_generate_test_page(void){
+  return (portCHAR*) test_page;
+}
+
 portCHAR* http_generate_error_page(void){
   return (portCHAR*) error_page;
 }
-
-
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
