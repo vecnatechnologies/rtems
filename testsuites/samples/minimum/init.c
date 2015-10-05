@@ -45,7 +45,7 @@ rtems_task Init(
 /*
  *  This application has no filesytem and libio support.
  */
-#define CONFIGURE_APPLICATION_DISABLE_FILESYSTEM
+//#define CONFIGURE_APPLICATION_DISABLE_FILESYSTEM
 
 /*
  *  This disables reentrancy support in the C Library.  It is usually

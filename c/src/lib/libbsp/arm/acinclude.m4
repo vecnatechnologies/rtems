@@ -40,6 +40,10 @@ AC_DEFUN([RTEMS_CHECK_BSPDIR],
     AC_CONFIG_SUBDIRS([smdk2410]);;
   stm32f4 )
     AC_CONFIG_SUBDIRS([stm32f4]);;
+  stm32f4x )
+    AC_CONFIG_SUBDIRS([stm32f4x]);;
+  stm32f7x )
+    AC_CONFIG_SUBDIRS([stm32f7x]);;
   tms570 )
     AC_CONFIG_SUBDIRS([tms570]);;
   xilinx-zynq )

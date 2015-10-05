@@ -171,7 +171,7 @@
 
 #define CPU_PROVIDES_ISR_IS_IN_PROGRESS FALSE
 
-#define CPU_STACK_MINIMUM_SIZE (1024 * 4)
+#define CPU_STACK_MINIMUM_SIZE (1024 * 2)
 
 /* AAPCS, section 4.1, Fundamental Data Types */
 #define CPU_SIZEOF_POINTER 4
