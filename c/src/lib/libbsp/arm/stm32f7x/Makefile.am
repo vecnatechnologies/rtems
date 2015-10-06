@@ -40,6 +40,7 @@ include_bsp_HEADERS += ../../shared/include/utility.h
 include_bsp_HEADERS += ../../shared/include/irq-generic.h
 include_bsp_HEADERS += ../../shared/include/irq-info.h
 include_bsp_HEADERS += ../../shared/include/stackalloc.h
+include_bsp_HEADERS += ../../shared/include/gpio.h
 include_bsp_HEADERS += ../shared/include/start.h
 include_bsp_HEADERS += ../shared/armv7m/include/armv7m-irq.h
 include_bsp_HEADERS += include/irq.h
@@ -130,6 +131,7 @@ include_bsp_HEADERS += hal/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-spi.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-gpio.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-fatal-error-handler.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
@@ -162,6 +164,7 @@ libbsp_a_SOURCES += ../../shared/cpucounterdiff.c
 libbsp_a_SOURCES += ../../shared/gnatinstallhandler.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
 libbsp_a_SOURCES += ../../shared/src/stackalloc.c
+libbsp_a_SOURCES += ../../shared/gpio.c
 
 # Startup
 libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
@@ -181,6 +184,9 @@ libbsp_a_SOURCES += i2c/hal-i2c-init.c
 
 #SPI
 libbsp_a_SOURCES += ../shared/stm32fxxxx/spi/hal-spi.c
+
+#GPIO
+libbsp_a_SOURCES += ../shared/stm32fxxxx/gpio/hal-gpio.c
 
 # Util
 libbsp_a_SOURCES += ../shared/stm32fxxxx/util/hal-utils.c

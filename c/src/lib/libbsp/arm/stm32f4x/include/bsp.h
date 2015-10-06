@@ -39,6 +39,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/* GPIO pin config */
+#define BSP_GPIO_PIN_COUNT 144
+#define BSP_GPIO_PINS_PER_BANK 16
+
 #define BSP_FEATURE_IRQ_EXTENSION
 
 #define BSP_ARMV7M_IRQ_PRIORITY_DEFAULT (13 << 4)
