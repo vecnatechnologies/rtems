@@ -49,47 +49,47 @@
 
 #define TEST_PATTERN 0xA5A5A5A5UL
 
-TEST_GROUP(hal_sdram_fit) {
-
-  void setup() {
-
+TEST_GROUP( hal_sdram_fit )
+{
+  void setup()
+  {
   }
 
-  void teardown() {
-
+  void teardown()
+  {
   }
 };
 
-
-TEST(hal_sdram_fit, stm32f_sdram_operation) {
-
+TEST( hal_sdram_fit, stm32f_sdram_operation )
+{
   // Use the last uint32_t location SDRAM as a test location
   //volatile uint32_t* test_location = (uint32_t*) (STM32F7_START_SDRAM + STM32F7_SDRAM_SIZE - sizeof(uint32_t));
-  volatile uint32_t* test_location = (uint32_t*) (STM32_START_SDRAM + STM32_SDRAM_SIZE - sizeof(uint32_t));
+  volatile uint32_t *test_location =
+    (uint32_t *) ( STM32_START_SDRAM + STM32_SDRAM_SIZE - sizeof( uint32_t ) );
 
   uint32_t initial_value = *test_location;
   uint32_t readback_value;
 
-  CHECK_TEXT(test_location != NULL, "Target SDRAM address is NULL");
+  CHECK_TEXT( test_location != NULL, "Target SDRAM address is NULL" );
 
   *test_location = 0UL;
   readback_value = *test_location;
 
-  CHECK_TEXT(readback_value == 0, "stm32f_sdram_operational: Failed to initialize test location");
+  CHECK_TEXT( readback_value == 0,
+    "stm32f_sdram_operational: Failed to initialize test location" );
 
   *test_location = TEST_PATTERN;
   readback_value = *test_location;
 
-  CHECK_TEXT(readback_value == TEST_PATTERN, "stm32f_sdram_operational: Failed to initialize test location with test value");
+  CHECK_TEXT( readback_value == TEST_PATTERN,
+    "stm32f_sdram_operational: Failed to initialize test location with test value" );
 
-  *test_location = ~(TEST_PATTERN);
+  *test_location = ~( TEST_PATTERN );
   readback_value = *test_location;
 
-  CHECK_TEXT(readback_value == ~(TEST_PATTERN), "stm32f_sdram_operational: Failed to initialize test location with test value");
+  CHECK_TEXT( readback_value == ~( TEST_PATTERN ),
+    "stm32f_sdram_operational: Failed to initialize test location with test value" );
 
   *test_location = initial_value;
 }
-
-
-
 

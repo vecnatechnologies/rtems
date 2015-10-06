@@ -35,9 +35,11 @@
 #define MINIMUM_MPU_REGION_SIZE 32
 #define MAXIMUM_MPU_REGION_SIZE (0x100000000) // 4GB
 
-static SDRAM_HandleTypeDef      hsdram;
-static FMC_SDRAM_TimingTypeDef  SDRAM_Timing;
-static FMC_SDRAM_CommandTypeDef command;
+// The following static data must be placed in a section that resides
+// in internal SRAM since they are used during SDRAM initialization.
+static SDRAM_HandleTypeDef      hsdram       __attribute__((section(".bsp_fast_data")));
+static FMC_SDRAM_TimingTypeDef  SDRAM_Timing __attribute__((section(".bsp_fast_data")));
+static FMC_SDRAM_CommandTypeDef command      __attribute__((section(".bsp_fast_data")));
 
 /**
  *  @brief Calculate the MPU region size setting which is

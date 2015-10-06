@@ -43,6 +43,8 @@
 
 #include <CppUTest/TestHarness.h>
 #include <stdio.h>
+
+extern "C" {
 #include <hal-utils.h>
 #include <hal-can.h>
 #include <bspopts.h>
@@ -51,128 +53,298 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include <hal-can.h>
+}
 
 #define MAX_NUMBER_OF_CAN_BUSES 3
+#define NUM_TEST_TX_MESSAGES 10
+#define MIN_BAUD_RATE 10000         // 10  kb/s @ 1 km range
+#define TYPICAL_BAUD_RATE 500000    // 500 kb/s
+#define MAX_BAUD_RATE 1000000       // 1   Mb/s @ 40 m range
 
 struct can_config {
-    char name[16];
-    int handle;
+  char name[ 16 ];
+  int handle;
+  CAN_Instance instance;
 };
 
-static can_config can_buses[MAX_NUMBER_OF_CAN_BUSES] = {0};
-static int num_can_buses = 0;
+static can_msg tx_msg = {
+  .id = 0xDEADBEEFUL,
+  .len = 8,
+  .data = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 }
+};
 
-TEST_GROUP(hal_can_fit)
+static can_msg rx_msg = { 0 };
+
+static can_config can_buses[ NUM_CAN_INSTANCES ] = { 0 };
+static int        num_can_buses = 0;
+
+int find_can_bus_by_name( const char *can_bus_name )
 {
-  void setup() {
-
-    uint32_t i;
-
-    for(i = 0; i < COUNTOF(can_buses); i++){
-      snprintf((char*)can_buses[num_can_buses].name, sizeof(can_buses[num_can_buses].name), "/dev/can%lu", i+i);
-      can_buses[num_can_buses].handle = open((char*)can_buses[num_can_buses].name, O_RDWR | O_APPEND);
-
-      // If everything worked correctly then increment the number of buses
-      if(can_buses[num_can_buses].handle > 0) {
-        num_can_buses++;
-      }
-    }
-  }
-
-  void teardown() {
-
-    int i;
-
-    // close all can buses
-    for(i  = 0; i < num_can_buses; i++) {
-      close(can_buses[num_can_buses].handle);
-      can_buses[num_can_buses].handle = 0;
-      can_buses[num_can_buses].name[0] = '\0';
-      num_can_buses--;
-    }
-  }
-};
-
-int find_can_bus_by_name(const char* can_bus_name) {
-
   uint32_t i;
 
-  for(i = 0; i < COUNTOF(can_buses); i++){
-    if(strcmp(can_buses[i].name, can_bus_name) == 0){
-      return can_buses[i].handle;
+  for ( i = 0; i < COUNTOF( can_buses ); i++ ) {
+    if ( strcmp( can_buses[ i ].name, can_bus_name ) == 0 ) {
+      return can_buses[ i ].handle;
     }
   }
 
   return 0;
 }
 
+/**
+ * This function requires that the can bus be connected to
+ * another CAN bus device capable of acknowledging the transmission.
+ * Both can buses must be configured for the same baud rate.
+ */
+void can_fit_write_one_message(
+  can_config *pBus,
+  int32_t     baudrate,
+  can_msg    *pMsg
+)
+{
+  int      ret_val;
+  uint64_t start_tx_count;
+  uint64_t post_tx_count;
+
+  // Check that handle is non-null
+  CHECK_TEXT( pBus->handle != 0, "Invalid can bus handle" );
+
+  // Configure baudrate
+  ret_val = ioctl( pBus->handle, CAN_SET_BAUDRATE, baudrate );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_BAUDRATE" );
+
+  // Keep track of how many messages have been sent so far
+  start_tx_count = stm32_can_get_tx_count( pBus->instance );
+  ret_val = write( pBus->handle, pMsg, sizeof( *pMsg ) );
+  post_tx_count = stm32_can_get_tx_count( pBus->instance );
+
+  // Make sure that the number of bytes written == the size of the message
+  LONGS_EQUAL_TEXT( sizeof( *pMsg ), ret_val, "Invalid return value write" );
+
+  // Make sure that the packet was actually sent by the hardware.  In order to
+  // have been sent the hardware must sent the data, another device must acknowledge
+  // the transmit, and the interrupt handler must fire and eventually call the
+  // call back routine to indicated that the message has been completely sent.
+  LONGS_EQUAL_TEXT( ( start_tx_count + 1 ),
+    post_tx_count,
+    "TX interrupt not received as expected" );
+}
+
+void can_fit_loopback_test(
+  can_config *pBus,
+  int32_t     baudrate
+)
+{
+  uint32_t loopback_mode = CAN_FLAG_LOOPBACK_MODE;
+  int      ret_val;
+
+  loopback_mode = CAN_FLAG_LOOPBACK_MODE;
+  ret_val = ioctl( pBus->handle, CAN_SET_FLAGS, loopback_mode );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_FLAGS" );
+
+  // zero out rx message
+  memset( (void *) &rx_msg, 0, sizeof( rx_msg ) );
+
+  // write test TX message
+  can_fit_write_one_message( pBus, baudrate, &tx_msg );
+
+  ret_val = read( pBus->handle, &rx_msg, sizeof( rx_msg ) );
+  CHECK_TEXT( ret_val == 0, "Invalid return value read" );
+  CHECK_TEXT( ( memcmp( (void *) &tx_msg, (void *) &rx_msg,
+                  sizeof( tx_msg ) ) == 0 ),
+    "Did not receive test CAN message" );
+
+  // Disable loop back mode
+  loopback_mode = 0;
+  ret_val = ioctl( pBus->handle, CAN_SET_FLAGS, loopback_mode );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_FLAGS" );
+}
+
+TEST_GROUP( hal_can_fit )
+{
+  void setup()
+  {
+    uint32_t i;
+
+    for ( i = 0; i < COUNTOF( can_buses ); i++ ) {
+      snprintf( (char *) can_buses[ num_can_buses ].name,
+        sizeof( can_buses[ num_can_buses ].name ), "/dev/can%lu", i + 1 );
+
+      if ( access( can_buses[ num_can_buses ].name, F_OK ) != -1 ) {
+        can_buses[ num_can_buses ].handle =
+          open( (char *) can_buses[ num_can_buses ].name, O_RDWR | O_APPEND );
+
+        // If everything worked correctly then increment the number of buses
+        if ( can_buses[ num_can_buses ].handle > 0 ) {
+          num_can_buses++;
+          can_buses[ num_can_buses ].instance = (CAN_Instance) i;
+        }
+      }
+    }
+  }
+
+  void teardown()
+  {
+    int i;
+
+    // close all can buses
+    for ( i = 0; i < num_can_buses; i++ ) {
+      close( can_buses[ num_can_buses ].handle );
+      can_buses[ num_can_buses ].handle = 0;
+      can_buses[ num_can_buses ].name[ 0 ] = '\0';
+      num_can_buses--;
+    }
+  }
+};
 
 /**
  * @brief Validates that can1 is visible in file system
  *    if it has been configured in the configure.ac file
  */
-TEST(hal_can_fit, check_can1) {
-
+TEST( hal_can_fit, check_can1 )
+{
 #if STM32_ENABLE_CAN1
-  CHECK_TEXT(find_can_bus_by_name("/dev/can1") > 0, "Failed to open /dev/can1");
+  CHECK_TEXT( find_can_bus_by_name(
+      "/dev/can1" ) > 0, "Failed to open /dev/can1" );
 #endif
-
 }
 
 /**
  * @brief Validates that can2 is visible in file system
  *    if it has been configured in the configure.ac file
  */
-TEST(hal_can_fit, check_can2) {
-
+TEST( hal_can_fit, check_can2 )
+{
 #if STM32_ENABLE_CAN2
-  CHECK_TEXT(find_can_bus_by_name("/dev/can2") > 0, "Failed to open /dev/can2");
+  CHECK_TEXT( find_can_bus_by_name(
+      "/dev/can2" ) > 0, "Failed to open /dev/can2" );
 #endif
-
 }
 
-
-#if 0
-void can_fit_loopback_test(can_config* pBus) {
-
-  uint32_t loopback_mode = CAN_FLAG_LOOPBACK_MODE;
-  int ret_val;
-
-  can_msg tx_msg = {
-    .id = 0xDEADBEEFUL,
-    .len = 8,
-    .data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-  };
-  can_msg rx_msg = {0};
-
-  // Check that handle is non-null
-  CHECK_TEXT(handle != 0, "Invalid can bus handle");
-
-  // Enable loop back mode
-  ret_val = ioctl(handle, CAN_SET_FLAGS, &loopback_mode);
-  CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for CAN loopback mode");
-
-  ret_val = write(handle, &tx_msg, sizeof(tx_msg));
-  CHECK_TEXT(ret_val == 0, "Invalid return value write");
-
-  ret_val = read(handle, &rx_msg, sizeof(rx_msg));
-  CHECK_TEXT(ret_val == 0, "Invalid return value read");
-  CHECK_TEXT((memcmp((void*)&tx_msg, (void*)&rx_msg, sizeof(tx_msg)) == 0), "Did not receive test CAN message");
-
-  // Disable loop back mode
-  loopback_mode = 0;
-  ret_val = ioctl(handle, CAN_SET_FLAGS, &loopback_mode);
-  CHECK_TEXT(ret_val == 0, "Invalid return value ioctl command for disabling CAN loopback mode");
-}
-
-TEST(hal_can_fit, can_loopback){
+TEST( hal_can_fit, can_fit_loopback )
+{
   int i;
 
-  for(i  = 0; i < num_can_buses; i++) {
-    can_fit_loopback_test(h_can[i]);
+  for ( i = 0; i < num_can_buses; i++ ) {
+    can_fit_loopback_test( (can_config *) &( can_buses[ i ] ), MAX_BAUD_RATE );
   }
 }
 
-#endif
+// This  test requires and externally connected CAN bus to
+TEST( hal_can_fit, can_fit_write )
+{
+  int i;
 
+  for ( i = 0; i < num_can_buses; i++ ) {
+    can_fit_write_one_message( (can_config *) &( can_buses[ i ] ),
+      MAX_BAUD_RATE,
+      &tx_msg );
+  }
+}
+
+void can_fit_ioctl( can_config *pBus )
+{
+  int      ret_val;
+  int32_t  baudrate;
+  uint32_t loopback_mode;
+  int      num_filter;
+
+  can_filter test_filter;
+
+  // Check that handle is non-null
+  CHECK_TEXT( pBus->handle != 0, "Invalid can bus handle" );
+
+  //------------------------------------------------------
+  // Baud rates can never be set outside the range (0, 1000000]
+  // and the clock configuration reduces the set of possible
+  // range even more.
+  //------------------------------------------------------
+
+  // Check that error code is received if baudrate is 0
+  baudrate = 0;
+  ret_val = ioctl( pBus->handle, CAN_SET_BAUDRATE, baudrate );
+  CHECK_TEXT( ret_val == -1,
+    "Invalid return value ioctl command for CAN_SET_BAUDRATE (baudrate 0)" );
+
+  baudrate = MIN_BAUD_RATE;
+  ret_val = ioctl( pBus->handle, CAN_SET_BAUDRATE, baudrate );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_BAUDRATE (baudrate MIN_BAUD_RATE)" );
+
+  // Check normal value
+  baudrate = TYPICAL_BAUD_RATE;
+  ret_val = ioctl( pBus->handle, CAN_SET_BAUDRATE, baudrate );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_BAUDRATE (baudrate TYPICAL_BAUD_RATE)" );
+
+  // Check maximum value
+  baudrate = MAX_BAUD_RATE;
+  ret_val = ioctl( pBus->handle, CAN_SET_BAUDRATE, baudrate );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_BAUDRATE (baudrate MAX_BAUD_RATE)" );
+
+  // Check for first value above maximum value
+  baudrate = MAX_BAUD_RATE + 1;
+  ret_val = ioctl( pBus->handle, CAN_SET_BAUDRATE, baudrate );
+  CHECK_TEXT( ret_val == -1,
+    "Invalid return value ioctl command for CAN_SET_BAUDRATE (baudrate MAX_BAUD_RATE+1)" );
+
+  //----------------------------------------------------------------
+  // CAN_SET_FLAGS supports:
+  //   -- CAN_FLAG_LOOPBACK_MODE (internal loopback mode)
+  //----------------------------------------------------------------
+
+  loopback_mode = CAN_FLAG_LOOPBACK_MODE;
+  ret_val = ioctl( pBus->handle, CAN_SET_FLAGS, loopback_mode );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_FLAGS" );
+
+  loopback_mode = 0;
+  ret_val = ioctl( pBus->handle, CAN_SET_FLAGS, loopback_mode );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_FLAGS" );
+
+  num_filter = ioctl( pBus->handle, CAN_GET_NUM_FILTERS, NULL );
+  CHECK_TEXT( num_filter == stm32_can_get_num_filters(
+      NULL ), "Invalid return value ioctl command for CAN_GET_NUM_FILTERS" );
+
+  //----------------------------------------------------------------
+  // CAN_SET_FILTER
+  //----------------------------------------------------------------
+  test_filter.number = 0;
+  test_filter.mask = 0xFFFF;
+  test_filter.filter = 0x0003;
+
+  ret_val = ioctl( pBus->handle, CAN_SET_FILTER, &test_filter );
+  CHECK_TEXT( ret_val == 0,
+    "Invalid return value ioctl command for CAN_SET_FILTER" );
+
+  // Test error condition by trying to use a filter number that is not supported
+  test_filter.number = num_filter;
+  ret_val = ioctl( pBus->handle, CAN_SET_FILTER, &test_filter );
+  CHECK_TEXT( ret_val != 0,
+    "Invalid return value ioctl command for CAN_SET_FILTER for invalid filter number" );
+
+  //----------------------------------------------------------------
+  // Test for bogus IOW value
+  //----------------------------------------------------------------
+
+  // test that bogus IOW will return error
+  ret_val = ioctl( pBus->handle, 0xFFFFUL, NULL );
+  CHECK_TEXT( ret_val != 0,
+    "Invalid return value ioctl invocation with invalid value" );
+}
+
+TEST( hal_can_fit, can_fit_ioctl )
+{
+  int i;
+
+  for ( i = 0; i < num_can_buses; i++ ) {
+    can_fit_ioctl( (can_config *) &( can_buses[ i ] ) );
+  }
+}
 

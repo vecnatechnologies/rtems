@@ -517,6 +517,17 @@ USART_TypeDef *stm32f_uart_get_registers( const stm32f_uart Uart );
 void stm32_bsp_register_uart( void );
 
 /**
+ * @brief Returns true if the specificed uart is used
+ *   for an console
+ *
+ * @param[in] target_uart A specific stm32f_uart
+ *
+ * @returns True if the uart appears on the stm32f_console_driver_table,
+ *   false otherwise.
+ */
+bool uart_used_for_console(const stm32f_uart target_uart);
+
+/**
  * This array will hold all the STM32F HAL UART handles.  The handles are
  * allocated to the console UARTs first, and then to the non-console UARTs.
  */

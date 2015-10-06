@@ -33,27 +33,49 @@
  */
 
 /*
- * sdram_unit.cpp
+ * ethernet_fit.cpp
  *
  *  @author jay.doyle
  *
  *  Change Log:
- *    Created Apr 30, 2015 - jay.doyle
+ *    Created Oct. 5, 2015 - jay.doyle
  */
 
 #include <CppUTest/TestHarness.h>
+#include <stdio.h>
 
 extern "C" {
-#include <stdio.h>
 #include <hal-utils.h>
-#include <hal-sdram-interface.h>
 #include <bspopts.h>
+#include <string.h>
+#include <lwip/netif.h>
+#include <lwip/tcpip.h>
+#include <hal-ethernetif.h>
+#include <lwip/sockets.h>
+#include <lwip/ip_addr.h>
+#include <httpserver-socket.h>
+#include <cmsis_os.h>
 }
 
-#include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
-#include stm_header( TARGET_STM_PROCESSOR_PREFIX, cortex )
+/*Static IP ADDRESS*/
+#define IP_ADDR0 192
+#define IP_ADDR1 168
+#define IP_ADDR2 0
+#define IP_ADDR3 11
 
-TEST_GROUP( hal_sdram_unit )
+/*NETMASK*/
+#define NETMASK_ADDR0 255
+#define NETMASK_ADDR1 255
+#define NETMASK_ADDR2 255
+#define NETMASK_ADDR3 0
+
+/*Gateway Address*/
+#define GW_ADDR0 192
+#define GW_ADDR1 168
+#define GW_ADDR2 0
+#define GW_ADDR3 150
+
+TEST_GROUP( hal_ethernet_fit )
 {
   void setup()
   {
@@ -64,31 +86,68 @@ TEST_GROUP( hal_sdram_unit )
   }
 };
 
-TEST( hal_sdram_unit, MPU_Get_Region_Size )
+TEST( hal_ethernet_fit, check_ethernetif_init )
 {
-  // Check for error value if input value is greater than maximum value
-  CHECK_TEXT( MPU_Get_Region_Size(
-      0x200000000 ) == 0, "Invalid return value for 4GB" );
+  err_t ret;
 
-  // Check maximum value of MPU region
-  CHECK_TEXT( MPU_Get_Region_Size(
-      0x100000000 ) == MPU_REGION_SIZE_4GB, "Invalid return value for 4GB" );
+  ip_addr_t    ipaddr;
+  ip_addr_t    netmask;
+  ip_addr_t    gw;
+#if 0
+  uint8_t      link_status;
+  struct netif gnetif; /* network interface structure */
+#endif
 
-  // Check region size in the middle of the acceptable range
-  CHECK_TEXT( MPU_Get_Region_Size(
-      0x100000 ) == MPU_REGION_SIZE_1MB, "Invalid return value for 1MB" );
+  /* IP address setting */
+  IP4_ADDR( &ipaddr, IP_ADDR0, IP_ADDR1, IP_ADDR2, IP_ADDR3 );
+  IP4_ADDR( &netmask,
+    NETMASK_ADDR0,
+    NETMASK_ADDR1,
+    NETMASK_ADDR2,
+    NETMASK_ADDR3 );
+  IP4_ADDR( &gw, GW_ADDR0, GW_ADDR1, GW_ADDR2, GW_ADDR3 );
 
-  // Check to see if the smallest possible size is handled correctly
-  CHECK_TEXT( MPU_Get_Region_Size(
-      32 ) == MPU_REGION_SIZE_32B, "Invalid return value for 32B" );
+  // Keep track of the initial number of tasks
+  uint32_t init_num_tasks = tasks_get_num();
 
-  // Check to see if the function returns 0 for sizes that are too small
-  CHECK_TEXT( MPU_Get_Region_Size(
-      16 ) == 0, "Memory region of 16 bytes should return 0 (invalid value)" );
+  // Create tcp_ip stack thread
+  tcpip_init( NULL, NULL );
+  LONGS_EQUAL_TEXT( ( init_num_tasks + 1UL ),
+    tasks_get_num(), "TCP/IP task not created as expected" );
 
-  // Check to see if the function return 0 for non power of two size
-  CHECK_TEXT( MPU_Get_Region_Size(
-      1237 ) == 0,
-    "Function should return 0 for non-power of 2 region sizes" );
+  ret = ethernetif_init( NULL );
+  LONGS_EQUAL_TEXT( ERR_ARG, ret, "Invalid handling of NULL netif argument" );
+
+#if 0
+  netif_add( &gnetif,
+    &ipaddr,
+    &netmask,
+    &gw,
+    NULL,
+    &ethernetif_init,
+    &tcpip_input );
+
+  /*  Registers the default network interface. */
+  netif_set_default( &gnetif );
+
+  CHECK_TEXT( gnetif.output != NULL,
+    "etharp_output not initialized as expected" );
+  CHECK_TEXT( gnetif.linkoutput != NULL,
+    "low level output function not initialized as expected" );
+
+  link_status = netif_is_link_up( &gnetif );
+  LONGS_EQUAL_TEXT( link_status, 1UL, "Unable to establish Ethernet link" );
+#endif
+}
+
+TEST( hal_ethernet_fit, check_http_server_socket_init )
+{
+  // Keep track of the initial number of tasks
+  uint32_t init_num_tasks = tasks_get_num();
+
+  // Create http_server thread
+  http_server_socket_init();
+  LONGS_EQUAL_TEXT( ( init_num_tasks + 1UL ),
+    tasks_get_num(), "HTTP server task not created as expected" );
 }
 

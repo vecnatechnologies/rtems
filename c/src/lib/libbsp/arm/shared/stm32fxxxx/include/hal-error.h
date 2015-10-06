@@ -20,6 +20,8 @@
 #ifndef INCLUDE_HAL_ERROR_H_
 #define INCLUDE_HAL_ERROR_H_
 
+#include <rtems.h>
+
 /**
  * @brief HAL ST32F error handler function.
  */
@@ -31,5 +33,9 @@ void stm32f_error_handler( void );
  * @param error_text Text describing the source of the error
  */
 void stm32f_error_handler_with_reason( const char *error_text );
+
+
+void stm32f_error_handler_with_reason_conditional( const char *error_text,
+                                                   const bool stop_executing);
 
 #endif /* INCLUDE_HAL_ERROR_H_ */

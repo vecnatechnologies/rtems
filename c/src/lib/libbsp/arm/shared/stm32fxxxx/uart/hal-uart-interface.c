@@ -713,6 +713,25 @@ static rtems_status_code stm32f_send_uart_event(
   return sc;
 }
 
+bool uart_used_for_console(const stm32f_uart target_uart) {
+
+  uint32_t minor;
+  bool ret = false;
+  stm32f_console_driver_entry * pConsole;
+
+  for ( minor = 0; minor < COUNTOF( stm32f_console_driver_table ); minor++ ) {
+    stm32f_console_driver_entry *pNextEntry =
+      &stm32f_console_driver_table[ minor ];
+
+    if(pNextEntry->base_driver_info.uart == target_uart) {
+      ret = true;
+    }
+  }
+
+  return ret;
+}
+
+
 void HAL_UART_TxCpltCallback( UART_HandleTypeDef *huart )
 {
   // If this is non-console uart then send event to TX task to

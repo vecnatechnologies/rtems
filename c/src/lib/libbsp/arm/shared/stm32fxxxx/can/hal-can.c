@@ -57,6 +57,10 @@ static void stm32_can_rx1_isr( void *arg );
 typedef struct stm32_can_bus stm32_can_bus;
 typedef struct HandleWrapper HandleWrapper;
 
+// CAN bus metrics
+static uint64_t can_tx_count[2] = {0};
+static uint64_t can_rx_count[2] = {0};
+
 struct HandleWrapper {
   CAN_HandleTypeDef handle;
   stm32_can_bus *bus;
@@ -115,11 +119,29 @@ CAN_Status stm32_can_start_rx
   return Status;
 }
 
+HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hCanHandle) {
+
+  // Increment TX metrics
+  if(hCanHandle->Instance == CAN_ONE ) {
+    can_tx_count[0]++;
+  } else if(hCanHandle->Instance == CAN_TWO ){
+    can_tx_count[1]++;
+  }
+}
+
 void HAL_CAN_RxCpltCallback
   ( CAN_HandleTypeDef *hCanHandle )
 {
   // Wakeup RX Task
   rtems_status_code sc;
+
+  // Increment RX metrics
+  if(hCanHandle->Instance == CAN_ONE ) {
+    can_rx_count[0]++;
+  } else if(hCanHandle->Instance == CAN_TWO ){
+    can_rx_count[1]++;
+  }
+
   stm32_can_bus    *bus = ( ( (HandleWrapper *) hCanHandle )->bus );
   sc = rtems_event_transient_send( bus->base.rx_task_id );
 }
@@ -328,7 +350,7 @@ CAN_Timing_Values rtems_can_get_timing_values
   // Calculate S1 and S2
   // x = S1 + S2
   int s1_plus_s2 = best_x;
-  int s1 = (int) .875 * s1_plus_s2;
+  int s1 = roundf( .875 * s1_plus_s2 );
   int s2 = s1_plus_s2 - s1;
   s_timeValues.s1 = s1;
   s_timeValues.s2 = s2;
@@ -689,4 +711,28 @@ int stm32_bsp_register_can
   error = can_bus_register( &bus2->base );
   return error;
 #endif
+}
+
+uint64_t stm32_can_get_tx_count(const CAN_Instance can_bus) {
+
+  // Increment RX metrics
+  if(can_bus == CAN_ONE ) {
+    return can_tx_count[0];
+  } else if(can_bus == CAN_TWO ){
+    return can_tx_count[1];
+  }
+
+  return (uint64_t) 0;
+}
+
+uint64_t stm32_can_get_rx_count(const CAN_Instance can_bus) {
+
+  // Increment RX metrics
+  if(can_bus == CAN_ONE ) {
+    return can_rx_count[0];
+  } else if(can_bus == CAN_TWO ){
+    return can_rx_count[1];
+  }
+
+  return (uint64_t) 0;
 }
