@@ -203,6 +203,20 @@ uint32_t stm32f_ethernet_get_num_tx_msg( void )
 /*******************************************************************************
                        LL Driver Interface ( LwIP stack --> ETH)
 *******************************************************************************/
+
+// This function should be overloaded in the application code to assign
+// the correct ethernet address.  Unless this function is overloaded then
+// this default MAC address will be used.
+__weak void stm32f_set_mac_addr(uint8_t* macaddress){
+
+  macaddress[0] = MAC_ADDR0;
+  macaddress[1] = MAC_ADDR1;
+  macaddress[2] = MAC_ADDR2;
+  macaddress[3] = MAC_ADDR3;
+  macaddress[4] = MAC_ADDR4;
+  macaddress[5] = MAC_ADDR5;
+}
+
 /**
  * @brief In this function, the hardware should be initialized.
  * Called from ethernetif_init().
@@ -212,8 +226,10 @@ uint32_t stm32f_ethernet_get_num_tx_msg( void )
  */
 static void low_level_init( struct netif *netif )
 {
-  uint8_t macaddress[ 6 ] =
-  { MAC_ADDR0, MAC_ADDR1, MAC_ADDR2, MAC_ADDR3, MAC_ADDR4, MAC_ADDR5 };
+  uint8_t macaddress[ 6 ];
+
+  // Get Ethernet MAC address
+  stm32f_set_mac_addr((uint8_t*) macaddress);
 
   EthHandle.Instance = ETH;
   EthHandle.Init.MACAddr = macaddress;
@@ -247,12 +263,7 @@ static void low_level_init( struct netif *netif )
   netif->hwaddr_len = ETHARP_HWADDR_LEN;
 
   /* set netif MAC hardware address */
-  netif->hwaddr[ 0 ] = MAC_ADDR0;
-  netif->hwaddr[ 1 ] = MAC_ADDR1;
-  netif->hwaddr[ 2 ] = MAC_ADDR2;
-  netif->hwaddr[ 3 ] = MAC_ADDR3;
-  netif->hwaddr[ 4 ] = MAC_ADDR4;
-  netif->hwaddr[ 5 ] = MAC_ADDR5;
+  stm32f_set_mac_addr((uint8_t*) netif->hwaddr);
 
   /* set netif maximum transfer unit */
   netif->mtu = 1500;
@@ -261,7 +272,7 @@ static void low_level_init( struct netif *netif )
   netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
 
   /* create a binary semaphore used for informing ethernetif of frame reception */
-  osSemaphoreDef( SEM );
+  osSemaphoreDef( SEM , rtems_build_name( 'E', 'T', 'H', 'I' ));
   s_xSemaphore = osSemaphoreCreate( osSemaphore( SEM ), 0 );
 
   /* create the task that handles the ETH_MAC */
@@ -269,7 +280,8 @@ static void low_level_init( struct netif *netif )
     ethernetif_input,
     osPriorityRealtime,
     1,
-    INTERFACE_THREAD_STACK_SIZE );
+    INTERFACE_THREAD_STACK_SIZE,
+    rtems_build_name( 'E', 'T', 'H', 'I' ));
   osThreadCreate( osThread( EthIf ), netif );
 
   /* Enable MAC and DMA transmission and reception */

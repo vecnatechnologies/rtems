@@ -86,7 +86,7 @@ TEST_GROUP( hal_uart_fit )
   {
     int i;
 
-    // close all can buses
+    // close all uarts
     for ( i = 0; i < num_uarts; i++ ) {
       close( configured_uarts[ num_uarts ].handle );
       configured_uarts[ num_uarts ].handle = 0;
@@ -110,7 +110,7 @@ int find_uart_by_name( const char *uart_name )
 }
 
 /**
- * @brief Validates that can1 is visible in file system
+ * @brief Validates that uart1 is visible in file system
  *    if it has been configured in the configure.ac file
  */
 TEST( hal_uart_fit, check_ttyS0 )
@@ -126,7 +126,6 @@ TEST( hal_uart_fit, check_ttyS0 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 
@@ -143,7 +142,6 @@ TEST( hal_uart_fit, check_ttyS1 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 
@@ -160,7 +158,6 @@ TEST( hal_uart_fit, check_ttyS2 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 
@@ -177,7 +174,6 @@ TEST( hal_uart_fit, check_ttyS3 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 
@@ -194,7 +190,6 @@ TEST( hal_uart_fit, check_ttyS4 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 
@@ -209,7 +204,6 @@ TEST( hal_uart_fit, check_ttyS5 )
     CHECK_TEXT( find_uart_by_name(
         "/dev/console" ) > 0, "Failed to open /dev/console" );
   }
-
 #endif
 }
 
@@ -226,7 +220,6 @@ TEST( hal_uart_fit, check_ttyS6 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 
@@ -243,7 +236,6 @@ TEST( hal_uart_fit, check_ttyS7 )
           "/dev/console" ) > 0, "Failed to open /dev/console" );
     }
   }
-
 #endif
 }
 

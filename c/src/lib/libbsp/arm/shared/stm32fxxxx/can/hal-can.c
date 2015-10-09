@@ -33,6 +33,18 @@
 #include <math.h>
 #include <rtems/irq-extension.h>
 
+/**
+ *  The bit offset within the BS1 configuration register for the
+ *  the bit segment1 value.
+ */
+#define CAN_BS1_OFFSET  16UL
+
+/**
+ *  The bit offset within the BS2 configuration register for the
+ *  the bit segment1 value.
+ */
+#define CAN_BS2_OFFSET  20UL
+
 // Internal functions to perform RX and TX
 static int stm32_can_init(
   can_bus *self,
@@ -40,7 +52,6 @@ static int stm32_can_init(
 );
 static int stm32_can_de_init( can_bus *self );
 static void stm32_can_gpio_init( CAN_Instance canInstance );
-static CAN_Timing_Values rtems_can_get_timing_values( uint32_t desired_baud );
 static CAN_Status stm32_can_start_tx(
   CAN_HandleTypeDef *hCanHandle,
   can_msg           *msg
@@ -121,11 +132,10 @@ CAN_Status stm32_can_start_rx
 
 HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hCanHandle) {
 
-  // Increment TX metrics
-  if(hCanHandle->Instance == CAN_ONE ) {
-    can_tx_count[0]++;
-  } else if(hCanHandle->Instance == CAN_TWO ){
-    can_tx_count[1]++;
+  stm32_can_bus    *bus = ( ( (HandleWrapper *) hCanHandle )->bus );
+
+  if(bus->instance < COUNTOF(can_tx_count)) {
+    can_tx_count[bus->instance]++;
   }
 }
 
@@ -134,15 +144,12 @@ void HAL_CAN_RxCpltCallback
 {
   // Wakeup RX Task
   rtems_status_code sc;
+  stm32_can_bus    *bus = ( ( (HandleWrapper *) hCanHandle )->bus );
 
-  // Increment RX metrics
-  if(hCanHandle->Instance == CAN_ONE ) {
-    can_rx_count[0]++;
-  } else if(hCanHandle->Instance == CAN_TWO ){
-    can_rx_count[1]++;
+  if(bus->instance < COUNTOF(can_tx_count)) {
+    can_rx_count[bus->instance]++;
   }
 
-  stm32_can_bus    *bus = ( ( (HandleWrapper *) hCanHandle )->bus );
   sc = rtems_event_transient_send( bus->base.rx_task_id );
 }
 
@@ -350,7 +357,7 @@ CAN_Timing_Values rtems_can_get_timing_values
   // Calculate S1 and S2
   // x = S1 + S2
   int s1_plus_s2 = best_x;
-  int s1 = roundf( .875 * s1_plus_s2 );
+  int s1 = roundf(.875F * (float) s1_plus_s2);
   int s2 = s1_plus_s2 - s1;
   s_timeValues.s1 = s1;
   s_timeValues.s2 = s2;
@@ -388,7 +395,7 @@ void stm32_can_rx1_isr
 }
 
 int stm32_can_get_num_filters(
-can_bus *self
+  can_bus *self
 )
 {
   return MAX_FILTERS;
@@ -468,6 +475,7 @@ int stm32_can_init
 {
   stm32_can_bus     *bus = (stm32_can_bus *) self;
   CAN_HandleTypeDef *hCanHandle = (CAN_HandleTypeDef *) &( bus->wrapper );
+  rtems_status_code sc;
 
   bus->wrapper.bus = bus;
   CAN_Instance canInstance = bus->instance;
@@ -520,11 +528,6 @@ int stm32_can_init
 
   s_timeValues = rtems_can_get_timing_values( baudRate );
 
-  const uint32_t CAN_BS1_OFFSET = 16;
-  const uint32_t CAN_BS2_OFFSET = 20;
-  const uint32_t BS1_MAX = 16;
-  const uint32_t BS2_MAX = 8;
-
   if ( s_timeValues.s1 > BS1_MAX
        || s_timeValues.s1 < 1 ) {
     return CAN_ERROR;
@@ -569,10 +572,10 @@ int stm32_can_init
   sFilterConfig.BankNumber = 14;
 
   if ( HAL_CAN_ConfigFilter( hCanHandle, &sFilterConfig ) != HAL_OK ) {
-    //TODO handle error better
-  }
 
-  rtems_status_code sc;
+    //TODO handle error better
+    return CAN_ERROR;
+  }
 
   if ( CAN_ONE == canInstance ) {
     sc = rtems_interrupt_handler_install(
@@ -581,18 +584,21 @@ int stm32_can_init
       RTEMS_INTERRUPT_UNIQUE,
       stm32_can_isr,
       hCanHandle );
+
     sc = rtems_interrupt_handler_install(
       CAN1_RX0_IRQn,
       "CAN1 RX Interrupt 0",
       RTEMS_INTERRUPT_UNIQUE,
       stm32_can_rx0_isr,
       hCanHandle );
+
     sc = rtems_interrupt_handler_install(
       CAN1_RX1_IRQn,
       "CAN1 RX Interrupt 1",
       RTEMS_INTERRUPT_UNIQUE,
       stm32_can_rx1_isr,
       hCanHandle );
+
   } else {
     sc = rtems_interrupt_handler_install(
       CAN2_TX_IRQn,
@@ -670,47 +676,56 @@ stm32_can_bus *bus2;
 int stm32_bsp_register_can
   ( void )
 {
-  int error;
+  int error = 0;
 
 #if STM32_ENABLE_CAN1
-  bus1 = (stm32_can_bus *) can_bus_alloc_and_init( sizeof( *bus1 ) );
 
-  bus1->base.init            = stm32_can_init;
-  bus1->base.de_init         = stm32_can_de_init;
-  bus1->base.tx_task         = stm32_tx_task;
-  bus1->base.rx_task         = stm32_rx_task;
-  bus1->base.set_filter      = stm32_can_set_filter;
-  bus1->base.get_num_filters = stm32_can_get_num_filters;
-  bus1->base.set_flags       = stm32_can_set_flags;
-  bus1->instance             = CAN_ONE;
+  if(error == 0 ) {
 
-  if ( bus1 == NULL ) {
-    return -ENOMEM;
+    bus1 = (stm32_can_bus *) can_bus_alloc_and_init( sizeof( *bus1 ) );
+
+    bus1->base.init            = stm32_can_init;
+    bus1->base.de_init         = stm32_can_de_init;
+    bus1->base.tx_task         = stm32_tx_task;
+    bus1->base.rx_task         = stm32_rx_task;
+    bus1->base.set_filter      = stm32_can_set_filter;
+    bus1->base.get_num_filters = stm32_can_get_num_filters;
+    bus1->base.set_flags       = stm32_can_set_flags;
+    bus1->instance             = CAN_ONE;
+
+    if ( bus1 == NULL ) {
+      return -ENOMEM;
+    }
+
+    error = can_bus_register( &bus1->base );
   }
-
-  error = can_bus_register( &bus1->base );
-
 #endif
 
 #if STM32_ENABLE_CAN2
-  bus2 = (stm32_can_bus *) can_bus_alloc_and_init( sizeof( *bus2 ) );
 
-  bus2->base.init            = stm32_can_init;
-  bus2->base.de_init         = stm32_can_de_init;
-  bus2->base.tx_task         = stm32_tx_task;
-  bus2->base.rx_task         = stm32_rx_task;
-  bus2->base.get_num_filters = stm32_can_get_num_filters;
-  bus2->base.set_filter      = stm32_can_set_filter;
-  bus2->base.set_flags       = stm32_can_set_flags;
-  bus2->instance             = CAN_TWO;
+  if(error == 0 ) {
 
-  if ( bus2 == NULL ) {
-    return -ENOMEM;
+    bus2 = (stm32_can_bus *) can_bus_alloc_and_init( sizeof( *bus2 ) );
+
+    bus2->base.init            = stm32_can_init;
+    bus2->base.de_init         = stm32_can_de_init;
+    bus2->base.tx_task         = stm32_tx_task;
+    bus2->base.rx_task         = stm32_rx_task;
+    bus2->base.get_num_filters = stm32_can_get_num_filters;
+    bus2->base.set_filter      = stm32_can_set_filter;
+    bus2->base.set_flags       = stm32_can_set_flags;
+    bus2->instance             = CAN_TWO;
+
+    if ( bus2 == NULL ) {
+      return -ENOMEM;
+    }
+
+    error = can_bus_register( &bus2->base );
   }
 
-  error = can_bus_register( &bus2->base );
-  return error;
 #endif
+
+  return error;
 }
 
 uint64_t stm32_can_get_tx_count(const CAN_Instance can_bus) {

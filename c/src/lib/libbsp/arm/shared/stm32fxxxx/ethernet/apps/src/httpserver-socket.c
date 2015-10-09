@@ -109,6 +109,7 @@ void http_server_socket_init()
   web_server_task.tpriority = osPriorityNormal;
   web_server_task.instances = 1;
   web_server_task.stacksize = WEBSERVER_STACK_SIZE;
+  web_server_task.thread_name = rtems_build_name( 'W', 'E', 'B', 'S' );
 
   osThreadCreate( &web_server_task, NULL );
 }

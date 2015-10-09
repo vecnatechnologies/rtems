@@ -41,6 +41,7 @@
 #include <sched.h>
 #include <rtems/score/statesimpl.h>
 #include <stdio.h>
+#include <hal-error.h>
 
 #if ( osFeature_Semaphore > 65535 )
 #error Invalid "osFeature_Semaphore" value!
@@ -54,138 +55,6 @@
 
 typedef uint32_t __attribute__( ( vector_size( 8 ) ) )  ret64;
 typedef uint32_t __attribute__( ( vector_size( 16 ) ) ) ret128;
-
-#if 0
-#define RET_pointer __r0
-#define RET_int32_t __r0
-#define RET_uint32_t __r0
-#define RET_osStatus __r0
-#define RET_osPriority __r0
-#define RET_osEvent { (osStatus) __r0, { (uint32_t) __r1 }, { (void *) __r2 } \
-}
-#define RET_osCallback { (void *) __r0, (void *) __r1 }
-
-#define osEvent_type __attribute__( ( pcs( "aapcs" ) ) ) ret128
-#define osEvent_ret_status (ret128) { ret.status }
-#define osEvent_ret_value (ret128) { ret.status, ret.value.v }
-#define osEvent_ret_msg (ret128) { ret.status, ret.value.v, \
-                                   (uint32_t) ret.def.message_id }
-#define osEvent_ret_mail (ret128) { ret.status, ret.value.v, \
-                                    (uint32_t) ret.def.mail_id }
-
-#define osCallback_type __attribute__( ( pcs( "aapcs" ) ) ) ret64
-#define osCallback_ret (ret64) { (uint32_t) ret.fp, (uint32_t) ret.arg }
-
-#define SVC_ArgN( n ) \
-  register int __r ## n __asm( "r"#n );
-
-#define SVC_ArgR( n, t, a ) \
-  register t __r ## n __asm( "r"#n ) = a;
-
-#define SVC_Arg0()                                                             \
-  SVC_ArgN( 0 )                                                                  \
-  SVC_ArgN( 1 )                                                                  \
-  SVC_ArgN( 2 )                                                                  \
-  SVC_ArgN( 3 )
-
-#define SVC_Arg1( t1 )                                                           \
-  SVC_ArgR( 0, t1, a1 )                                                            \
-  SVC_ArgN( 1 )                                                                  \
-  SVC_ArgN( 2 )                                                                  \
-  SVC_ArgN( 3 )
-
-#define SVC_Arg2( t1, t2 )                                                        \
-  SVC_ArgR( 0, t1, a1 )                                                            \
-  SVC_ArgR( 1, t2, a2 )                                                            \
-  SVC_ArgN( 2 )                                                                  \
-  SVC_ArgN( 3 )
-
-#define SVC_Arg3( t1, t2, t3 )                                                     \
-  SVC_ArgR( 0, t1, a1 )                                                            \
-  SVC_ArgR( 1, t2, a2 )                                                            \
-  SVC_ArgR( 2, t3, a3 )                                                            \
-  SVC_ArgN( 3 )
-
-#define SVC_Arg4( t1, t2, t3, t4 )                                                  \
-  SVC_ArgR( 0, t1, a1 )                                                            \
-  SVC_ArgR( 1, t2, a2 )                                                            \
-  SVC_ArgR( 2, t3, a3 )                                                            \
-  SVC_ArgR( 3, t4, a4 )
-
-#if ( defined( __CORTEX_M0 ) )
-#define SVC_Call( f )                                                            \
-  __asm volatile                                                               \
-  (                                                                            \
-    "ldr r7,="#f "\n\t"                                                         \
-    "mov r12,r7\n\t"                                                           \
-    "svc 0"                                                                    \
-    :               "=r" ( __r0 ), "=r" ( __r1 ), "=r" ( __r2 ), "=r" ( __r3 )         \
-    :                "r" ( __r0 ), "r" ( __r1 ), "r" ( __r2 ), "r" ( __r3 )         \
-    : "r7", "r12", "lr", "cc"                                                  \
-  );
-#else
-#define SVC_Call( f )                                                            \
-  __asm volatile                                                               \
-  (                                                                            \
-    "ldr r12,="#f "\n\t"                                                        \
-    "svc 0"                                                                    \
-    :               "=r" ( __r0 ), "=r" ( __r1 ), "=r" ( __r2 ), "=r" ( __r3 )         \
-    :                "r" ( __r0 ), "r" ( __r1 ), "r" ( __r2 ), "r" ( __r3 )         \
-    : "r12", "lr", "cc"                                                        \
-  );
-#endif
-
-#define SVC_0_1( f, t, rv )                                                        \
-  __attribute__( ( always_inline ) )                                                 \
-  static inline t __ ## f( void ) {                                                \
-    SVC_Arg0();                                                                  \
-    SVC_Call( f );                                                                 \
-    return (t) rv;                                                               \
-  }
-
-#define SVC_1_0( f, t, t1 )                                                        \
-  __attribute__( ( always_inline ) )                                                 \
-  static inline t __ ## f( t1 a1 ) {                                               \
-    SVC_Arg1( t1 );                                                                \
-    SVC_Call( f );                                                                 \
-  }
-
-#define SVC_1_1( f, t, t1, rv )                                                     \
-  __attribute__( ( always_inline ) )                                                 \
-  static inline t __ ## f( t1 a1 ) {                                               \
-    SVC_Arg1( t1 );                                                                \
-    SVC_Call( f );                                                                 \
-    return (t) rv;                                                               \
-  }
-
-#define SVC_2_1( f, t, t1, t2, rv )                                                  \
-  __attribute__( ( always_inline ) )                                                 \
-  static inline t __ ## f( t1 a1, t2 a2 ) {                                        \
-    SVC_Arg2( t1, t2 );                                                             \
-    SVC_Call( f );                                                                 \
-    return (t) rv;                                                               \
-  }
-
-#define SVC_3_1( f, t, t1, t2, t3, rv )                                               \
-  __attribute__( ( always_inline ) )                                                 \
-  static inline t __ ## f( t1 a1, t2 a2, t3 a3 ) {                                 \
-    SVC_Arg3( t1, t2, t3 );                                                          \
-    SVC_Call( f );                                                                 \
-    return (t) rv;                                                               \
-  }
-
-#define SVC_4_1( f, t, t1, t2, t3, t4, rv )                                            \
-  __attribute__( ( always_inline ) )                                                 \
-  static inline t __ ## f( t1 a1, t2 a2, t3 a3, t4 a4 ) {                          \
-    SVC_Arg4( t1, t2, t3, t4 );                                                       \
-    SVC_Call( f );                                                                 \
-    return (t) rv;                                                               \
-  }
-
-#define SVC_1_2 SVC_1_1
-#define SVC_1_3 SVC_1_1
-#define SVC_2_3 SVC_2_1
-#endif
 
 // Callback structure
 typedef struct {
@@ -274,112 +143,35 @@ static osStatus rtemsConvertReturnCode( const rtems_status_code rtems_ret )
 
 // ==== Kernel Control ====
 
-uint8_t os_initialized;                         // Kernel Initialized flag
-uint8_t os_running;                             // Kernel Running flag
+uint8_t os_initialized = 1;                         // Kernel Initialized flag
+uint8_t os_running     = 1;                         // Kernel Running flag
 
 // Kernel Control Public API
 
 /// Initialize the RTOS Kernel for creating objects
 osStatus osKernelInitialize( void )
 {
-#if 0
-
-  if ( __get_IPSR() != 0 )
-    return osErrorISR;                          // Not allowed in ISR
-
-  if ( ( __get_CONTROL() & 1 ) == 0 ) {             // Privileged mode
-    return svcKernelInitialize();
-  } else {
-    return __svcKernelInitialize();
-  }
-
-#else
-
-  return (osStatus) 0;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Start the RTOS Kernel
 osStatus osKernelStart( void )
 {
-#if 0
-  uint32_t stack[ 8 ];
-
-  if ( __get_IPSR() != 0 )
-    return osErrorISR;                          // Not allowed in ISR
-
-  switch ( __get_CONTROL() & 0x03 ) {
-    case 0x00:                                  // Privileged Thread mode & MSP
-      __set_PSP( (uint32_t) ( stack + 8 ) );         // Initial PSP
-
-      if ( os_flags & 1 ) {
-        __set_CONTROL( 0x02 );                    // Set Privileged Thread mode & PSP
-      } else {
-        __set_CONTROL( 0x03 );                    // Set Unprivileged Thread mode & PSP
-      }
-
-      __DSB();
-      __ISB();
-      break;
-    case 0x01:                                  // Unprivileged Thread mode & MSP
-      return osErrorOS;
-    case 0x02:                                  // Privileged Thread mode & PSP
-
-      if ( ( os_flags & 1 ) == 0 ) {                // Unprivileged Thread mode requested
-        __set_CONTROL( 0x03 );                    // Set Unprivileged Thread mode & PSP
-        __DSB();
-        __ISB();
-      }
-
-      break;
-    case 0x03:                                  // Unprivileged Thread mode & PSP
-
-      if ( os_flags & 1 )
-        return osErrorOS;                       // Privileged Thread mode requested
-
-      break;
-  }
-
-  return __svcKernelStart();
-#else
-
-  return (osStatus) 0;
-  ;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Check if the RTOS kernel is already started
 int32_t osKernelRunning( void )
 {
-#if 0
-
-  if ( ( __get_IPSR() != 0 ) || ( ( __get_CONTROL() & 1 ) == 0 ) ) {
-
-    // in ISR or Privileged
-    return os_running;
-  } else {
-    return __svcKernelRunning();
-  }
-
-#else
-
-  return 1;
-#endif
+  return os_running;
 }
 
 /// Get the RTOS kernel system timer counter
 uint32_t osKernelSysTick( void )
 {
-#if 0
-
-  if ( __get_IPSR() != 0 )
-    return 0;                                   // Not allowed in ISR
-
-  return __svcKernelSysTick();
-#else
-
-  return 0UL;
-#endif
+  return (uint32_t) rtems_clock_get_ticks_since_boot();
 }
 
 __NO_RETURN void osThreadExit( void );
@@ -437,8 +229,6 @@ osThreadId osThreadCreate(
   void                *argument
 )
 {
-  static uint8_t cmsis_task_counter = (uint8_t) '1';
-
   rtems_status_code   ret;
   rtems_task_priority task_priority = convertTaskPriorityToRTEMS(
     thread_def->tpriority );
@@ -448,9 +238,10 @@ osThreadId osThreadCreate(
        ( task_priority <= PRIORITY_MAXIMUM ) &&
        ( thread_def->instances > 0 ) &&
        ( thread_def->stacksize > 0 ) ) {
+
     // Create the rtems task.
     ret = rtems_task_create(
-      rtems_build_name( 'C', 'T', 'K', cmsis_task_counter ),
+      thread_def->thread_name,
       task_priority,
       (size_t) thread_def->stacksize,
       RTEMS_DEFAULT_MODES,
@@ -460,7 +251,6 @@ osThreadId osThreadCreate(
 
     // Start the task if the create was successful
     if ( ret == RTEMS_SUCCESSFUL ) {
-      cmsis_task_counter++;
 
       ret = rtems_task_start(
         new_task_id,
@@ -521,7 +311,7 @@ osStatus osThreadSetPriority(
 /// Get current priority of an active thread
 osPriority osThreadGetPriority( osThreadId thread_id )
 {
-  return convertTaskPriorityToCMSIS( tasks_get_priority( thread_id ) );
+  return convertTaskPriorityToCMSIS( tasks_get_priority( (rtems_id) thread_id ) );
 }
 
 static void osThreadStateName(
@@ -587,14 +377,34 @@ static void utils_init_mutex( void )
   }
 }
 
-static void task_counter_iterator( Thread_Control *the_thread )
+/**
+ *  @brief This function is called by an RTEMS task iterator that
+ *  calls this function for each task control block.  Each invocation
+ *  check to see to see if the task control block is valid (i.e., non-null
+ *  pointer) and then increment the task count. A mutex in the calling function prevents other tasks
+ *  from interrupting the current search across the task control block list.
+ *
+ *  @param the_thread The next task control block to check
+ */
+static void task_counter_increment_check( Thread_Control *the_thread )
 {
-  if ( the_thread ) {
+  if ( the_thread != NULL) {
     num_tasks++;
   }
 }
 
-static void task_priority_iterator( Thread_Control *the_thread )
+
+/**
+ *  @brief This function is called by an RTEMS task iterator that
+ *  calls this function for each task control block.  Each invocation
+ *  check to see if the the current task control block refers to the
+ *  task for which we wish to know the priority.  If so, then save the value
+ *  to a local static value.  A mutex in the calling function prevents other tasks
+ *  from interrupting the current search across the task control block list.
+ *
+ *  @param the_thread The next task control block to check
+ */
+static void task_priority_request_check( Thread_Control *the_thread )
 {
   if ( the_thread ) {
     if ( the_thread->Object.id == target_thread_id ) {
@@ -614,7 +424,7 @@ uint32_t tasks_get_num( void )
   rtems_semaphore_obtain( utils_mutex_id, RTEMS_WAIT, RTEMS_NO_TIMEOUT );
 
   num_tasks = 0UL;
-  rtems_iterate_over_all_threads( task_counter_iterator );
+  rtems_iterate_over_all_threads( task_counter_increment_check );
   ret = num_tasks;
 
   rtems_semaphore_release( utils_mutex_id );
@@ -634,7 +444,7 @@ Priority_Control tasks_get_priority( const rtems_id target_task )
 
   target_thread_id = target_task;
   target_thread_real_priority = PRIORITY_MAXIMUM;
-  rtems_iterate_over_all_threads( task_priority_iterator );
+  rtems_iterate_over_all_threads( task_priority_request_check );
   ret = target_thread_real_priority;
 
   rtems_semaphore_release( utils_mutex_id );
@@ -723,28 +533,10 @@ osStatus osDelay( uint32_t millisec )
 /// Wait for Signal, Message, Mail, or Timeout
 os_InRegs osEvent osWait( uint32_t millisec )
 {
-#if 0
-  osEvent ret;
-
-#if osFeature_Wait == 0
-  ret.status = osErrorOS;
+  // Not implemented yet
+  osEvent ret = { osErrorOS, { 0 }, { 0 } };
 
   return ret;
-#else
-
-  if ( __get_IPSR() != 0 ) {                      // Not allowed in ISR
-    ret.status = osErrorISR;
-
-    return ret;
-  }
-
-  return __svcWait( millisec );
-#endif
-#else
-  osEvent ret = { osOK, { 0 }, { 0 } };
-
-  return ret;
-#endif
 }
 
 // ==== Timer Management ====
@@ -779,23 +571,7 @@ osTimerId osTimerCreate(
   void               *argument
 )
 {
-#if 0
-
-  if ( __get_IPSR() != 0 )
-    return NULL;                                // Not allowed in ISR
-
-  if ( ( ( __get_CONTROL() & 1 ) == 0 ) && ( os_running == 0 ) ) {
-
-    // Privileged and not running
-    return svcTimerCreate( timer_def, type, argument );
-  } else {
-    return __svcTimerCreate( timer_def, type, argument );
-  }
-
-#else
-
   return (osTimerId) 0;
-#endif
 }
 
 /// Start or restart timer
@@ -804,72 +580,23 @@ osStatus osTimerStart(
   uint32_t  millisec
 )
 {
-#if 0
-
-  if ( __get_IPSR() != 0 )
-    return osErrorISR;                          // Not allowed in ISR
-
-  return __svcTimerStart( timer_id, millisec );
-#else
-
-  return (osStatus) 0;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Stop timer
 osStatus osTimerStop( osTimerId timer_id )
 {
-#if 0
-
-  if ( __get_IPSR() != 0 )
-    return osErrorISR;                          // Not allowed in ISR
-
-  return __svcTimerStop( timer_id );
-#else
-
-  return osOK;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Delete timer
 osStatus osTimerDelete( osTimerId timer_id )
 {
-#if 0
-
-  if ( __get_IPSR() != 0 )
-    return osErrorISR;                          // Not allowed in ISR
-
-  return __svcTimerDelete( timer_id );
-#else
-
-  return osOK;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
-
-// Timer Thread
-#if 0
-__NO_RETURN void osTimerThread( void const *argument )
-{
-#if 0
-  osCallback cb;
-  osEvent    evt;
-
-  for (;; ) {
-    evt = osMessageGet( osMessageQId_osTimerMessageQ, osWaitForever );
-
-    if ( evt.status == osEventMessage ) {
-      osMailQId
-        cb = osTimerCall( evt.value.p );
-
-      if ( cb.fp != NULL ) {
-        ( *(os_ptimer) cb.fp )( cb.arg );
-      }
-    }
-  }
-
-#endif
-}
-#endif
 
 // Signal Public API
 
@@ -879,18 +606,12 @@ int32_t osSignalSet(
   int32_t    signals
 )
 {
-#if 0
+  // To prevent unused argument compiler warnings ...
+  (void) thread_id;
+  (void) signals;
 
-  if ( __get_IPSR() != 0 ) {                      // in ISR
-    return isrSignalSet( thread_id, signals );
-  } else {                                      // in Thread
-    return __svcSignalSet( thread_id, signals );
-  }
-
-#else
-
-  return 0;
-#endif
+  // Not implemented yet
+  return 0L;
 }
 
 /// Clear the specified Signal Flags of an active thread
@@ -899,16 +620,12 @@ int32_t osSignalClear(
   int32_t    signals
 )
 {
-#if 0
+  // To prevent unused argument compiler warnings ...
+  (void) thread_id;
+  (void) signals;
 
-  if ( __get_IPSR() != 0 )
-    return 0x80000000;                          // Not allowed in ISR
-
-  return __svcSignalClear( thread_id, signals );
-#else
-
-  return 0l;
-#endif
+  // Not implemented yet
+  return 0L;
 }
 
 /// Wait for one or more Signal Flags to become signaled for the current RUNNING thread
@@ -917,21 +634,14 @@ os_InRegs osEvent osSignalWait(
   uint32_t millisec
 )
 {
-#if 0
-  osEvent ret;
+  // To prevent unused argument compiler warnings ...
+  (void) signals;
+  (void) millisec;
 
-  if ( __get_IPSR() != 0 ) {                      // Not allowed in ISR
-    ret.status = osErrorISR;
-
-    return ret;
-  }
-
-  return __svcSignalWait( signals, millisec );
-#else
-  osEvent ret = { osOK, { 0 }, { 0 } };
+  // Not implemented yet
+  osEvent ret = { osErrorOS, { 0 }, { 0 } };
 
   return ret;
-#endif
 }
 
 // Mutex Public API
@@ -939,7 +649,6 @@ os_InRegs osEvent osSignalWait(
 /// Create and Initialize a Mutex object
 osMutexId osMutexCreate( const osMutexDef_t *mutex_def )
 {
-  static uint8_t cmsis_mutex_counter = (uint8_t) 1;
 
   rtems_attribute   mutex_attributes;
   rtems_status_code ret;
@@ -951,7 +660,7 @@ osMutexId osMutexCreate( const osMutexDef_t *mutex_def )
                      RTEMS_NO_MULTIPROCESSOR_RESOURCE_SHARING;
 
   ret = rtems_semaphore_create(
-    rtems_build_name( 'C', 'M', 'X', cmsis_mutex_counter ),
+    mutex_def->mutex_name,
     1,
     mutex_attributes,
     PRIORITY_DEFAULT_MAXIMUM,
@@ -959,7 +668,6 @@ osMutexId osMutexCreate( const osMutexDef_t *mutex_def )
         );
 
   if ( ret == RTEMS_SUCCESSFUL ) {
-    cmsis_mutex_counter++;
 
     return (osMutexId) mutex_id;
   } else {
@@ -996,8 +704,6 @@ osSemaphoreId osSemaphoreCreate(
   int32_t                 count
 )
 {
-  static uint8_t cmsis_semaphore_counter = (uint8_t) 1;
-
   rtems_attribute   sema_attributes;
   rtems_status_code ret;
   rtems_id          semaphore_id;
@@ -1009,7 +715,7 @@ osSemaphoreId osSemaphoreCreate(
   }
 
   ret = rtems_semaphore_create(
-    rtems_build_name( 'C', 'S', 'M', cmsis_semaphore_counter ),
+    semaphore_def->sema_name,
     count,
     sema_attributes,
     RTEMS_NO_PRIORITY,
@@ -1017,8 +723,6 @@ osSemaphoreId osSemaphoreCreate(
         );
 
   if ( ret == RTEMS_SUCCESSFUL ) {
-    cmsis_semaphore_counter++;
-
     return (osSemaphoreId) semaphore_id;
   } else {
     return 0;
@@ -1031,8 +735,7 @@ int32_t osSemaphoreWait(
   uint32_t      millisec
 )
 {
-  rtems_status_code ret;
-  rtems_interval    ticks_per_millisec = rtems_clock_get_ticks_per_second() /
+  rtems_interval  ticks_per_millisec = rtems_clock_get_ticks_per_second() /
                                          1000UL;
 
   // wait for specified semaphore for the maximum amount of time
@@ -1061,57 +764,28 @@ osStatus osSemaphoreDelete( osSemaphoreId semaphore_id )
 /// Create and Initialize memory pool
 osPoolId osPoolCreate( const osPoolDef_t *pool_def )
 {
-#if 0
+  (void) pool_def;
 
-  if ( __get_IPSR() != 0 )
-    return NULL;                                // Not allowed in ISR
-
-  if ( ( ( __get_CONTROL() & 1 ) == 0 ) && ( os_running == 0 ) ) {
-
-    // Privileged and not running
-    return svcPoolCreate( pool_def );
-  } else {
-    return __svcPoolCreate( pool_def );
-  }
-
-#else
-
+  // Not implemented yet
   return (osPoolId) 0;
-#endif
 }
 
 /// Allocate a memory block from a memory pool
 void *osPoolAlloc( osPoolId pool_id )
 {
-#if 0
+  (void) pool_id;
 
-  if ( ( __get_IPSR() != 0 ) || ( ( __get_CONTROL() & 1 ) == 0 ) ) {    // in ISR or Privileged
-    return sysPoolAlloc( pool_id, 0 );
-  } else {                                      // in Thread
-    return __sysPoolAlloc( pool_id, 0 );
-  }
-
-#else
-
+  // Not implemented yet
   return NULL;
-#endif
 }
 
 /// Allocate a memory block from a memory pool and set memory block to zero
 void *osPoolCAlloc( osPoolId pool_id )
 {
-#if 0
+  (void) pool_id;
 
-  if ( ( __get_IPSR() != 0 ) || ( ( __get_CONTROL() & 1 ) == 0 ) ) {    // in ISR or Privileged
-    return sysPoolAlloc( pool_id, 1 );
-  } else {                                      // in Thread
-    return __sysPoolAlloc( pool_id, 1 );
-  }
-
-#else
-
+  // Not implemented yet
   return NULL;
-#endif
 }
 
 /// Return an allocated memory block back to a specific memory pool
@@ -1120,18 +794,11 @@ osStatus osPoolFree(
   void    *block
 )
 {
-#if 0
+  (void) pool_id;
+  (void) block;
 
-  if ( ( __get_IPSR() != 0 ) || ( ( __get_CONTROL() & 1 ) == 0 ) ) {    // in ISR or Privileged
-    return sysPoolFree( pool_id, block );
-  } else {                                      // in Thread
-    return __sysPoolFree( pool_id, block );
-  }
-
-#else
-
-  return (osStatus) 0;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 // ==== Message Queue Management Functions ====
@@ -1144,23 +811,11 @@ osMessageQId osMessageCreate(
   osThreadId             thread_id
 )
 {
-#if 0
+  (void) queue_def;
+  (void) thread_id;
 
-  if ( __get_IPSR() != 0 )
-    return NULL;                                // Not allowed in ISR
-
-  if ( ( ( __get_CONTROL() & 1 ) == 0 ) && ( os_running == 0 ) ) {
-
-    // Privileged and not running
-    return svcMessageCreate( queue_def, thread_id );
-  } else {
-    return __svcMessageCreate( queue_def, thread_id );
-  }
-
-#else
-
+  // Not implemented yet
   return (osMessageQId) 0;
-#endif
 }
 
 /// Put a Message to a Queue
@@ -1170,18 +825,12 @@ osStatus osMessagePut(
   uint32_t     millisec
 )
 {
-#if 0
+  (void) queue_id;
+  (void) info;
+  (void) millisec;
 
-  if ( __get_IPSR() != 0 ) {                      // in ISR
-    return isrMessagePut( queue_id, info, millisec );
-  } else {                                      // in Thread
-    return __svcMessagePut( queue_id, info, millisec );
-  }
-
-#else
-
-  return (osStatus) 0;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Get a Message or Wait for a Message from a Queue
@@ -1190,19 +839,13 @@ os_InRegs osEvent osMessageGet(
   uint32_t     millisec
 )
 {
-#if 0
+  (void) queue_id;
+  (void) millisec;
 
-  if ( __get_IPSR() != 0 ) {                      // in ISR
-    return isrMessageGet( queue_id, millisec );
-  } else {                                      // in Thread
-    return __svcMessageGet( queue_id, millisec );
-  }
-
-#else
-  osEvent ret = { osOK, { 0 }, { 0 } };
+  // Not implemented yet
+  osEvent ret = { osErrorOS, { 0 }, { 0 } };
 
   return ret;
-#endif
 }
 
 // ==== Mail Queue Management Functions ====
@@ -1215,23 +858,11 @@ osMailQId osMailCreate(
   osThreadId          thread_id
 )
 {
-#if 0
+  (void) queue_def;
+  (void) thread_id;
 
-  if ( __get_IPSR() != 0 )
-    return NULL;                                // Not allowed in ISR
-
-  if ( ( ( __get_CONTROL() & 1 ) == 0 ) && ( os_running == 0 ) ) {
-
-    // Privileged and not running
-    return svcMailCreate( queue_def, thread_id );
-  } else {
-    return __svcMailCreate( queue_def, thread_id );
-  }
-
-#else
-
+  // Not implemented yet
   return (osMailQId) 0;
-#endif
 }
 
 /// Allocate a memory block from a mail
@@ -1240,18 +871,11 @@ void *osMailAlloc(
   uint32_t  millisec
 )
 {
-#if 0
+  (void) queue_id;
+  (void) millisec;
 
-  if ( __get_IPSR() != 0 ) {                      // in ISR
-    return sysMailAlloc( queue_id, millisec, 1, 0 );
-  } else {                                      // in Thread
-    return __sysMailAlloc( queue_id, millisec, 0, 0 );
-  }
-
-#else
-
+  // Not implemented yet
   return NULL;
-#endif
 }
 
 /// Allocate a memory block from a mail and set memory block to zero
@@ -1260,18 +884,11 @@ void *osMailCAlloc(
   uint32_t  millisec
 )
 {
-#if 0
+  (void) queue_id;
+  (void) millisec;
 
-  if ( __get_IPSR() != 0 ) {                      // in ISR
-    return sysMailAlloc( queue_id, millisec, 1, 1 );
-  } else {                                      // in Thread
-    return __sysMailAlloc( queue_id, millisec, 0, 1 );
-  }
-
-#else
-
+  // Not implemented yet
   return NULL;
-#endif
 }
 
 /// Free a memory block from a mail
@@ -1280,18 +897,11 @@ osStatus osMailFree(
   void     *mail
 )
 {
-#if 0
+  (void) queue_id;
+  (void) mail;
 
-  if ( __get_IPSR() != 0 ) {                      // in ISR
-    return sysMailFree( queue_id, mail, 1 );
-  } else {                                      // in Thread
-    return __sysMailFree( queue_id, mail, 0 );
-  }
-
-#else
-
-  return osOK;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Put a mail to a queue
@@ -1300,19 +910,11 @@ osStatus osMailPut(
   void     *mail
 )
 {
-#if 0
+  (void) queue_id;
+  (void) mail;
 
-  if ( queue_id == NULL )
-    return osErrorParameter;
-
-  if ( mail == NULL )
-    return osErrorValue;
-
-  return osMessagePut( *( (void **) queue_id ), (uint32_t) mail, 0 );
-#else
-
-  return osOK;
-#endif
+  // Not implemented yet
+  return osErrorOS;
 }
 
 /// Get a mail from a queue
@@ -1321,39 +923,12 @@ os_InRegs osEvent osMailGet(
   uint32_t  millisec
 )
 {
-#if 0
-  osEvent ret;
+  (void) queue_id;
+  (void) millisec;
 
-  if ( queue_id == NULL ) {
-    ret.status = osErrorParameter;
-
-    return ret;
-  }
-
-  ret = osMessageGet( *( (void **) queue_id ), millisec );
-
-  if ( ret.status == osEventMessage )
-    ret.status = osEventMail;
+  // Not implemented yet
+  osEvent ret = { osErrorOS, { 0 }, { 0 } };
 
   return ret;
-#else
-  osEvent ret = { osOK, { 0 }, { 0 } };
-
-  return ret;
-  #endif
 }
 
-// Public API
-#if 0
-/// Suspends the OS task scheduler
-uint32_t os_suspend( void )
-{
-  //return __rt_suspend();
-}
-
-/// Resumes the OS task scheduler
-void os_resume( uint32_t sleep_time )
-{
-  //__rt_resume(sleep_time);
-}
-#endif

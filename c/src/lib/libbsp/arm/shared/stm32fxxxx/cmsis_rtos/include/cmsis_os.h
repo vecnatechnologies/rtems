@@ -179,6 +179,7 @@ typedef struct os_thread_def {
   osPriority tpriority;                ///< initial thread priority
   uint32_t instances;                  ///< maximum number of instances of that thread function
   uint32_t stacksize;                  ///< stack size requirements in bytes; 0 is default stack size
+  rtems_name thread_name;              ///< the rtems 4 character thread identifier
 } osThreadDef_t;
 
 /// Timer Definition structure contains timer parameters.
@@ -190,13 +191,13 @@ typedef struct os_timer_def {
 /// Mutex Definition structure contains setup information for a mutex.
 /// \note CAN BE CHANGED: \b os_mutex_def is implementation specific in every CMSIS-RTOS.
 typedef struct os_mutex_def {
-  rtems_id mutex_id;                      /// mutex rtems ID
+    rtems_name mutex_name;      ///< the rtems 4 character mutex identifier
 } osMutexDef_t;
 
 /// Semaphore Definition structure contains setup information for a semaphore.
 /// \note CAN BE CHANGED: \b os_semaphore_def is implementation specific in every CMSIS-RTOS.
 typedef struct os_semaphore_def {
-  rtems_id sema_id;                      /// semaphore rtems ID
+  rtems_name sema_name;        ///< the rtems 4 character semaphore identifier
 } osSemaphoreDef_t;
 
 /// Definition structure for memory block allocation.
@@ -290,9 +291,9 @@ uint32_t osKernelSysTick( void );
 #define osThreadDef( name, priority, instances, stacksz )  \
   extern const osThreadDef_t os_thread_def_ ## name
 #else                            // define the object
-#define osThreadDef( name, entry, priority, instances, stacksz )  \
+#define osThreadDef( name, entry, priority, instances, stacksz, rtems_name )  \
   const osThreadDef_t os_thread_def_ ## name = \
-  { ( entry ), ( priority ), ( instances ), ( stacksz ) }
+  { ( entry ), ( priority ), ( instances ), ( stacksz ), (rtems_name) }
 #endif
 
 /// Access a Thread definition.
@@ -516,8 +517,8 @@ osStatus osMutexDelete( osMutexId mutex_id );
 #define osSemaphoreDef( name )  \
   extern const osSemaphoreDef_t os_semaphore_def_ ## name
 #else                            // define the object
-#define osSemaphoreDef( name )  \
-  const osSemaphoreDef_t os_semaphore_def_ ## name = { 0 }
+#define osSemaphoreDef( name , rtems_object_name)  \
+  const osSemaphoreDef_t os_semaphore_def_ ## name = { .sema_name = rtems_object_name};
 #endif
 
 /// Access a Semaphore definition.

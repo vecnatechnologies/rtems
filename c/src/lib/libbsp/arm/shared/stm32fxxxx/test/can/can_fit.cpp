@@ -84,12 +84,13 @@ int find_can_bus_by_name( const char *can_bus_name )
   uint32_t i;
 
   for ( i = 0; i < COUNTOF( can_buses ); i++ ) {
-    if ( strcmp( can_buses[ i ].name, can_bus_name ) == 0 ) {
+    if (( strcmp( can_buses[ i ].name, can_bus_name ) == 0 )  &&
+        ( can_buses[ i ].handle > 0)){
       return can_buses[ i ].handle;
     }
   }
 
-  return 0;
+  return -1;
 }
 
 /**
@@ -106,6 +107,7 @@ void can_fit_write_one_message(
   int      ret_val;
   uint64_t start_tx_count;
   uint64_t post_tx_count;
+  uint32_t wait_time = 0UL;
 
   // Check that handle is non-null
   CHECK_TEXT( pBus->handle != 0, "Invalid can bus handle" );
@@ -118,10 +120,12 @@ void can_fit_write_one_message(
   // Keep track of how many messages have been sent so far
   start_tx_count = stm32_can_get_tx_count( pBus->instance );
   ret_val = write( pBus->handle, pMsg, sizeof( *pMsg ) );
-  post_tx_count = stm32_can_get_tx_count( pBus->instance );
 
   // Make sure that the number of bytes written == the size of the message
   LONGS_EQUAL_TEXT( sizeof( *pMsg ), ret_val, "Invalid return value write" );
+
+  // Check the transmit count to see if it was incremented by 1
+  post_tx_count = stm32_can_get_tx_count( pBus->instance );
 
   // Make sure that the packet was actually sent by the hardware.  In order to
   // have been sent the hardware must sent the data, another device must acknowledge
@@ -180,9 +184,13 @@ TEST_GROUP( hal_can_fit )
 
         // If everything worked correctly then increment the number of buses
         if ( can_buses[ num_can_buses ].handle > 0 ) {
-          num_can_buses++;
           can_buses[ num_can_buses ].instance = (CAN_Instance) i;
+          num_can_buses++;
+        } else {
+          // erase name
+          can_buses[ num_can_buses ].name[0] = '\0';
         }
+
       }
     }
   }
@@ -193,11 +201,11 @@ TEST_GROUP( hal_can_fit )
 
     // close all can buses
     for ( i = 0; i < num_can_buses; i++ ) {
-      close( can_buses[ num_can_buses ].handle );
-      can_buses[ num_can_buses ].handle = 0;
-      can_buses[ num_can_buses ].name[ 0 ] = '\0';
-      num_can_buses--;
+      close( can_buses[ i ].handle );
+      can_buses[ i ].handle = 0;
+      can_buses[ i ].name[ 0 ] = '\0';
     }
+    num_can_buses = 0;
   }
 };
 
