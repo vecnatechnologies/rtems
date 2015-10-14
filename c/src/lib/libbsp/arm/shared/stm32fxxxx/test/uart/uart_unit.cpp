@@ -135,3 +135,9 @@ TEST( hal_uart_unit, stm32f_uart_get_registers )
 #endif
 }
 
+
+TEST( hal_uart_unit, printk )
+{
+  CHECK_TEXT( BSP_output_char != NULL, "BSP_output_char is NULL -- printk will not work" );
+  CHECK_TEXT( BSP_poll_char   != NULL, "BSP_poll_char is NULL" );
+}

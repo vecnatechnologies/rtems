@@ -89,6 +89,7 @@ uint8_t Tx_Buff[ ETH_TXBUFNB ][ ETH_TX_BUF_SIZE ] __attribute__( ( section(
 osSemaphoreId s_xSemaphore = NULL;
 
 static uint32_t num_ethernet_rx_msg = 0UL;
+static uint32_t num_ethernet_errors = 0UL;
 static uint32_t num_ethernet_tx_msg = 0UL;
 
 /* Global Ethernet handle*/
@@ -102,7 +103,14 @@ static void stm32f_ethernet_isr( void *argData )
   ETH_HandleTypeDef *pEth =
     (ETH_HandleTypeDef *) argData;
 
+  uint32_t init_rx_count = num_ethernet_rx_msg;
+
   HAL_ETH_IRQHandler( pEth );
+
+  // This != accounts for the roll over case.
+  if(num_ethernet_rx_msg != init_rx_count) {
+      osSemaphoreRelease( s_xSemaphore );
+  }
 }
 
 /* Private functions ---------------------------------------------------------*/
@@ -177,7 +185,11 @@ void HAL_ETH_MspInit( ETH_HandleTypeDef *heth )
 void HAL_ETH_RxCpltCallback( ETH_HandleTypeDef *heth )
 {
   num_ethernet_rx_msg++;
-  osSemaphoreRelease( s_xSemaphore );
+}
+
+void HAL_ETH_ErrorCallback ( ETH_HandleTypeDef *heth )
+{
+  num_ethernet_errors++;
 }
 
 /**

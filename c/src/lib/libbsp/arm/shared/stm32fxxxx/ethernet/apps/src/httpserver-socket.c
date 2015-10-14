@@ -37,6 +37,7 @@
 #include <hal-ethernetif.h>
 #include <cmsis_os.h>
 #include <hal-utils.h>
+#include <rtems/stackchk.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -191,6 +192,16 @@ static portCHAR *http_generate_platform_stats_page( void )
 {
   portCHAR dynamic_text[ 128 ] = { 0 };
   portCHAR headerRow[ 128 ];
+  rtems_interval elapsed_time =  rtems_clock_get_ticks_since_boot() / rtems_clock_get_ticks_per_second();
+  uint32_t hours;
+  uint32_t minutes;
+  uint32_t seconds;
+
+  hours = elapsed_time / 3600UL;
+  elapsed_time -= hours * 3600UL;
+  minutes = elapsed_time / 60;
+  elapsed_time -= minutes * 60;
+  seconds = elapsed_time;
 
   memset( DYNAMIC_PAGE_CONTENT, 0, sizeof( DYNAMIC_PAGE_CONTENT ) );
 
@@ -205,14 +216,32 @@ static portCHAR *http_generate_platform_stats_page( void )
   strncat( DYNAMIC_PAGE_CONTENT,
     dynamic_text,
     sizeof( DYNAMIC_PAGE_CONTENT ) - strlen( DYNAMIC_PAGE_CONTENT ) );
+
   snprintf( dynamic_text,
     sizeof( dynamic_text ),
-    "<p>Number of Ethernet Packets (RX: %lu, TX %lu",
+    "<p>Number of Ethernet Packets (RX: %lu, TX %lu)",
     stm32f_ethernet_get_num_rx_msg(),
     stm32f_ethernet_get_num_tx_msg() );
   strncat( DYNAMIC_PAGE_CONTENT,
     dynamic_text,
     sizeof( DYNAMIC_PAGE_CONTENT ) - strlen( DYNAMIC_PAGE_CONTENT ) );
+
+  snprintf( dynamic_text,
+    sizeof( dynamic_text ),
+    "<p>Uptime: %lu hours, %lu minutes, %lu second",  hours, minutes, seconds);
+  strncat( DYNAMIC_PAGE_CONTENT,
+    dynamic_text,
+    sizeof( DYNAMIC_PAGE_CONTENT ) - strlen( DYNAMIC_PAGE_CONTENT ) );
+
+#ifdef REPORT_STACK_USAGE
+  static uint32_t last_stack_report = 0;
+
+  if(last_stack_report != minutes) {
+    rtems_stack_checker_report_usage();
+    last_stack_report = minutes;
+  }
+#endif
+
   snprintf( headerRow,
     sizeof( headerRow ),
     "<pre><br>%4s\t%16s\t%8s\t%10s\t%8s",

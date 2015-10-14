@@ -68,9 +68,7 @@ static void stm32f_uart_write(
 
 static int stm32f_uart_poll_read( rtems_termios_device_context *context );
 
-//---------------
-BSP_output_char_function_type     BSP_output_char = NULL;
-BSP_polling_getchar_function_type BSP_poll_char = NULL;
+
 
 //--------------- Processor specific UART configuration
 #include <console-config.c>
@@ -84,6 +82,8 @@ const rtems_termios_device_handler stm32f_uart_handlers_polling = {
   .set_attributes = stm32f_uart_set_attr,
   .mode = TERMIOS_POLLED
 };
+
+
 
 //============================== CONSOLE API FUNCTION ==========================================
 rtems_device_driver console_initialize(
@@ -262,3 +262,53 @@ static void stm32f_uart_write(
   }
 }
 
+static void _BSP_output_char(char c)
+{
+  stm32f_console_driver_entry* pConsole =  (stm32f_console_driver_entry*) stm32f_console_driver_table;
+
+  if ( pConsole->base_driver_info.uart_mode == STM32F_UART_MODE_POLLING ) {
+
+    HAL_UART_Transmit(
+      pConsole->base_driver_info.handle,
+      (uint8_t *) &c,
+      1,
+      POLLED_TX_TIMEOUT_ms );
+
+    if(c == '\n'){
+
+      c = '\r';
+
+      HAL_UART_Transmit(
+        pConsole->base_driver_info.handle,
+        (uint8_t *) &c,
+        1,
+        POLLED_TX_TIMEOUT_ms );
+    }
+  }
+}
+
+static int _BSP_get_char_poll(void)
+{
+  char next_char;
+  HAL_StatusTypeDef ret;
+  stm32f_console_driver_entry* pConsole =  (stm32f_console_driver_entry*) stm32f_console_driver_table;
+
+  ret = (int) HAL_UART_Receive(
+    pConsole->base_driver_info.handle,
+    &next_char,
+    1,
+    0 );
+
+  if ( ret == HAL_OK ) {
+    return (int) next_char;
+  } else {
+    return -1;
+  }
+
+  return ret;
+}
+
+// This pointers need to be defined for printk low-level
+// kernel printing capabilities.
+BSP_output_char_function_type     BSP_output_char = _BSP_output_char;
+BSP_polling_getchar_function_type BSP_poll_char   = _BSP_get_char_poll;
