@@ -406,6 +406,9 @@ static int can_bus_do_init(
 )
 {
   rtems_status_code sc;
+  // Set the de_init method as it will be needed 
+  // if initialzation fails
+  bus->de_init = can_bus_de_init_default;
 
   sc = rtems_semaphore_create(
     rtems_build_name( 'C', '0' + bus->bus_number, 'M', 'X' ),
@@ -477,7 +480,6 @@ static int can_bus_do_init(
   bus->destroy = destroy;
   bus->set_filter = can_bus_set_filter_default;
   bus->init = can_bus_init_default;
-  bus->de_init = can_bus_de_init_default;
   bus->set_filter = can_bus_set_filter_default;
   bus->get_num_filters = can_bus_get_num_filters_default;
   bus->set_flags = can_bus_set_flags_default;
@@ -491,19 +493,24 @@ void can_bus_destroy( can_bus *bus )
   bus->de_init( bus );
 
   sc = rtems_semaphore_delete( bus->mutex );
-  _Assert( sc == RTEMS_SUCCESSFUL );
+  _Assert( sc == RTEMS_SUCCESSFUL 
+        || sc == RTEMS_INVALID_ID);
 
   sc = rtems_message_queue_delete( bus->rx_msg_queue );
-  _Assert( sc == RTEMS_SUCCESSFUL );
+  _Assert( sc == RTEMS_SUCCESSFUL 
+        || sc == RTEMS_INVALID_ID);
 
   sc = rtems_message_queue_delete( bus->tx_msg_queue );
-  _Assert( sc == RTEMS_SUCCESSFUL );
+  _Assert( sc == RTEMS_SUCCESSFUL 
+        || sc == RTEMS_INVALID_ID);
 
   sc = rtems_task_delete( bus->rx_task_id );
-  _Assert( sc == RTEMS_SUCCESSFUL );
+  _Assert( sc == RTEMS_SUCCESSFUL 
+        || sc == RTEMS_INVALID_ID);
 
   sc = rtems_task_delete( bus->tx_task_id );
-  _Assert( sc == RTEMS_SUCCESSFUL );
+  _Assert( sc == RTEMS_SUCCESSFUL 
+        || sc == RTEMS_INVALID_ID);
 
   (void) sc;
 }

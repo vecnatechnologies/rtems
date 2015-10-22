@@ -2170,6 +2170,8 @@ const rtems_libio_helper rtems_fs_init_helper =
     #define CONFIGURE_NETWORKING_SEMAPHORES 0
   #endif
 
+  #define STM32_SEMAPHORES 10
+
   /**
    * This macro is calculated to specify the number of Classic API
    * semaphores required by the application and configured RTEMS
@@ -2181,7 +2183,8 @@ const rtems_libio_helper rtems_fs_init_helper =
     (CONFIGURE_MAXIMUM_SEMAPHORES + CONFIGURE_LIBIO_SEMAPHORES + \
       CONFIGURE_TERMIOS_SEMAPHORES + CONFIGURE_LIBBLOCK_SEMAPHORES + \
       CONFIGURE_SEMAPHORES_FOR_FILE_SYSTEMS + \
-      CONFIGURE_NETWORKING_SEMAPHORES + CONFIGURE_DRVMGR_SEMAPHORES)
+      CONFIGURE_NETWORKING_SEMAPHORES + CONFIGURE_DRVMGR_SEMAPHORES + \
+      STM32_SEMAPHORES )
 
   /**
    * This macro is calculated to specify the memory required for

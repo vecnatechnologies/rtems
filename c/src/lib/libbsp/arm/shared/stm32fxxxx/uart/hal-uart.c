@@ -422,8 +422,23 @@ static int uart_register_device_driver( stm32f_uart_device *pUartDevice )
 static int uart_create_rtems_objects( stm32f_uart_device *pUartDevice )
 {
   rtems_status_code sc;
+  rtems_attribute   mutex_attributes;
+  rtems_status_code ret;
 
   char uart_num = '1' + (char) pUartDevice->pUart->base_driver_info.uart;
+
+  mutex_attributes = RTEMS_PRIORITY | RTEMS_LOCAL | RTEMS_INHERIT_PRIORITY |
+                     RTEMS_BINARY_SEMAPHORE |
+                     RTEMS_NO_PRIORITY_CEILING |
+                     RTEMS_NO_MULTIPROCESSOR_RESOURCE_SHARING;
+
+  sc = rtems_semaphore_create(
+    rtems_build_name( 'U', 'T', 'X', uart_num ),
+    1,
+    mutex_attributes,
+    PRIORITY_DEFAULT_MAXIMUM,
+    &pUartDevice->pUart->mutex
+        );
 
   sc = rtems_message_queue_create(
     rtems_build_name( 'U', 'T', 'X', uart_num ),

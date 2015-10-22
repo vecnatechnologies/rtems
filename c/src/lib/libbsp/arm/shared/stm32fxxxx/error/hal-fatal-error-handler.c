@@ -162,7 +162,7 @@ static void stm32fxxxx_fatal_error_handler(
   while(1);
 }
 
-rtems_extensions_table Extensions = {
+static rtems_extensions_table Extensions = {
  NULL,                      /* task create user extension */
  NULL,                      /* task start user extension */
  NULL,                      /* task restart user extension */
