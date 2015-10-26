@@ -33,10 +33,11 @@
 
 /**
  * @brief  Initialize the HTTP server (start its thread)
- * @param  none
+ * @param  barrier_id The RTEMS id of the barrier that is released
+ *         when the TCP/IP stack startup is complete.
  * @retval None
  */
-void http_server_socket_init( void );
+void http_server_socket_init( rtems_id barrier_id );
 
 /**
  * @brief serve tcp connection

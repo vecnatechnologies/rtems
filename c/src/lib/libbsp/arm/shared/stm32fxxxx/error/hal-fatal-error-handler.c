@@ -25,20 +25,12 @@
 #include <hal-utils.h>
 #include <stdio.h>
 #include <hal-fatal-error-handler.h>
+#include <rtems/score/armv7m.h>
+#include <rtems/score/isr.h>
+#include <rtems/score/threaddispatch.h>
 
-#define TASK_SWITCH_LOG_LENGTH 20
-
-typedef struct  {
-    char executing_task[4];
-    char heir_task[4];
-} task_switch_log_entry_t;
-
-typedef struct  {
-    task_switch_log_entry_t task_switch_log_entry[TASK_SWITCH_LOG_LENGTH];
-    uint32_t task_log_index;
-} task_switch_log_t;
-
-static task_switch_log_t task_switch_log = {{0},0};
+static interrupt_name_t interrupt_name_bindings[] = {{"ETH", 61}, {"Timer", -1}, {"DMA", 15}, {"UART4", 52}};
+static debug_event_log_t debug_event_log = {{0},0};
 
 /* Extension name */
 rtems_name Extension_name;
@@ -52,6 +44,69 @@ typedef struct
 }register_double;
 
 
+static bool is_interrupt_event(const debug_event_type_t event) {
+  return (event == debug_event_type_interrupt_enter) || (event == debug_event_type_interrupt_exit);
+}
+
+static void checkout_for_break(void){
+
+  static uint32_t debug_counter = 0UL;
+  static uint32_t discontinuity_count = 0UL;
+
+  uint32_t index = debug_event_log.event_log_index;
+  debug_event_log_entry_t* current = &(debug_event_log.event_log_entry[index]);
+
+  if  (index == 0) { index = COUNTOF(debug_event_log.event_log_entry) - 1;}
+  else             { index--;}
+
+  debug_event_log_entry_t* last = &(debug_event_log.event_log_entry[index]);
+
+  // Look for back to back interrupt starting from a timer tick
+  // and followed by another interrupt
+  if((is_interrupt_event(current->event_type)) &&
+     (is_interrupt_event(last->event_type))) {
+
+     if(last->interrupt_number == -1) {
+       debug_counter++;
+     }
+  }
+
+  if((is_interrupt_event(current->event_type)) &&
+     (current->isr_nest_level != current->thread_dispatch_level)) {
+    discontinuity_count++;
+  }
+}
+
+static char* find_interrupt_name(const int interrupt_number) {
+
+  int i;
+
+  for(i = 0; i < COUNTOF(interrupt_name_bindings); i++) {
+    if(interrupt_name_bindings[i].interrupt_number == interrupt_number) {
+      return (char*) interrupt_name_bindings[i].interrupt_name;
+    }
+  }
+
+  return NULL;
+}
+
+static debug_event_log_entry_t* get_next_log_entry(void)
+{
+  debug_event_log_entry_t* ret = NULL;
+
+  if(debug_event_log.event_log_index < COUNTOF(debug_event_log.event_log_entry)) {
+    ret = &(debug_event_log.event_log_entry[debug_event_log.event_log_index]);
+  }
+
+  return ret;
+}
+
+static void increment_log_index(void)
+{
+  debug_event_log.event_log_index =
+      (debug_event_log.event_log_index + 1) %
+      COUNTOF(debug_event_log.event_log_entry);
+}
 
 static void copy_task_name(
   const uint32_t task_name,
@@ -68,50 +123,111 @@ static void copy_task_name(
   }
 }
 
+static void do_common_event_logging(const uint32_t executing,
+                                    const uint32_t heir,
+                                    debug_event_log_entry_t* pEvent) {
+
+  if(pEvent != NULL) {
+
+    copy_task_name(executing,(char*) pEvent->executing_task);
+    copy_task_name(heir, (char*) pEvent->heir_task);
+
+    pEvent->isr_nest_level = _ISR_Nest_level;
+    pEvent->thread_dispatch_level = _Thread_Dispatch_disable_level;
+
+    checkout_for_break();
+
+    increment_log_index();
+  }
+}
+
+void add_isr_event(
+  const int isr_number,
+  const debug_event_type_t type
+  )
+{
+  debug_event_log_entry_t* pEvent = get_next_log_entry();
+
+  if(pEvent != NULL) {
+
+    pEvent->event_type = type;
+    pEvent->interrupt_number = isr_number;
+
+    do_common_event_logging(0UL, 0UL, pEvent);
+  }
+}
 
 static void stm32fxxxx_task_switch_extension (
   Thread_Control *executing,
   Thread_Control *heir
 )
 {
-  if(task_switch_log.task_log_index < COUNTOF(task_switch_log.task_switch_log_entry)) {
+  debug_event_log_entry_t* pEvent = get_next_log_entry();
 
-    copy_task_name(executing->Object.name.name_u32,
-      (char*) task_switch_log.task_switch_log_entry[task_switch_log.task_log_index].executing_task);
+  if(pEvent != NULL) {
 
-    copy_task_name(heir->Object.name.name_u32,
-      (char*) task_switch_log.task_switch_log_entry[task_switch_log.task_log_index].heir_task);
-
-    task_switch_log.task_log_index = (task_switch_log.task_log_index + 1) % COUNTOF(task_switch_log.task_switch_log_entry);
+    pEvent->event_type = debug_event_type_task_switch;
+    pEvent->interrupt_number = 0;
+    do_common_event_logging(executing->Object.name.name_u32,
+      heir->Object.name.name_u32, pEvent);
   }
 }
 
-void print_task_switch_log(void)
+void print_event_log(void)
 {
   uint32_t i;
   uint32_t log_index;
 
-  log_index = task_switch_log.task_log_index;
+  log_index = debug_event_log.event_log_index;
+  debug_event_log_entry_t* pEvent;
 
-  printf("Context switch log\n");
+  printk("Event log\n");
 
-  for(i = 0UL; i < COUNTOF(task_switch_log.task_switch_log_entry); i++) {
+  for(i = 0UL; i < COUNTOF(debug_event_log.event_log_entry); i++) {
 
     if(log_index == 0) {
-      log_index = COUNTOF(task_switch_log.task_switch_log_entry) - 1;
+      log_index = COUNTOF(debug_event_log.event_log_entry) - 1;
     } else {
       log_index--;
     }
 
-    printf("\t%c%c%c%c -> %c%c%c%c\n",
-      task_switch_log.task_switch_log_entry[log_index].executing_task[0],
-      task_switch_log.task_switch_log_entry[log_index].executing_task[1],
-      task_switch_log.task_switch_log_entry[log_index].executing_task[2],
-      task_switch_log.task_switch_log_entry[log_index].executing_task[3],
-      task_switch_log.task_switch_log_entry[log_index].heir_task[0],
-      task_switch_log.task_switch_log_entry[log_index].heir_task[1],
-      task_switch_log.task_switch_log_entry[log_index].heir_task[2],
-      task_switch_log.task_switch_log_entry[log_index].heir_task[3]);
+    pEvent = &(debug_event_log.event_log_entry[log_index]);
+
+    switch(pEvent->event_type) {
+
+    case debug_event_type_task_switch:
+    printk("\t%c%c%c%c -> %c%c%c%c %d %d\n",
+      pEvent->executing_task[0],
+      pEvent->executing_task[1],
+      pEvent->executing_task[2],
+      pEvent->executing_task[3],
+      pEvent->heir_task[0],
+      pEvent->heir_task[1],
+      pEvent->heir_task[2],
+      pEvent->heir_task[3],
+      pEvent->isr_nest_level,
+      pEvent->thread_dispatch_level
+      );
+    break;
+
+    case debug_event_type_interrupt_enter:
+    printk("\tEnter Int[%s] %d %d\n",
+      find_interrupt_name(pEvent->interrupt_number),
+      pEvent->isr_nest_level,
+      pEvent->thread_dispatch_level);
+    break;
+
+    case debug_event_type_interrupt_exit:
+      printk("\tExit Int[%s] %d %d\n",
+        find_interrupt_name(pEvent->interrupt_number),
+        pEvent->isr_nest_level,
+        pEvent->thread_dispatch_level);
+      break;
+
+    default:
+      break;
+
+    }
   }
 }
 
@@ -126,37 +242,37 @@ static void stm32fxxxx_fatal_error_handler(
   int *ptr = (int *)frame;
   int count=0;
 
-  printf ("\n --- Hard Fault Occurred!!! :( --- \n");
-  printf ("\n RTEMS Error Code : %s \n", rtems_fatal_source_text((rtems_fatal_source) source));
-  printf (" Caused by RTEMS?: ");
-  printf (is_internal == false ? "Nope\n" : "Yup\n");
-  printf (" Hard fault caused by vector # %X\n", (unsigned int) frame->vector);
-  printf ("\n Providing Stacked Register Details... \n");
-  printf ("\n General Purpose Registers:\n");
+  printk ("\n --- Hard Fault Occurred!!! :( --- \n");
+  printk ("\n RTEMS Error Code : %s \n", rtems_fatal_source_text((rtems_fatal_source) source));
+  printk (" Caused by RTEMS?: ");
+  printk (is_internal == false ? "Nope\n" : "Yup\n");
+  printk (" Hard fault caused by vector # %X\n", (unsigned int) frame->vector);
+  printk ("\n Providing Stacked Register Details... \n");
+  printk ("\n General Purpose Registers:\n");
 
   for(count=0;count<=12;count++)
   {
-    printf ("\tr%d\t= 0x%.08X\n",count, (unsigned int) *(ptr+count));
+    printk ("\tr%d\t= 0x%x\n",count, (unsigned int) *(ptr+count));
   }
 
-  printf ("\tsp\t= 0x%.08X -> Stack Pointer\n", (unsigned int) frame->register_sp);
-  printf ("\tlr\t= 0x%.08X -> Subroutine Call Return Address\n", (unsigned int) frame->register_lr);
-  printf ("\tpc\t= 0x%.08X -> Program Counter\n", (unsigned int) frame->register_pc);
-  printf ("\tpsr\t= 0x%.08X -> Program Status Register\n", (unsigned int) frame->register_xpsr);
-  printf ("\tfpexc\t= 0x%.08X -> Floating-Point Exception Register\n", (unsigned int) frame->register_xpsr);
-  printf ("\tfpscr\t= 0x%.08X -> Floating-Point Status and Control Register\n", (unsigned int) frame->register_xpsr);
+  printk ("\tsp\t= 0x%x -> Stack Pointer\n", (unsigned int) frame->register_sp);
+  printk ("\tlr\t= 0x%x -> Subroutine Call Return Address\n", (unsigned int) frame->register_lr);
+  printk ("\tpc\t= 0x%x -> Program Counter\n", (unsigned int) frame->register_pc);
+  printk ("\tpsr\t= 0x%x -> Program Status Register\n", (unsigned int) frame->register_xpsr);
+  printk ("\tfpexc\t= 0x%x -> Floating-Point Exception Register\n", (unsigned int) frame->register_xpsr);
+  printk ("\tfpscr\t= 0x%x -> Floating-Point Status and Control Register\n", (unsigned int) frame->register_xpsr);
 
   ptr = &(frame->vfp_context->register_d0);
 
-  printf ("\n Single-Precision FPU Registers:\n");
+  printk ("\n Single-Precision FPU Registers:\n");
 
   for(count=0;count<16;count++)
   {
       fpu_reg = (ptr+(count*2));
-      printf ("\ts%d\t= %-20e\n",count, (uint64_t)fpu_reg->reg_value);
+      printk ("\ts%d\t= 0x%x\n",count, (uint64_t)fpu_reg->reg_value);
   }
 
-  print_task_switch_log();
+  print_event_log();
 
   __asm__ volatile ("BKPT #01"); /* Break debugger here */
   while(1);
@@ -190,4 +306,5 @@ rtems_status_code stm32_initialize_extensions(void){
       &Extension_id
   );
   return sc;
+
 }

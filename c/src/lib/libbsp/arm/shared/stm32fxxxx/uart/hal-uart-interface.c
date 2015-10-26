@@ -28,6 +28,7 @@
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc_ex )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, gpio )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, cortex )
 
 // A set of UART handle used in the HAL code.  These handles are used
 // for both the termios console uarts as well as the non-console uarts.
@@ -443,6 +444,7 @@ int stm32f_register_interrupt_handlers( UART_HandleTypeDef *huart )
   // previously installed then update the status to successful.
   if ( pUart->uart_mode == STM32F_UART_MODE_DMA ) {
     if ( ret == RTEMS_SUCCESSFUL ) {
+
       ret = rtems_interrupt_handler_install(
         pUart->rx_dma.DMAStreamInterruptNumber,
         NULL,
@@ -457,6 +459,7 @@ int stm32f_register_interrupt_handlers( UART_HandleTypeDef *huart )
     }
 
     if ( ret == RTEMS_SUCCESSFUL ) {
+
       ret = rtems_interrupt_handler_install(
         pUart->tx_dma.DMAStreamInterruptNumber,
         NULL,
@@ -481,6 +484,7 @@ int stm32f_register_interrupt_handlers( UART_HandleTypeDef *huart )
     // previously installed then update the status to successful.
     if ( pUart->uart_mode != STM32F_UART_MODE_POLLING ) {
       if ( ret == RTEMS_SUCCESSFUL ) {
+
         ret = rtems_interrupt_handler_install(
           pUart->interrupt_number,
           NULL,

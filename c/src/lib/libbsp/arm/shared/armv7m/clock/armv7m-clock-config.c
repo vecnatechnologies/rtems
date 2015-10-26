@@ -63,9 +63,12 @@ static void _ARMV7M_Systick_at_tick(void)
 
 static void _ARMV7M_Systick_handler(void)
 {
-  _ARMV7M_Interrupt_service_enter();
+  static int debug_counter = 0;
+  int my_counter = debug_counter++;
+
+  _ARMV7M_Interrupt_service_enter(my_counter, -1);
   Clock_isr(NULL);
-  _ARMV7M_Interrupt_service_leave();
+  _ARMV7M_Interrupt_service_leave(my_counter, -1);
 }
 
 static void _ARMV7M_Systick_handler_install(void)

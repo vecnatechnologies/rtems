@@ -5,7 +5,6 @@
  *      Author: jay.doyle
  */
 
-
 stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS] = {
 
 //          UART4
@@ -13,7 +12,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UART
         .device_name         = "/dev/ttyS3",
         .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS]),
         .interrupt_number    = UART4_IRQn,
-        .uart_mode           = STM32F_UART_MODE_DMA,
+        .uart_mode           = STM32F_UART_MODE_INT,
         .tx_dma_stream       = DMA1_Stream4,
         .rx_dma_stream       = DMA2_Stream2,
         .tx_pin              = {STM32F_GPIO_PORTA, 0},

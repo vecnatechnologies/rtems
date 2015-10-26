@@ -148,6 +148,11 @@ static void uart_obtain( stm32f_uart_driver_entry *pUart )
   rtems_status_code sc;
 
   sc = rtems_semaphore_obtain( pUart->mutex, RTEMS_WAIT, RTEMS_NO_TIMEOUT );
+  if(sc !=  RTEMS_SUCCESSFUL) {
+    while (1) {
+      ;
+    }
+  }
   _Assert( sc == RTEMS_SUCCESSFUL );
   (void) sc;
 }
@@ -423,7 +428,6 @@ static int uart_create_rtems_objects( stm32f_uart_device *pUartDevice )
 {
   rtems_status_code sc;
   rtems_attribute   mutex_attributes;
-  rtems_status_code ret;
 
   char uart_num = '1' + (char) pUartDevice->pUart->base_driver_info.uart;
 
@@ -477,17 +481,26 @@ static int uart_create_rtems_objects( stm32f_uart_device *pUartDevice )
 
 void stm32_bsp_register_uart( void )
 {
+#if (NUM_PROCESSOR_UARTS > 0)
   uint32_t i;
 
   for ( i = 0; i < COUNTOF( stm32f_uart_driver_table ); i++ ) {
+
     stm32f_uart_driver_table[ i ].base_driver_info.handle =
       &( UartHandles[ i + NUM_PROCESSOR_CONSOLE_UARTS ] );
+
     stm32f_uart_driver_table[ i ].instance = i;
+
     uart_device_table[ i ].pUart = &stm32f_uart_driver_table[ i ];
+
     uart_create_rtems_objects( &uart_device_table[ i ] );
+
     stm32f_register_interrupt_handlers(
       uart_device_table[ i ].pUart->base_driver_info.handle );
+
     uart_register_device_driver( &uart_device_table[ i ] );
+
   }
+#endif
 }
 

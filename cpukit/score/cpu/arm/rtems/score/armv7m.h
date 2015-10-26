@@ -529,9 +529,9 @@ void _ARMV7M_Set_exception_priority_and_handler(
 
 void _ARMV7M_Exception_default( void );
 
-void _ARMV7M_Interrupt_service_enter( void );
+void _ARMV7M_Interrupt_service_enter( const int debug_counter, const int irq  );
 
-void _ARMV7M_Interrupt_service_leave( void );
+void _ARMV7M_Interrupt_service_leave( const int debug_counter, const int irq  );
 
 void _ARMV7M_Pendable_service_call( void );
 
