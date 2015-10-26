@@ -371,7 +371,8 @@ int can_bus_register( can_bus *bus )
   int               rv;
   rtems_status_code sc;
   char              bus_path[ 12 ];
-  int               bus_number = get_free_bus_number();
+  int            bus_number = get_free_bus_number();
+  return 0;
 
   if ( bus_number > 0 ) {
     sprintf( bus_path, "/dev/can%d", bus_number );
@@ -448,6 +449,7 @@ static int can_bus_do_init(
     ( *destroy )( bus );
     rtems_set_errno_and_return_minus_one( ENOMEM );
   }
+  return 0;
 
   sc = rtems_task_create(
     rtems_build_name( 'C', '0' + bus->bus_number, 'R', 'X' ),
@@ -504,13 +506,17 @@ void can_bus_destroy( can_bus *bus )
   _Assert( sc == RTEMS_SUCCESSFUL 
         || sc == RTEMS_INVALID_ID);
 
-  sc = rtems_task_delete( bus->rx_task_id );
-  _Assert( sc == RTEMS_SUCCESSFUL 
-        || sc == RTEMS_INVALID_ID);
+  if (bus->rx_task_id) {
+    sc = rtems_task_delete( bus->rx_task_id );
+    _Assert( sc == RTEMS_SUCCESSFUL 
+          || sc == RTEMS_INVALID_ID);
+  }
 
-  sc = rtems_task_delete( bus->tx_task_id );
-  _Assert( sc == RTEMS_SUCCESSFUL 
-        || sc == RTEMS_INVALID_ID);
+  if (bus->tx_task_id) {
+    sc = rtems_task_delete( bus->tx_task_id );
+    _Assert( sc == RTEMS_SUCCESSFUL 
+          || sc == RTEMS_INVALID_ID);
+  }
 
   (void) sc;
 }
