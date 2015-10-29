@@ -35,6 +35,13 @@
 #include <hal-ethernetif.h>
 #include <string.h>
 
+#define MAC_ADDR0   2
+#define MAC_ADDR1   0
+#define MAC_ADDR2   0
+#define MAC_ADDR3   3
+#define MAC_ADDR4   0
+#define MAC_ADDR5   0
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* The time to block waiting for input. */
@@ -207,7 +214,7 @@ uint32_t stm32f_ethernet_get_num_tx_msg( void )
 // This function should be overloaded in the application code to assign
 // the correct ethernet address.  Unless this function is overloaded then
 // this default MAC address will be used.
-__weak void stm32f_set_mac_addr(uint8_t* macaddress){
+void stm32f_set_mac_addr(uint8_t* macaddress){
 
   macaddress[0] = MAC_ADDR0;
   macaddress[1] = MAC_ADDR1;
