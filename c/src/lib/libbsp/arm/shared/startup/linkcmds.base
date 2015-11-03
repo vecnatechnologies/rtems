@@ -91,13 +91,6 @@ SECTIONS {
 	_qspi_init_base = LOADADDR(.qspi);
 	_qspi_init_length = SIZEOF(.qspi);
 
-	.ccm (NOLOAD) : 
-	{
-	  . = ALIGN(4);
-	  *(.ccm)
-	  . = ALIGN(4);     
-	} > CCM
-
 	.text : ALIGN_WITH_INPUT {
 		bsp_section_text_begin = .;
 		*(.text.unlikely .text.*_unlikely)
