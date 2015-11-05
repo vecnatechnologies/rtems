@@ -180,11 +180,6 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
 # CAN
 libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 
-# Ethernet
-libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/src/httpserver-socket.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/cmsis_rtos/src/cmsis_os.c
-
 #I2C
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
 libbsp_a_SOURCES += i2c/hal-i2c-init.c
