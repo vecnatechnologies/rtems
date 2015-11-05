@@ -295,7 +295,7 @@ static rtems_extensions_table Extensions = {
           in application code
  *
  */
-rtems_status_code stm32_initialize_extensions(void){
+rtems_status_code stm32f_initialize_user_extensions(void){
 
   rtems_status_code sc;
   Extension_name = rtems_build_name('E', 'X', 'U', '1');

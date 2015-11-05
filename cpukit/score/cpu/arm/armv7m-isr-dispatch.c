@@ -27,6 +27,21 @@
 
 #ifdef ARM_MULTILIB_ARCH_V7M
 
+typedef enum {
+  debug_event_type_none,
+  debug_event_type_task_switch,
+  debug_event_type_interrupt_enter,
+  debug_event_type_interrupt_exit,
+  debug_event_type_service,
+  debug_event_type_supervisor
+} debug_event_type_t;
+
+void add_isr_event(
+  const int isr_number,
+  const debug_event_type_t type
+  );
+
+
 static void __attribute__((naked)) _ARMV7M_Thread_dispatch( void )
 {
   __asm__ volatile (
@@ -51,6 +66,8 @@ void _ARMV7M_Pendable_service_call( void )
   ARMV7M_Exception_frame *ef;
 
   _ISR_Nest_level = 1;
+
+  add_isr_event(0, debug_event_type_service);
 
   _ARMV7M_SCB->icsr = ARMV7M_SCB_ICSR_PENDSVCLR;
   _ARMV7M_Trigger_lazy_floating_point_context_save();
@@ -80,6 +97,9 @@ void _ARMV7M_Supervisor_call( void )
   _ARMV7M_Set_PSP( (uint32_t) ef );
 
   _ISR_Nest_level = 0;
+
+  add_isr_event(0, debug_event_type_supervisor);
+
   RTEMS_COMPILER_MEMORY_BARRIER();
 
   if ( _Thread_Dispatch_necessary ) {

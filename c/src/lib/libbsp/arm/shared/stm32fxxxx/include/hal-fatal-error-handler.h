@@ -33,6 +33,8 @@ typedef enum {
   debug_event_type_task_switch,
   debug_event_type_interrupt_enter,
   debug_event_type_interrupt_exit,
+  debug_event_type_service,
+  debug_event_type_supervisor
 } debug_event_type_t;
 
 typedef struct  {
@@ -57,6 +59,6 @@ void add_isr_event(
 /**
  * @brief HAL fatal error handler function.
  */
-rtems_status_code stm32_initialize_extensions( void );
+rtems_status_code stm32f_initialize_user_extensions( void );
 
 #endif /* HAL_FATAL_ERROR_HANDLER_H_ */
