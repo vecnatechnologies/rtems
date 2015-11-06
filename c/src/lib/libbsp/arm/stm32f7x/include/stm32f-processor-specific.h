@@ -18,6 +18,8 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_STM32F_PROCESSOR_SPECIFIC_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_STM32F_PROCESSOR_SPECIFIC_H_
 
+#include <bspopts.h>
+
 //=========================== STMF32F407 ==============================
 #if defined(STM32F746xx)
 
