@@ -7,6 +7,7 @@
 
 stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS] = {
 
+#if 0
 //          UART4
 [0] .base_driver_info = {
         .device_name         = "/dev/ttyS3",
@@ -23,9 +24,10 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UART
         .alt_func_config     = GPIO_AF8_UART4,
         .uart                = STM32F_UART4,
 },
+#endif
 
 //          UART7
-[1] .base_driver_info = {
+[0] .base_driver_info = {
         .device_name         = "/dev/ttyS6",
         .handle              = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS+1]),
         .interrupt_number    = UART7_IRQn,

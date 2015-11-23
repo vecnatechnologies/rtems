@@ -49,6 +49,7 @@ include_bsp_HEADERS += include/stm32f-processor-specific.h
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f746xx.h
+include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/stm32f756xx.h
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F7xx/Include/system_stm32f7xx.h
 
 # CMSIS header
@@ -137,9 +138,9 @@ include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/include/httpserver-socket.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/cmsis_rtos/include/cmsis_os.h
+#include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/include/httpserver-socket.h
+#include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.h
+#include_bsp_HEADERS += ../shared/stm32fxxxx/cmsis_rtos/include/cmsis_os.h
 
 # Private driver headers
 include_bsp_HEADERS += include/hal-i2c-init.h
@@ -181,9 +182,9 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/sdram/hal-sdram.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 
 # Ethernet
-libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/src/httpserver-socket.c
-libbsp_a_SOURCES += ../shared/stm32fxxxx/cmsis_rtos/src/cmsis_os.c
+#libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.c
+#libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/src/httpserver-socket.c
+#libbsp_a_SOURCES += ../shared/stm32fxxxx/cmsis_rtos/src/cmsis_os.c
 
 #I2C
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
@@ -254,8 +255,6 @@ libbsp_a_CPPFLAGS += -I$(srcdir)/uart
 # lwip include directories
 libbsp_a_CPPFLAGS += -I$(srcdir)/../../../../../../../../rsb/rtems-source-builder/rtems/sources/git/lwip.git/src/include
 libbsp_a_CPPFLAGS += -I$(srcdir)/../../../../../../../../rsb/rtems-source-builder/rtems/sources/git/lwip.git/ports/include
-
-libbsp_a_CPPFLAGS += -D STM32F746xx -D TARGET_STM_PROCESSOR_PREFIX=7xx -DTARGET_STM_PROCESSOR=746
 
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc.c
 libbsp_a_SOURCES += hal/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc_ex.c

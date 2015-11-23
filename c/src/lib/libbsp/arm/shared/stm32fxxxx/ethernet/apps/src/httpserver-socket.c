@@ -104,7 +104,7 @@ __attribute__( ( weak ) ) bool http_server_server_app_specific(
  * @param  none
  * @retval None
  */
-void http_server_socket_init(rtems_id barrier_id)
+void http_server_socket_init(void)
 {
   web_server_task.pthread = http_server_socket_thread;
   web_server_task.tpriority = osPriorityNormal;
@@ -112,7 +112,7 @@ void http_server_socket_init(rtems_id barrier_id)
   web_server_task.stacksize = WEBSERVER_STACK_SIZE;
   web_server_task.thread_name = rtems_build_name( 'W', 'E', 'B', 'S' );
 
-  osThreadCreate( &web_server_task, &barrier_id );
+  osThreadCreate( &web_server_task, NULL );
 }
 
 /**
@@ -160,9 +160,8 @@ static void http_server_socket_thread( void *arg )
 {
   int                sock, newconn, size;
   struct sockaddr_in address, remotehost;
-  rtems_id           tcpip_barrier_id = *((rtems_id*) arg);
 
-  rtems_barrier_wait(tcpip_barrier_id, RTEMS_NO_TIMEOUT);
+  (void) arg;
 
   /* create a TCP socket */
   if ( ( sock = socket( AF_INET, SOCK_STREAM, 0 ) ) < 0 ) {

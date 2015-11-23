@@ -18,8 +18,8 @@
 #ifndef RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_STM32F_PROCESSOR_SPECIFIC_H_
 #define RTEMS_C_SRC_LIB_LIBBSP_ARM_STM32F4_INCLUDE_STM32F_PROCESSOR_SPECIFIC_H_
 
-//=========================== STMF32F407 ==============================
-#if defined(STM32F746xx)
+//=========================== STMF32F7xx ==============================
+#if defined(STM32F746xx) || defined(STM32F756xx)
 
 // Processor functionality
 #define ENABLE_PROCESSOR_OVERDRIVE 1
@@ -55,7 +55,7 @@
 
 // Uart configuration
 #define NUM_PROCESSOR_CONSOLE_UARTS      1
-#define NUM_PROCESSOR_NON_CONSOLE_UARTS  2
+#define NUM_PROCESSOR_NON_CONSOLE_UARTS  1
 
 #else
 #error "Unspecified processor type!!"

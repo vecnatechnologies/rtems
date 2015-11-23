@@ -20,6 +20,8 @@
 #ifndef HAL_UTILS_H
 #define HAL_UTILS_H_
 
+#include <bspopts.h>
+
 /**
  * A macro that can be used determine the size of any array
  */
