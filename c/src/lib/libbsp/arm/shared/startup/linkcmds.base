@@ -73,6 +73,17 @@ SECTIONS {
 	} > REGION_START AT > REGION_START
 	bsp_section_start_size = bsp_section_start_end - bsp_section_start_begin;
 
+  	.rom_buf :
+  	{
+    		. = ALIGN(4);
+    		rom_buf_start = .;        /* create a global symbol at ROM_BUF start */
+    		*(.ROM_BUF)         /* .qspi sections */
+    		*(.ROM_BUF*)        /* .qspi* sections */
+    		. = ALIGN(4);
+    		rom_buf_end = .;         /* define a global symbols at end of ROM_BUF */
+
+  	} >REGION_ROM_BUFFER AT > REGION_ROM_BUFFER
+
 	.xbarrier : ALIGN_WITH_INPUT {
 		. = ALIGN (bsp_section_xbarrier_align);
 	} > REGION_VECTOR AT > REGION_VECTOR

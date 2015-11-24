@@ -1,0 +1,127 @@
+/**
+ * NOTICE: This software  source code and any of  its derivatives are the
+ * confidential  and  proprietary   information  of  Vecna  Technologies,
+ * Inc. (such source  and its derivatives are hereinafter  referred to as
+ * "Confidential Information"). The  Confidential Information is intended
+ * to be  used exclusively by  individuals or entities that  have entered
+ * into either  a non-disclosure agreement or license  agreement (or both
+ * of  these agreements,  if  applicable) with  Vecna Technologies,  Inc.
+ * ("Vecna")   regarding  the  use   of  the   Confidential  Information.
+ * Furthermore,  the  Confidential  Information  shall be  used  only  in
+ * accordance  with   the  terms   of  such  license   or  non-disclosure
+ * agreements.   All  parties using  the  Confidential Information  shall
+ * verify that their  intended use of the Confidential  Information is in
+ * compliance  with and  not in  violation of  any applicable  license or
+ * non-disclosure  agreements.  Unless expressly  authorized by  Vecna in
+ * writing, the Confidential Information  shall not be printed, retained,
+ * copied, or  otherwise disseminated,  in part or  whole.  Additionally,
+ * any party using the Confidential  Information shall be held liable for
+ * any and  all damages incurred  by Vecna due  to any disclosure  of the
+ * Confidential  Information (including  accidental disclosure).   In the
+ * event that  the applicable  non-disclosure or license  agreements with
+ * Vecna  have  expired, or  if  none  currently  exists, all  copies  of
+ * Confidential Information in your  possession, whether in electronic or
+ * printed  form, shall be  destroyed or  returned to  Vecna immediately.
+ * Vecna  makes no  representations  or warranties  hereby regarding  the
+ * suitability  of  the   Confidential  Information,  either  express  or
+ * implied,  including  but not  limited  to  the  implied warranties  of
+ * merchantability,    fitness    for    a   particular    purpose,    or
+ * non-infringement. Vecna  shall not be liable for  any damages suffered
+ * by  licensee as  a result  of  using, modifying  or distributing  this
+ * Confidential Information.  Please email [info@vecnatech.com]  with any
+ * questions regarding the use of the Confidential Information.
+ */
+
+#include <lwip/netif.h>
+#include <lwip/tcpip.h>
+#include <lwip/udp.h>
+#include <lwip/mem.h>
+#include <lwip/sockets.h>
+#include <lwip/ip_addr.h>
+
+#include <hal-ethernetif.h>
+#include "iap_tftpserver.h"
+
+  uint8_t stm32_device_mac_address[ 6 ];
+  uint8_t stm32_device_ip_address[ 6 ];
+
+struct netif gnetif; /* network interface structure */
+
+//bool tcpip_init_done = false;
+
+void stm32f_set_mac_addr(uint8_t* macaddress){
+
+  macaddress[0] = MAC_ADDR0;
+  macaddress[1] = MAC_ADDR1;
+  macaddress[2] = MAC_ADDR2;
+  macaddress[3] = MAC_ADDR3;
+  macaddress[4] = MAC_ADDR4;
+  macaddress[5] = MAC_ADDR5;
+}
+
+/**
+  * @brief  Initializes the lwIP stack
+  * @param  None
+  * @retval None
+  */
+static void stm32_config_netif(void)
+{
+  ip_addr_t ipaddr;
+  ip_addr_t netmask;
+  ip_addr_t gw;
+
+  /* IP address setting */
+  IP4_ADDR(&ipaddr, IP_ADDR0, IP_ADDR1, IP_ADDR2, IP_ADDR3);
+  IP4_ADDR(&netmask, NETMASK_ADDR0, NETMASK_ADDR1 , NETMASK_ADDR2, NETMASK_ADDR3);
+  IP4_ADDR(&gw, GW_ADDR0, GW_ADDR1, GW_ADDR2, GW_ADDR3);
+
+  /* - netif_add(struct netif *netif, struct ip_addr *ipaddr,
+  struct ip_addr *netmask, struct ip_addr *gw,
+  void *state, err_t (* init)(struct netif *netif),
+  err_t (* input)(struct pbuf *p, struct netif *netif))
+
+  Adds your network interface to the netif_list. Allocate a struct
+  netif and pass a pointer to this structure as the first argument.
+  Give pointers to cleared ip_addr structures when using DHCP,
+  or fill them with sane numbers otherwise. The state pointer may be NULL.
+
+  The init function pointer must point to a initialization function for
+  your ethernet netif interface. The following code illustrates it's use.*/
+
+  netif_add(&gnetif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &tcpip_input);
+
+  /*  Registers the default network interface. */
+  netif_set_default(&gnetif);
+
+  //TODO: Is this correct?
+  //autoip_start(&gnetif);
+
+  if (netif_is_link_up(&gnetif))
+  {
+    /* When the netif is fully configured this function must be called.*/
+    netif_set_up(&gnetif);
+  }
+  else
+  {
+    /* When the netif link is down this function must be called */
+    netif_set_down(&gnetif);
+  }
+}
+
+rtems_task stm32_ethernet_iap_init(
+  rtems_task_argument task_index
+)
+{
+   /*Create tcp_ip stack thread*/
+  tcpip_init(NULL, NULL);
+
+  /*Initialize the LwIP stack*/
+  stm32_config_netif();
+
+  //tcpip_init_done = true;
+
+  /* Initialize the TFTP server demo */
+  IAP_tftpd_init();
+
+  rtems_task_delete(RTEMS_SELF);
+}

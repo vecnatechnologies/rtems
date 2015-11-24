@@ -137,7 +137,11 @@ include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/include/httpserver-socket.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-qspi.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-flashif.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/httpserver/include/httpserver-socket.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/iap/iap_flashif.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/iap/iap_tftpserver.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/cmsis_rtos/include/cmsis_os.h
 
@@ -184,8 +188,22 @@ libbsp_a_SOURCES += ../shared/stm32fxxxx/can/hal-can.c
 libbsp_a_SOURCES += ../shared/stm32fxxxx/i2c/hal-i2c.c
 libbsp_a_SOURCES += i2c/hal-i2c-init.c
 
+# Ethernet
+libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.c
+#libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/httpserver/src/httpserver-socket.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/iap/iap_flashif.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/iap/iap_init.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/iap/iap_tftpserver.c
+libbsp_a_SOURCES += ../shared/stm32fxxxx/cmsis_rtos/src/cmsis_os.c
+
 #SPI
 libbsp_a_SOURCES += ../shared/stm32fxxxx/spi/hal-spi.c
+
+#QSPI
+libbsp_a_SOURCES += ../shared/stm32fxxxx/qspi/hal-qspi.c
+
+#Flash
+libbsp_a_SOURCES += ../shared/stm32fxxxx/flash/hal-flashif.c
 
 #GPIO
 libbsp_a_SOURCES += ../shared/stm32fxxxx/gpio/hal-gpio.c
