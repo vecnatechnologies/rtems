@@ -334,82 +334,67 @@ void BSP_SDRAM_Config( void )
 {
   register uint32_t tmpreg = 0, timeout = 0xFFFF;
   register uint32_t index;
+  GPIO_InitTypeDef GPIO_Init_Structure;
 
   /* Enable GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH and GPIOI interface
       clock */
-  RCC->AHB1ENR |= 0x000001F8;
+  /*##-1- Enable peripherals and GPIO Clocks #################################*/
+  /* Enable GPIO clocks */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOI_CLK_ENABLE();
 
-  /* Connect PDx pins to FMC Alternate function */
-  GPIOD->AFR[0]  = 0x000000CC;
-  GPIOD->AFR[1]  = 0xCC000CCC;
-  /* Configure PDx pins in Alternate function mode */
-  GPIOD->MODER   = 0xA02A000A;
-  /* Configure PDx pins speed to 50 MHz */
-  GPIOD->OSPEEDR = 0xA02A000A;
-  /* Configure PDx pins Output type to push-pull */
-  GPIOD->OTYPER  = 0x00000000;
-  /* No pull-up, pull-down for PDx pins */
-  GPIOD->PUPDR   = 0x00000000;
+  /*##-2- Configure peripheral GPIO ##########################################*/
+  GPIO_Init_Structure.Mode = GPIO_MODE_AF_PP;
+  GPIO_Init_Structure.Pull = GPIO_PULLUP;
+  GPIO_Init_Structure.Speed = GPIO_SPEED_FAST;
+  GPIO_Init_Structure.Alternate = GPIO_AF12_FMC;
 
-  /* Connect PEx pins to FMC Alternate function */
-  GPIOE->AFR[0]  = 0xC00000CC;
-  GPIOE->AFR[1]  = 0xCCCCCCCC;
-  /* Configure PEx pins in Alternate function mode */
-  GPIOE->MODER   = 0xAAAA800A;
-  /* Configure PEx pins speed to 50 MHz */
-  GPIOE->OSPEEDR = 0xAAAA800A;
-  /* Configure PEx pins Output type to push-pull */
-  GPIOE->OTYPER  = 0x00000000;
-  /* No pull-up, pull-down for PEx pins */
-  GPIOE->PUPDR   = 0x00000000;
+  /* GPIOD configuration */
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8 |
+                            GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_14 | GPIO_PIN_15;
+  HAL_GPIO_Init( GPIOD, &GPIO_Init_Structure );
 
-  /* Connect PFx pins to FMC Alternate function */
-  GPIOF->AFR[0]  = 0xCCCCCCCC;
-  GPIOF->AFR[1]  = 0xCCCCCCCC;
-  /* Configure PFx pins in Alternate function mode */
-  GPIOF->MODER   = 0xAA800AAA;
-  /* Configure PFx pins speed to 50 MHz */
-  GPIOF->OSPEEDR = 0xAA800AAA;
-  /* Configure PFx pins Output type to push-pull */
-  GPIOF->OTYPER  = 0x00000000;
-  /* No pull-up, pull-down for PFx pins */
-  GPIOF->PUPDR   = 0x00000000;
+  /* GPIOE configuration */
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7 |
+                            GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 |
+                            GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
 
-  /* Connect PGx pins to FMC Alternate function */
-  GPIOG->AFR[0]  = 0xCCCCCCCC;
-  GPIOG->AFR[1]  = 0xCCCCCCCC;
-  /* Configure PGx pins in Alternate function mode */
-  GPIOG->MODER   = 0xAAAAAAAA;
-  /* Configure PGx pins speed to 50 MHz */
-  GPIOG->OSPEEDR = 0xAAAAAAAA;
-  /* Configure PGx pins Output type to push-pull */
-  GPIOG->OTYPER  = 0x00000000;
-  /* No pull-up, pull-down for PGx pins */
-  GPIOG->PUPDR   = 0x00000000;
+  HAL_GPIO_Init( GPIOE, &GPIO_Init_Structure );
 
-  /* Connect PHx pins to FMC Alternate function */
-  GPIOH->AFR[0]  = 0x00C0CC00;
-  GPIOH->AFR[1]  = 0xCCCCCCCC;
-  /* Configure PHx pins in Alternate function mode */
-  GPIOH->MODER   = 0xAAAA08A0;
-  /* Configure PHx pins speed to 50 MHz */
-  GPIOH->OSPEEDR = 0xAAAA08A0;
-  /* Configure PHx pins Output type to push-pull */
-  GPIOH->OTYPER  = 0x00000000;
-  /* No pull-up, pull-down for PHx pins */
-  GPIOH->PUPDR   = 0x00000000;
+  /* GPIOF configuration */
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
+                            GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 |
+                            GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 |
+                            GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
 
-  /* Connect PIx pins to FMC Alternate function */
-  GPIOI->AFR[0]  = 0xCCCCCCCC;
-  GPIOI->AFR[1]  = 0x00000CC0;
-  /* Configure PIx pins in Alternate function mode */
-  GPIOI->MODER   = 0x0028AAAA;
-  /* Configure PIx pins speed to 50 MHz */
-  GPIOI->OSPEEDR = 0x0028AAAA;
-  /* Configure PIx pins Output type to push-pull */
-  GPIOI->OTYPER  = 0x00000000;
-  /* No pull-up, pull-down for PIx pins */
-  GPIOI->PUPDR   = 0x00000000;
+  HAL_GPIO_Init( GPIOF, &GPIO_Init_Structure );
+
+  /* GPIOG configuration */
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
+                            GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 |
+                            GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 |
+                            GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+
+  HAL_GPIO_Init( GPIOG, &GPIO_Init_Structure );
+
+  /* GPIOH configuration */
+  GPIO_Init_Structure.Pin = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_5 |
+                            GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 |
+                            GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+
+  HAL_GPIO_Init( GPIOH, &GPIO_Init_Structure );
+
+  /* GPIOI configuration */
+  GPIO_Init_Structure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
+                            GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 |
+                            GPIO_PIN_9 | GPIO_PIN_10;
+
+  HAL_GPIO_Init( GPIOI, &GPIO_Init_Structure );
 
 /*-- FMC Configuration ------------------------------------------------------*/
   /* Enable the FMC interface clock */
