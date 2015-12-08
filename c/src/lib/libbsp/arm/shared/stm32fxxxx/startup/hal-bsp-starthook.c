@@ -27,6 +27,7 @@
 #include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, conf )
+#include stm_header( TARGET_STM_PROCESSOR_PREFIX, gpio )
 
 #define HZ_TO_MHZ( x ) ( x / 1000000 )
 #define USB_OTG_CLK 48000000
@@ -286,6 +287,37 @@ static void configure_external_memories( void )
 #endif
 }
 
+static void configure_trace_port( void )
+{
+  GPIO_InitTypeDef GPIO_Init_Structure;
+  uint32_t* pDBGMCU_CR = (uint32_t*) 0xe0042004;
+
+  // Turn on embedded trace interface:
+  //
+  // Set TRACE_MODE to Synchronous trace interface enabled
+  //     TRACE_CLKIN_EN = 1
+  *pDBGMCU_CR |= 0xE0UL;
+
+  /* Reset GPIOE port */
+  __HAL_RCC_GPIOE_FORCE_RESET();
+
+  /*##-1- Enable peripherals and GPIO Clocks #################################*/
+  /* Enable GPIO clocks */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+
+  /*##-2- Configure peripheral GPIO ##########################################*/
+  GPIO_Init_Structure.Mode = GPIO_MODE_AF_PP;
+
+  //What should the pull up state be?
+  GPIO_Init_Structure.Pull = GPIO_PULLUP;
+  GPIO_Init_Structure.Speed = GPIO_SPEED_FAST;
+  GPIO_Init_Structure.Alternate = GPIO_AF0_TRACE;
+
+  /* GPIOE configuration for trace pins */
+  GPIO_Init_Structure.Pin = GPIO_PIN_2 | GPIO_PIN_3| GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+  HAL_GPIO_Init( GPIOE, &GPIO_Init_Structure );
+}
+
 
 void BSP_START_TEXT_SECTION bsp_start_hook_0( void )
 {
@@ -301,6 +333,7 @@ void BSP_START_TEXT_SECTION bsp_start_hook_0( void )
     HSE_AVAILABLE );
 
   configure_external_memories();
+  //configure_trace_port();
 }
 
 void BSP_START_TEXT_SECTION bsp_start_hook_1( void )

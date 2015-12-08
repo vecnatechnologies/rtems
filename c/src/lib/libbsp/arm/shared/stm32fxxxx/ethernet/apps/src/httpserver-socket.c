@@ -45,6 +45,18 @@
 #define WEBSERVER_STACK_SIZE ( 10 * 1024 )
 #define WEBSERVER_RX_BUFFER_SIZE 1500
 
+static portCHAR DYNAMIC_PAGE_CONTENT[ 10 * 1024 ];
+static portCHAR PAGE_HEADER_DYNAMIC[ 512 ] =
+  "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN"
+  "http://www.w3.org/TR/html4/strict.dtd\"><html><head><title>Next Gen Control Platform Task List</title><meta http-equiv=\"Content-Type\"content=\"text/html; charset=windows-1252\"><meta http-equiv=\"refresh\" content=\"0.5\"><style =\"font-weight: normal; font-family: Verdana;\"></style></head><body><h1>List of NextGen Tasks</h1><a href=\"/\">Main Page</a><p>";
+static portCHAR main_page[ 4096 ] =
+  "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN"
+  "http://www.w3.org/TR/html4/strict.dtd\"><html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title>Next Gen Main Page</title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">Vecna NextGen Platform Web Server</font></h1><p><a href=\"/list_of_tasks.html\">List of tasks</a></body></html>";
+static portCHAR error_page[ 4096 ] =
+  "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN"
+  "http://www.w3.org/TR/html4/strict.dtd\"><html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"><title></title></head><body lang=\"en-US\" dir=\"ltr\" style=\"background: transparent\"><h1><font face=\"Courier 10 Pitch\">404: Requested page does not exist</font></h1><p><br><br></p><a href=\"/\">Main page</a></body></html>";
+
+
 u32_t nPageHits = 0;
 
 /* Private function prototypes -----------------------------------------------*/
