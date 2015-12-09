@@ -23,6 +23,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal_flash_ex.h"
+#include "iap_tftpserver.h"
 
 /* Definition for QSPI DMA */
 #define QSPI_DMA_INSTANCE          DMA2_Stream7
@@ -152,6 +153,8 @@ int8_t stm32_flash_if_erase(uint32_t StartSector);
 void stm32_flash_if_init(void);
 void stm32_flash_if_lock(void);
 void stm32_ethernet_iap_update_firmware_info(void);
+uint8_t* stm32_ethernet_iap_get_next_flash_log_pointer (uint8_t* ptr);
+void stm32_ethernet_iap_get_firmware_info(tftp_firmware_image_info* firmware_info);
 #endif /* __FLASH_IF_H */
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/

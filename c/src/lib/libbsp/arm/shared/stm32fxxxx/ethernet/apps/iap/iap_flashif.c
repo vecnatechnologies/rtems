@@ -27,19 +27,23 @@
 #include <rtems/irq-extension.h>
 
 #include <hal-qspi.h>
-#include "iap_flashif.h"
 #include "iap_tftpserver.h"
+#include "iap_flashif.h"
 
 #include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, flash )
 
 #define QSPI_BASE_ADDRESS       0x90000000
 
+#define FLASH_DATA_LOGGING_START_ADDR     0x080C0000
+#define FLASH_DATA_LOGGING_END_ADDR     0x08100000
+#define FLASH_DATA_LOGGING_FLAG 0xAE
+
 #define QSPI_FLASH      true
 #define IHEX_PARSING    true
 
 extern tftp_firmware_image_info firmware_info;
-extern uint32_t rom_buf_start;
+uint32_t rom_buf_start = (uint32_t) 0x080C0000;
 
 volatile uint32_t timestamp=0;
 volatile uint32_t time_start=0;
@@ -55,10 +59,6 @@ uint16_t record_buffer_index = 0;
 
 bool incomplete_record = FALSE;
 
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
 
 #if IHEX_PARSING
@@ -348,12 +348,90 @@ uint32_t FLASH_If_Write( uint32_t* FlashAddress, uint32_t* Data ,uint16_t DataLe
   return 0;
 }
 
+void stm32_ethernet_iap_get_firmware_info(tftp_firmware_image_info* firmware_info)
+{
+
+  uint8_t* ptr;
+  bool valid = FALSE;
+  uint8_t count=0;
+
+  ptr = FLASH_DATA_LOGGING_START_ADDR;
+
+  while( ptr < FLASH_DATA_LOGGING_END_ADDR)
+    {
+      if(*ptr == FLASH_DATA_LOGGING_FLAG)
+        {
+          ptr = ptr + sizeof(sizeof(firmware_info));
+        }
+      else if(*ptr == 0xFF)
+        {
+          for(count = 0; count<sizeof(firmware_info); count++ )
+            {
+              if (ptr[count] == 0xFF)
+                valid = TRUE;
+              else
+                valid = FALSE;
+            }
+          if (valid)
+            {
+              memcpy(firmware_info, (uint32_t) ( ptr - sizeof(firmware_info) ), sizeof(firmware_info));
+              return;
+            }
+        }
+      else
+        ptr++;
+    }
+
+  // Cannot find the last firmware info logged. TODO::Assert!!!
+
+}
+
+uint8_t* stm32_ethernet_iap_get_next_flash_log_pointer (uint8_t* ptr)
+{
+
+  bool valid = FALSE;
+  uint8_t count=0;
+
+  while( ptr < FLASH_DATA_LOGGING_END_ADDR - sizeof(firmware_info))
+    {
+      if(*ptr == FLASH_DATA_LOGGING_FLAG)
+        {
+          ptr = ptr + sizeof(sizeof(firmware_info));
+        }
+      else if(*ptr == 0xFF)
+        {
+          for(count = 0; count<sizeof(firmware_info); count++ )
+            {
+              if (ptr[count] == 0xFF)
+                valid = TRUE;
+              else
+                valid = FALSE;
+            }
+          if (valid)
+            return ptr;
+        }
+      else
+        ptr++;
+    }
+
+  //All memory used. Clear the flash area
+  stm32_flash_if_erase((uint32_t) FLASH_DATA_LOGGING_START_ADDR);
+  return FLASH_DATA_LOGGING_START_ADDR;
+}
 
 void stm32_ethernet_iap_update_firmware_info(void)
 {
+  /* Set the flag */
+  firmware_info.flag = FLASH_DATA_LOGGING_FLAG;
+
+  uint8_t* ptr_to_flag;
+
+  ptr_to_flag = FLASH_DATA_LOGGING_START_ADDR;
+
+  ptr_to_flag = stm32_ethernet_iap_get_next_flash_log_pointer(ptr_to_flag);
+
   stm32_flash_if_init();
-  stm32_flash_if_erase((uint32_t) &rom_buf_start);
-  stm32_flash_if_write((uint8_t*)&rom_buf_start, (uint8_t*)&firmware_info, sizeof(firmware_info));
+  stm32_flash_if_write((uint8_t*)ptr_to_flag, (uint8_t*)&firmware_info, sizeof(firmware_info));
   stm32_flash_if_lock();
 
 }

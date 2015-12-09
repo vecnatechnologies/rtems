@@ -63,6 +63,10 @@
 
 typedef struct
 {
+
+  /* Flag to indicate start of data log */
+  uint8_t flag;
+
   /* Status of firmware image being downloaded */
   bool firmware_corrupted;
 
@@ -70,7 +74,7 @@ typedef struct
   bool firmware_flashed;
 
   /* Firmware image to be flashed requested */
-    bool firmware_flash_requested;
+  bool firmware_flash_requested;
 
 }tftp_firmware_image_info;
 

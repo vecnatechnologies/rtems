@@ -28,6 +28,10 @@
 //TODO:: Fix the linking problem for the above header file
 typedef struct
 {
+
+  /* Flag to indicate start of data log */
+  uint8_t flag;
+
   /* Status of firmware image being downloaded */
   bool firmware_corrupted;
 
@@ -35,7 +39,7 @@ typedef struct
   bool firmware_flashed;
 
   /* Firmware image to be flashed requested */
-    bool firmware_flash_requested;
+  bool firmware_flash_requested;
 
 }tftp_firmware_image_info;
 
@@ -66,6 +70,8 @@ void stm32f_bootloader_init( void )
 
   /* Update flags for use by bootloader */
   firmware_info.firmware_flash_requested = true;
+  firmware_info.firmware_corrupted = false;
+  firmware_info.firmware_flashed = true;
   stm32_ethernet_iap_update_firmware_info();
 
   /* Disable all interrupts. Disables the running RTOS */
