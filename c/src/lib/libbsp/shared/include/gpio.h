@@ -859,7 +859,7 @@ extern rtems_status_code rtems_gpio_bsp_select_output(
  * @retval RTEMS_SUCCESSFUL Function was assigned successfully.
  * @retval RTEMS_UNSATISFIED Could not assign the function to the pin.
  */
-extern rtems_status_code rtems_bsp_select_specific_io(
+extern rtems_status_code rtems_gpio_bsp_select_specific_io(
   uint32_t bank,
   uint32_t pin,
   uint32_t function,
@@ -918,7 +918,7 @@ extern rtems_vector_number rtems_gpio_bsp_get_vector(uint32_t bank);
  * @retval RTEMS_SUCCESSFUL Interrupt successfully enabled for this pin.
  * @retval RTEMS_UNSATISFIED Could not enable the interrupt on the pin.
  */
-extern rtems_status_code rtems_bsp_enable_interrupt(
+extern rtems_status_code rtems_gpio_bsp_enable_interrupt(
   uint32_t bank,
   uint32_t pin,
   rtems_gpio_interrupt interrupt
@@ -935,7 +935,7 @@ extern rtems_status_code rtems_bsp_enable_interrupt(
  * @retval RTEMS_SUCCESSFUL Interrupt successfully disabled for this pin.
  * @retval RTEMS_UNSATISFIED Could not disable interrupts on this pin.
  */
-extern rtems_status_code rtems_bsp_disable_interrupt(
+extern rtems_status_code rtems_gpio_bsp_disable_interrupt(
   uint32_t bank,
   uint32_t pin,
   rtems_gpio_interrupt interrupt

@@ -22,6 +22,8 @@
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 #include <bspopts.h>
+#include <time.h>
+#include <math.h>
 #include <bsp.h>
 
 #include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
@@ -32,72 +34,29 @@
 #include <hal-gpio.h>
 
 /**
- * @brief GPIO Pins
+ * @brief Maximum number of pins per port
  */
-typedef enum {
-  /* Pin 0 */
-  PIN0 = 0,
-  /* Pin 1 */
-  PIN1,
-  /* Pin 2 */
-  PIN2,
-  /* Pin 3 */
-  PIN3,
-  /* Pin 4 */
-  PIN4,
-  /* Pin 5 */
-  PIN5,
-  /* Pin 6 */
-  PIN6,
-  /* Pin 7 */
-  PIN7,
-  /* Pin 8 */
-  PIN8,
-  /* Pin 9 */
-  PIN9,
-  /* Pin 10 */
-  PIN10,
-  /* Pin 11 */
-  PIN11,
-  /* Pin 12 */
-  PIN12,
-  /* Pin 13 */
-  PIN13,
-  /* Pin 14 */
-  PIN14,
-  /* Pin 15 */
-  PIN15,
-
-  /* Max number of pins */
-  MAX_GPIO_PINS
-} stm32_gpio_pin;
+#define MAX_GPIO_PINS_PER_PORT BSP_GPIO_PINS_PER_BANK
 
 /**
- * @brief GPIO Ports
+ * @brief Maximum number of port
  */
-typedef enum {
-  /* PORT A */
-  PORTA = 0,
-  /* PORT B */
-  PORTB,
-  /* PORT C */
-  PORTC,
-  /* PORT D */
-  PORTD,
-  /* PORT E */
-  PORTE,
-  /* PORT F */
-  PORTF,
-  /* PORT G */
-  PORTG,
-  /* PORT H */
-  PORTH,
-  /* PORT I */
-  PORTI,
+#define MAX_GPIO_PORTS ( BSP_GPIO_PIN_COUNT / BSP_GPIO_PINS_PER_BANK )
 
-  /* Max GPIO Ports */
-  MAX_GPIO_PORTS
-} stm32_gpio_ports;
+/**
+ * @brief GPIO base address offest
+ */
+#define GPIO_BASE_ADDR_OFFSET 0x0400
+
+/**
+ * @brief GPIO Pin
+ */
+typedef uint8_t stm32_gpio_pin;
+
+/**
+ * @brief GPIO Port
+ */
+typedef uint8_t stm32_gpio_ports;
 
 /**
  * @brief GPIO Struct
@@ -110,106 +69,73 @@ typedef struct {
 } stm32_gpio;
 
 /**
- * @brief Returns the base address of the GPIO port
+ * @brief Array to store the GPIO port vector numbers.
+ *
+ * TODO :: This array has to be filled with vector numbers for each bank.
+ *         RTEMS GPIO driver uses this array to get the bank specific vectors to
+ *         install the interrupt. ST doesn't support bank specific vector
+ *         interrupts, they support pin based. This has to be sorted out.
+ *         Right now, RTEMS will not register any interrupts for the GPIO.
  */
-static stm32_gpio stm32_gpio_arg;
-
-/**
- * @brief Returns the base address of the GPIO port
- */
-static rtems_vector_number stm32_gpio_bank_vector[ MAX_GPIO_PORTS ] = { 0 };
+static rtems_vector_number stm32_gpio_bank_vector[ MAX_GPIO_PORTS ] = { -1 };
 
 /**
  * @brief Status of enabled clock in each GPIO port
  */
-static bool stm32_gpio_clock_status[ MAX_GPIO_PORTS ] = { false };
+static bool stm32_gpio_clock_status[ MAX_GPIO_PORTS ] = { CLOCK_DISABLED };
 
 /** Private Function Definitions **/
 
 /**
  * @brief Returns the base address of the GPIO port
  */
-static GPIO_TypeDef *stm32_gpio_get_port_base( stm32_gpio_ports bank )
+static inline uint32_t stm32_gpio_get_port_base( stm32_gpio_ports bank )
 {
-  switch ( bank ) {
-    case PORTA: return ( GPIOA );
-    case PORTB: return ( GPIOB );
-    case PORTC: return ( GPIOC );
-    case PORTD: return ( GPIOD );
-    case PORTE: return ( GPIOE );
-    case PORTF: return ( GPIOE );
-    case PORTG: return ( GPIOE );
-    case PORTH: return ( GPIOH );
-    case PORTI: return ( GPIOI );
-  }
+
+  /**
+   * Each base address of GPIO port is offset by GPIO_BASE_ADDR_OFFSET from
+   * the AHB1PERIPH_BASE address.
+   */
+  return ( AHB1PERIPH_BASE + ( GPIO_BASE_ADDR_OFFSET * bank ) );
 }
 
 /**
- * @brief Enable the GPIO clock base on port
+ * @brief Enable the GPIO clock based on port
  */
-static void stm32_gpio_clock_enable( stm32_gpio_ports bank )
+static inline void stm32_gpio_clock_enable( stm32_gpio_ports bank )
 {
-  switch ( bank ) {
-    case PORTA:
-      __HAL_RCC_GPIOA_CLK_ENABLE();
-      break;
-    case PORTB:
-      __HAL_RCC_GPIOB_CLK_ENABLE();
-      break;
-    case PORTC:
-      __HAL_RCC_GPIOC_CLK_ENABLE();
-      break;
-    case PORTD:
-      __HAL_RCC_GPIOD_CLK_ENABLE();
-      break;
-    case PORTE:
-      __HAL_RCC_GPIOE_CLK_ENABLE();
-      break;
-    case PORTF:
-      __HAL_RCC_GPIOF_CLK_ENABLE();
-      break;
-    case PORTG:
-      __HAL_RCC_GPIOG_CLK_ENABLE();
-      break;
-    case PORTH:
-      __HAL_RCC_GPIOH_CLK_ENABLE();
-      break;
-    case PORTI:
-      __HAL_RCC_GPIOI_CLK_ENABLE();
-      break;
-  }
+  RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOAEN << bank );
 }
 
 /**
- * @brief Returns the base address of the GPIO pin
+ * @brief Returns the bit mask of the GPIO pin
  */
-static inline uint32_t stm32_gpio_get_pin_base( stm32_gpio_pin pin )
+static inline uint32_t stm32_gpio_get_pin_bitmask( stm32_gpio_pin pin )
 {
   return ( GPIO_PIN_0 << pin );
 }
 
 /**
- * @brief GPIO EXTI Line 0 Interrupt HAndler
+ * @brief Disable GPIO External Interrupt or Event for the defiend pin
  */
-static void stm32_gpio_exti_irq( stm32_gpio *arg )
+static void stm32_gpio_disable_exti( stm32_gpio_pin pin )
 {
-  stm32_gpio stm32_gpio_arg = *arg;
+  uint32_t temp_exti;
 
-  /* Service this interrupt - clear interrupt */
-  HAL_GPIO_EXTI_IRQHandler( stm32_gpio_get_pin_base( stm32_gpio_arg.pin ) );
+  /* Disable the External Interrupt or event for the current IO */
+  temp_exti = ( (uint32_t) 0x0F ) << ( 4 * ( pin & 0x03 ) );
+  SYSCFG->EXTICR[ pin >> 2 ] &= ~temp_exti;
 
-  /* Call application IRQ function - to be called in user space */
-  stm32_gpio_exti_callback( stm32_gpio_arg );
+  /* Clear EXTI line configuration */
+  EXTI->IMR &= ~( (uint32_t) stm32_gpio_get_pin_bitmask( pin ) );
+  EXTI->EMR &= ~( (uint32_t) stm32_gpio_get_pin_bitmask( pin ) );
+
+  /* Clear Rising Falling edge configuration */
+  EXTI->RTSR &= ~( (uint32_t) stm32_gpio_get_pin_bitmask( pin ) );
+  EXTI->FTSR &= ~( (uint32_t) stm32_gpio_get_pin_bitmask( pin ) );
 }
 
-/**
- *  @brief Called in user space - Application callback function for GPIO interrupt
- */
-__weak void stm32_gpio_exti_callback( stm32_gpio stm32_gpio_arg )
-{
-}
-
-/** GPIO Generic API Functions from gpio.c**/
+/** GPIO Generic API Functions from gpio.c **/
 
 rtems_status_code rtems_gpio_bsp_select_input(
   uint32_t bank,
@@ -219,17 +145,23 @@ rtems_status_code rtems_gpio_bsp_select_input(
 {
   GPIO_InitTypeDef GPIO_InitStruct;
 
+  if ( NULL == bsp_specific ) {
+    return RTEMS_INVALID_ID;
+  }
+
+  stm32_gpio_pin_config *pin_config = (stm32_gpio_pin_config *) bsp_specific;
+
   /* Enable GPIO clock if not enabled */
   if ( !( stm32_gpio_clock_status[ bank ] ) ) {
     stm32_gpio_clock_enable( bank );
-    stm32_gpio_clock_status[ bank ] = true;
+    stm32_gpio_clock_status[ bank ] = CLOCK_ENABLED;
   }
 
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = pin_config->pull;
   GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-  GPIO_InitStruct.Pin = stm32_gpio_get_pin_base( pin );
-  GPIO_InitStruct.Alternate = bsp_specific;
+  GPIO_InitStruct.Pin = stm32_gpio_get_pin_bitmask( pin );
+  GPIO_InitStruct.Alternate = NULL;
 
   /* Initialize the GPIO pin */
   HAL_GPIO_Init( stm32_gpio_get_port_base( bank ), &GPIO_InitStruct );
@@ -245,17 +177,30 @@ rtems_status_code rtems_gpio_bsp_select_output(
 {
   GPIO_InitTypeDef GPIO_InitStruct;
 
+  if ( NULL == bsp_specific ) {
+    return RTEMS_INVALID_ID;
+  }
+
+  stm32_gpio_pin_config *pin_config = (stm32_gpio_pin_config *) bsp_specific;
+
+  if (
+    ( pin_config->mode != GPIO_MODE_OUTPUT_PP ) &&
+    ( pin_config->mode != GPIO_MODE_OUTPUT_OD )
+  ) {
+    return RTEMS_INVALID_ID;
+  }
+
   /* Enable GPIO clock if not enabled */
   if ( !( stm32_gpio_clock_status[ bank ] ) ) {
     stm32_gpio_clock_enable( bank );
-    stm32_gpio_clock_status[ bank ] = true;
+    stm32_gpio_clock_status[ bank ] = CLOCK_ENABLED;
   }
 
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Mode = pin_config->mode;
+  GPIO_InitStruct.Pull = pin_config->pull;
   GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-  GPIO_InitStruct.Pin = stm32_gpio_get_pin_base( pin );
-  //GPIO_InitStruct.Alternate = bsp_specific;
+  GPIO_InitStruct.Pin = stm32_gpio_get_pin_bitmask( pin );
+  GPIO_InitStruct.Alternate = NULL;
 
   /* Initialize the GPIO pin */
   HAL_GPIO_Init( stm32_gpio_get_port_base( bank ), &GPIO_InitStruct );
@@ -263,7 +208,7 @@ rtems_status_code rtems_gpio_bsp_select_output(
   return RTEMS_SUCCESSFUL;
 }
 
-rtems_status_code rtems_bsp_select_specific_io(
+rtems_status_code rtems_gpio_bsp_select_specific_io(
   uint32_t bank,
   uint32_t pin,
   uint32_t function,
@@ -272,17 +217,23 @@ rtems_status_code rtems_bsp_select_specific_io(
 {
   GPIO_InitTypeDef GPIO_InitStruct;
 
+  if ( NULL == pin_data ) {
+    return RTEMS_INVALID_ID;
+  }
+
+  stm32_gpio_pin_config *pin_config = (stm32_gpio_pin_config *) pin_data;
+
   /* Enable GPIO clock if not enabled */
   if ( !( stm32_gpio_clock_status[ bank ] ) ) {
     stm32_gpio_clock_enable( bank );
-    stm32_gpio_clock_status[ bank ] = true;
+    stm32_gpio_clock_status[ bank ] = CLOCK_ENABLED;
   }
 
-  GPIO_InitStruct.Mode = function;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Mode = pin_config->mode;
+  GPIO_InitStruct.Pull = pin_config->pull;
   GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-  GPIO_InitStruct.Pin = stm32_gpio_get_pin_base( pin );
-  //GPIO_InitStruct.Alternate = bsp_specific;
+  GPIO_InitStruct.Pin = stm32_gpio_get_pin_bitmask( pin );
+  GPIO_InitStruct.Alternate = pin_config->alternate;
 
   /* Initialize the GPIO pin */
   HAL_GPIO_Init( stm32_gpio_get_port_base( bank ), &GPIO_InitStruct );
@@ -299,13 +250,10 @@ rtems_status_code rtems_gpio_bsp_multi_set(
 
   bitmask = GPIO_PIN_MASK & bitmask;
 
-  for ( pin_count = 15; pin_count > 0; pin_count -= 1 ) {
-    if ( ( GPIO_PIN_15 & bitmask ) == GPIO_PIN_15 ) {
+  for ( pin_count = 0; pin_count < MAX_GPIO_PINS_PER_PORT; pin_count++ ) {
+    if ( ( GPIO_PIN_0 << pin_count ) & bitmask )
       HAL_GPIO_WritePin( stm32_gpio_get_port_base( bank ),
-          stm32_gpio_get_pin_base( pin_count + 1 ), GPIO_PIN_SET );
-      bitmask << 1;
-    } else
-      continue;
+        stm32_gpio_get_pin_bitmask( pin_count ), GPIO_PIN_SET );
   }
 
   return RTEMS_SUCCESSFUL;
@@ -320,16 +268,25 @@ rtems_status_code rtems_gpio_bsp_multi_clear(
 
   bitmask = GPIO_PIN_MASK & bitmask;
 
-  for ( pin_count = 15; pin_count > 0; pin_count -= 1 ) {
-    if ( ( GPIO_PIN_15 & bitmask ) == GPIO_PIN_15 ) {
+  for ( pin_count = 0; pin_count < MAX_GPIO_PINS_PER_PORT; pin_count++ ) {
+    if ( ( GPIO_PIN_0 << pin_count ) & bitmask )
       HAL_GPIO_WritePin( stm32_gpio_get_port_base( bank ),
-          stm32_gpio_get_pin_base( pin_count + 1 ), GPIO_PIN_RESET );
-      bitmask << 1;
-    } else
-      continue;
+        stm32_gpio_get_pin_bitmask( pin_count ), GPIO_PIN_RESET );
   }
 
   return RTEMS_SUCCESSFUL;
+}
+
+uint32_t rtems_gpio_bsp_multi_read(
+  uint32_t bank,
+  uint32_t bitmask
+)
+{
+  GPIO_TypeDef *gpio_port_base;
+
+  gpio_port_base = stm32_gpio_get_port_base( bank );
+
+  return ( ( gpio_port_base->IDR ) & bitmask );
 }
 
 rtems_status_code rtems_gpio_bsp_set(
@@ -338,7 +295,7 @@ rtems_status_code rtems_gpio_bsp_set(
 )
 {
   HAL_GPIO_WritePin( stm32_gpio_get_port_base( bank ),
-    stm32_gpio_get_pin_base( pin ), GPIO_PIN_SET );
+    stm32_gpio_get_pin_bitmask( pin ), GPIO_PIN_SET );
 
   return RTEMS_SUCCESSFUL;
 }
@@ -349,7 +306,7 @@ rtems_status_code rtems_gpio_bsp_clear(
 )
 {
   HAL_GPIO_WritePin( stm32_gpio_get_port_base( bank ),
-    stm32_gpio_get_pin_base( pin ), GPIO_PIN_RESET );
+    stm32_gpio_get_pin_bitmask( pin ), GPIO_PIN_RESET );
 
   return RTEMS_SUCCESSFUL;
 }
@@ -360,51 +317,34 @@ uint32_t rtems_gpio_bsp_get_value(
 )
 {
   return ( HAL_GPIO_ReadPin( stm32_gpio_get_port_base( bank ),
-             stm32_gpio_get_pin_base( pin ) ) );
+             stm32_gpio_get_pin_bitmask( pin ) ) );
 }
 
-rtems_status_code rtems_bsp_enable_interrupt(
+rtems_status_code rtems_gpio_bsp_enable_interrupt(
   uint32_t             bank,
   uint32_t             pin,
   rtems_gpio_interrupt interrupt
 )
 {
-  rtems_status_code sc;
+  /* DO NOTHING */
 
-  stm32_gpio_arg.pin = pin;
-  stm32_gpio_arg.port = bank;
-
-  /* Install GPIO vector */
-  sc = rtems_interrupt_handler_install(
-    interrupt,
-    "GPIO EXTI Line 0 Interrupt",
-    RTEMS_INTERRUPT_UNIQUE,
-    stm32_gpio_exti_irq,
-    &stm32_gpio_arg
-       );
-
-  if ( RTEMS_SUCCESSFUL == sc ) {
-    stm32_gpio_bank_vector[ bank ] = interrupt;
-  }
-
-  return sc;
+  /**
+   * 1. Interrupt vector is installed by rtems_gpio_enable_interrupt().
+   * 2. EXTI Line configuration is done in HAL_Init().
+   */
+  return RTEMS_SUCCESSFUL;
 }
 
-rtems_status_code rtems_bsp_disable_interrupt(
+rtems_status_code rtems_gpio_bsp_disable_interrupt(
   uint32_t             bank,
   uint32_t             pin,
   rtems_gpio_interrupt interrupt
 )
 {
-  rtems_status_code sc;
+  /* Disable the EXTI configuration of the pin */
+  stm32_gpio_disable_exti( pin );
 
-  sc = rtems_interrupt_handler_remove(
-    interrupt,
-    stm32_gpio_exti_irq,
-    stm32_gpio_get_pin_base( pin )
-       );
-
-  return sc;
+  return RTEMS_SUCCESSFUL;
 }
 
 rtems_vector_number rtems_gpio_bsp_get_vector( uint32_t bank )
@@ -418,24 +358,24 @@ rtems_status_code rtems_gpio_bsp_set_resistor_mode(
   rtems_gpio_pull_mode mode
 )
 {
+  uint32_t      temp_pull = GPIO_NOPULL;
+  uint32_t      pull_mode = GPIO_NOPULL;
+  GPIO_TypeDef *gpio_bank_base;
 
-  /* TODO: Currently not supported. Should figure out a way to
-   * get all the pin config status and perform De-init - change reg mode - Init
-   */
-  return RTEMS_NOT_DEFINED;
-}
+  gpio_bank_base = stm32_gpio_get_port_base( bank );
 
-uint32_t rtems_gpio_bsp_interrupt_line( rtems_vector_number vector )
-{
-  return RTEMS_NOT_DEFINED;
-}
+  if ( NO_PULL_RESISTOR != mode ) {
+    pull_mode = ( PULL_UP == mode ) ? GPIO_PULLUP : GPIO_PULLDOWN;
+  }
 
-uint32_t rtems_gpio_bsp_multi_read(
-  uint32_t bank,
-  uint32_t bitmask
-)
-{
-  return RTEMS_NOT_DEFINED;
+  /* Activate the Pull-up or Pull down resistor */
+  temp_pull = gpio_bank_base->PUPDR;
+  temp_pull &= ~( GPIO_PUPDR_PUPDR0 << ( pin * 2 ) );
+  temp_pull |= ( ( pull_mode ) << ( pin * 2 ) );
+
+  gpio_bank_base->PUPDR = temp_pull;
+
+  return RTEMS_SUCCESSFUL;
 }
 
 rtems_status_code rtems_gpio_bsp_multi_select(
@@ -444,6 +384,35 @@ rtems_status_code rtems_gpio_bsp_multi_select(
   uint32_t                        select_bank
 )
 {
+  stm32_gpio_pin_config *pin_config;
+  GPIO_InitTypeDef       GPIO_InitStruct;
+  uint8_t                count;
+
+  for ( count = 0; count < pin_count; count++ ) {
+    pin_config = (stm32_gpio_pin_config *) ( pins[ count ].bsp_specific );
+
+    GPIO_InitStruct.Mode = pin_config->mode;
+    GPIO_InitStruct.Pull = pin_config->pull;
+    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Pin = stm32_gpio_get_pin_bitmask( pins[ count ].pin_number );
+    GPIO_InitStruct.Alternate = NULL;
+
+    /* Initialize the GPIO pin */
+    HAL_GPIO_Init( stm32_gpio_get_port_base( select_bank ), &GPIO_InitStruct );
+  }
+
+  return RTEMS_SUCCESSFUL;
+}
+
+uint32_t rtems_gpio_bsp_interrupt_line( rtems_vector_number vector )
+{
+
+  /**
+   * The status of the interrupt line can be obtained from the EXTI register,
+   * which has the status of all BSP_GPIO_PINS_PER_BANK number of pins. But the
+   * pin number cannot be extracted from the argument "vector" being passed,
+   * which is vector for each GPIO banks, according to RTEMS GPIO APIs.
+   */
   return RTEMS_NOT_DEFINED;
 }
 
@@ -454,6 +423,10 @@ rtems_status_code rtems_gpio_bsp_specific_group_operation(
   void     *arg
 )
 {
+
+  /**
+   *  Currently not supported. Not clear of any specific GPIO group operation
+   *  can be done.
+   */
   return RTEMS_NOT_DEFINED;
 }
-

@@ -132,6 +132,7 @@ include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-can.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-i2c.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-spi.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-error.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-gpio.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-fatal-error-handler.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h

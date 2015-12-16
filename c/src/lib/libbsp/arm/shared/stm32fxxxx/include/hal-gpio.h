@@ -87,5 +87,15 @@ enum /*No name*/
   GPIO_PORTI_PIN12, GPIO_PORTI_PIN13, GPIO_PORTI_PIN14, GPIO_PORTI_PIN15,
 };
 
-#endif /* STM32_GPIO_H */
+typedef struct
+{
+  /* Operating mode of the pin */
+  uint32_t mode;
+  /* Resistor mode */
+  uint32_t pull;
+  /* Alternate function */
+  uint32_t alternate;
 
+} stm32_gpio_pin_config;
+
+#endif /* STM32_GPIO_H */
