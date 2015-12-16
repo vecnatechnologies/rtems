@@ -40,7 +40,7 @@
 #define FLASH_DATA_LOGGING_FLAG 0xAE
 
 #define QSPI_FLASH      true
-#define IHEX_PARSING    true
+#define IHEX_PARSING    false
 
 extern tftp_firmware_image_info firmware_info;
 uint32_t rom_buf_start = (uint32_t) 0x080C0000;

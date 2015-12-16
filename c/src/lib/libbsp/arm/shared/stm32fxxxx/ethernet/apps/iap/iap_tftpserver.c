@@ -237,6 +237,7 @@ static void IAP_wrq_recv_callback(void *_args, struct udp_pcb *upcb, struct pbuf
 
       printf("\nTotal bytes received: %d bytes.\nState: Programming finished.\n", total_count);
 
+      // Copies the valid firmware image flashed onto another location in the external flash
 #if 1
       uint8_t* data_ptr;
       uint32_t flash_read_addr = 0;
@@ -244,6 +245,7 @@ static void IAP_wrq_recv_callback(void *_args, struct udp_pcb *upcb, struct pbuf
       uint32_t numbytes = total_count;
       uint32_t numbytes_to_write=0;
       uint8_t* ptr = QSPI_FLASH_ADDRESS;
+
 
       stm32_qspi_command command;
 
@@ -276,6 +278,16 @@ static void IAP_wrq_recv_callback(void *_args, struct udp_pcb *upcb, struct pbuf
           numbytes = numbytes - numbytes_to_write;
 
         } while( numbytes != 0 );
+
+      // Store the number of bytes of the firmware flashed
+      flash_write_addr = 0x0350000;
+
+      command.instruction = QUAD_IN_FAST_PROG_CMD;
+      command.addr = flash_write_addr;
+      command.num_bytes = 4;
+      command.pBuf = (uint8_t*)(&total_count);
+
+      stm32_qspi_write(command);
 
 #endif
       stm32_qspi_memory_mapped();

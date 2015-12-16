@@ -644,4 +644,3 @@ void stm32_qspi_memory_mapped (void)
     }
 }
 
-/******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
