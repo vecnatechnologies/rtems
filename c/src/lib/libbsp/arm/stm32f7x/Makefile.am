@@ -138,6 +138,10 @@ include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-sdram-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-startup-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-uart-interface.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-utils.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-qspi.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-nor-flash-device.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/n25q512a_norflash.h
+include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-flashif.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/include/httpserver-socket.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/cmsis_rtos/include/cmsis_os.h
@@ -187,6 +191,12 @@ libbsp_a_SOURCES += i2c/hal-i2c-init.c
 
 #SPI
 libbsp_a_SOURCES += ../shared/stm32fxxxx/spi/hal-spi.c
+
+#QSPI
+libbsp_a_SOURCES += ../shared/stm32fxxxx/qspi/hal-qspi.c
+
+#Flash
+libbsp_a_SOURCES += ../shared/stm32fxxxx/flash/hal-flashif.c
 
 #GPIO
 libbsp_a_SOURCES += ../shared/stm32fxxxx/gpio/hal-gpio.c
