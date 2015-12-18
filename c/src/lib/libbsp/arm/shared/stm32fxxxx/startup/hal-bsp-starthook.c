@@ -157,9 +157,7 @@ static rtems_status_code set_system_clk(
   ret = HAL_RCC_OscConfig( &RCC_OscInitStruct );
 
   if ( ret != HAL_OK ) {
-    while ( 1 ) {
-      ;
-    }
+      //FIXME:: Handle this error
   }
 
   SystemCoreClock = src_clk;
@@ -169,9 +167,7 @@ static rtems_status_code set_system_clk(
   ret = HAL_PWREx_EnableOverDrive();
 
   if ( ret != HAL_OK ) {
-    while ( 1 ) {
-      ;
-    }
+      //FIXME:: Handle this error
   }
 
 #endif
@@ -217,9 +213,7 @@ static rtems_status_code set_system_clk(
   ret = HAL_RCC_ClockConfig( &RCC_ClkInitStruct, STM32F_FLASH_LATENCY );
 
   if ( ret != HAL_OK ) {
-    while ( 1 ) {
-      ;
-    }
+      //FIXME:: Handle this error
   }
 
   return RTEMS_SUCCESSFUL;
