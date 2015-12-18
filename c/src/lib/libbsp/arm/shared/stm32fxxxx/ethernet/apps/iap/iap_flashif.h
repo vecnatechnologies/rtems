@@ -25,11 +25,15 @@
 #include "stm32f7xx_hal_flash_ex.h"
 #include "iap_tftpserver.h"
 
+
+#define NOR_FLASH_SECTOR_SIZE     0x10000
+#define MAX_IMAGE_SIZE_IN_MB      2
+#define SECTOR_ERASE_COUNT        ceil( (MAX_IMAGE_SIZE_IN_MB * 1024 * 1024) / NOR_FLASH_SECTOR_SIZE )
+
 /* Definition for QSPI DMA */
 #define QSPI_DMA_INSTANCE          DMA2_Stream7
 #define QSPI_DMA_CHANNEL           DMA_CHANNEL_3
 #define QSPI_DMA_IRQ               DMA2_Stream7_IRQn
-//#define QSPI_DMA_IRQ_HANDLER       DMA2_Stream7_IRQHandler
 
 /* N25Q512A Micron memory */
 /* Size of the flash */

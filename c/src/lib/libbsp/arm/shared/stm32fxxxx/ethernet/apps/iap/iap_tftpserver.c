@@ -315,6 +315,9 @@ static void IAP_wrq_recv_callback(void *_args, struct udp_pcb *upcb, struct pbuf
           Jump_To_Application();
 
         }
+      else
+        printf("Invalid Stack Pointer found at 0x%x\n", QSPI_FLASH_ADDRESS);
+
     }
   else
     {

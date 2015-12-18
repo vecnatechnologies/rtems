@@ -40,7 +40,7 @@
 #define FLASH_DATA_LOGGING_FLAG 0xAE
 
 #define QSPI_FLASH      true
-#define IHEX_PARSING    false
+#define IHEX_PARSING    true
 
 extern tftp_firmware_image_info firmware_info;
 uint32_t rom_buf_start = (uint32_t) 0x080C0000;
@@ -230,11 +230,17 @@ int8_t FLASH_If_Erase(uint32_t StartSector)
 {
 
   stm32_qspi_command command;
+  uint8_t count=0;
 
-  command.instruction   = BULK_ERASE_CMD; //TODO:: Use BULK_ERASE command
+  command.instruction   = SECTOR_ERASE_CMD; //TODO:: Use BULK_ERASE command
   command.addr          = 0;
 
-  stm32_qspi_erase(command);
+  while( count < SECTOR_ERASE_COUNT)
+    {
+      stm32_qspi_erase(command);
+      command.addr+= NOR_FLASH_SECTOR_SIZE;
+      count++;
+    }
 
   return (0);
 }
