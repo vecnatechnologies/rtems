@@ -421,7 +421,7 @@ uint8_t* stm32_ethernet_iap_get_next_flash_log_pointer (uint8_t* ptr)
     }
 
   //All memory used. Clear the flash area
-  stm32_flash_if_erase((uint32_t) FLASH_DATA_LOGGING_START_ADDR);
+  stm32_flash_if_erase(FLASH_SECTOR_7);
   return FLASH_DATA_LOGGING_START_ADDR;
 }
 
