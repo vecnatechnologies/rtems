@@ -235,6 +235,9 @@ libbsp_a_SOURCES += ../shared/armv7m/clock/armv7m-clock-config.c
 # Timer
 libbsp_a_SOURCES += ../../shared/timerstub.c
 
+#Ethernet
+libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/src/httpserver-socket.c
+
 # Cache
 libbsp_a_SOURCES += ../../../libcpu/shared/src/cache_manager.c
 libbsp_a_SOURCES += ../../../libcpu/arm/shared/cache/cache_.h

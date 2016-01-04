@@ -372,7 +372,6 @@ int can_bus_register( can_bus *bus )
   rtems_status_code sc;
   char              bus_path[ 12 ];
   int            bus_number = get_free_bus_number();
-  return 0;
 
   if ( bus_number > 0 ) {
     sprintf( bus_path, "/dev/can%d", bus_number );
@@ -449,7 +448,6 @@ static int can_bus_do_init(
     ( *destroy )( bus );
     rtems_set_errno_and_return_minus_one( ENOMEM );
   }
-  return 0;
 
   sc = rtems_task_create(
     rtems_build_name( 'C', '0' + bus->bus_number, 'R', 'X' ),
@@ -485,6 +483,7 @@ static int can_bus_do_init(
   bus->set_filter = can_bus_set_filter_default;
   bus->get_num_filters = can_bus_get_num_filters_default;
   bus->set_flags = can_bus_set_flags_default;
+
   return 0;
 }
 

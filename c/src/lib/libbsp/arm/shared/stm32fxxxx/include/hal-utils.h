@@ -23,7 +23,9 @@
 /**
  * A macro that can be used determine the size of any array
  */
+#ifndef COUNTOF
 #define COUNTOF( x ) ( sizeof( x ) / sizeof( x[ 0 ] ) )
+#endif
 
 // The following macros are used to include the correct HAL header files
 // based upon the specific type of STM32F processor used in the target

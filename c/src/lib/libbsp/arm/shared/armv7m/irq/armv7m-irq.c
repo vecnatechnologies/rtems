@@ -60,4 +60,8 @@ rtems_status_code bsp_interrupt_facility_initialize(void)
   return RTEMS_SUCCESSFUL;
 }
 
+void bsp_sys_tick_handler_initial(void) {
+   // Do nothing ...
+}
+
 #endif /* ARM_MULTILIB_ARCH_V7M */

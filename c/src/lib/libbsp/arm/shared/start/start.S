@@ -47,6 +47,7 @@
 	.extern	_ARMV4_Exception_interrupt
 	.extern	_ARMV4_Exception_fiq_default
 	.extern	_ARMV7M_Exception_default
+	.extern bsp_sys_tick_handler_initial
 
 #ifdef BSP_START_NEEDS_REGISTER_INITIALIZATION
 	.extern bsp_start_init_registers_core
@@ -312,7 +313,7 @@ bsp_start_vector_table_begin:
 	.word	_ARMV7M_Exception_default /* Debug Monitor */
 	.word	_ARMV7M_Exception_default /* Reserved */
 	.word	_ARMV7M_Exception_default /* PendSV */
-	.word	_ARMV7M_Exception_default /* SysTick */
+	.word	bsp_sys_tick_handler_initial /* SysTick */
 	.rept	BSP_INTERRUPT_VECTOR_MAX + 1
 	.word	_ARMV7M_Exception_default /* IRQ */
 	.endr
