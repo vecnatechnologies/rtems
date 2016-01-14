@@ -149,14 +149,25 @@ post_switch:
   _Thread_Run_post_switch_actions( executing );
 }
 
+static void debug_location(void) {
+  static int debug_counter = 0;
+  debug_counter++;
+}
+
 void _Thread_Dispatch( void )
 {
   ISR_Level        level;
   Per_CPU_Control *cpu_self;
 
+
   _ISR_Disable_without_giant( level );
 
   cpu_self = _Per_CPU_Get();
+
+  //TODO: Remove debug only
+  if(cpu_self->thread_dispatch_disable_level != 0) {
+    debug_location();
+  }
 
   if ( cpu_self->dispatch_necessary ) {
     _Profiling_Thread_dispatch_disable( cpu_self, 0 );
@@ -164,5 +175,11 @@ void _Thread_Dispatch( void )
     _Thread_Do_dispatch( cpu_self, level );
   } else {
     _ISR_Enable_without_giant( level );
+  }
+}
+
+void jay_debug_code(void) {
+  while(1) {
+    ;
   }
 }

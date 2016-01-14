@@ -33,6 +33,8 @@ extern "C" {
   #define __THREAD_DO_NOT_INLINE_ENABLE_DISPATCH__
 #endif
 
+extern void jay_debug_code(void);
+
 /**
  * @addtogroup ScoreThread
  *
@@ -318,6 +320,11 @@ RTEMS_INLINE_ROUTINE void _Thread_Dispatch_enable( Per_CPU_Control *cpu_self )
 
     _ISR_Enable_without_giant( level );
   } else {
+
+    //TODO: Debugging only
+    if(disable_level == 0) {
+      jay_debug_code();
+    }
     cpu_self->thread_dispatch_disable_level = disable_level - 1;
   }
 }
