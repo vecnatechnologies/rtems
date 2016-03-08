@@ -142,8 +142,6 @@ include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-qspi.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-nor-flash-device.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/n25q512a_norflash.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/include/hal-flashif.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/apps/include/httpserver-socket.h
-include_bsp_HEADERS += ../shared/stm32fxxxx/ethernet/driver/hal-ethernetif.h
 include_bsp_HEADERS += ../shared/stm32fxxxx/cmsis_rtos/include/cmsis_os.h
 
 # Private driver headers
@@ -236,7 +234,6 @@ libbsp_a_SOURCES += ../shared/armv7m/clock/armv7m-clock-config.c
 libbsp_a_SOURCES += ../../shared/timerstub.c
 
 #Ethernet
-libbsp_a_SOURCES += ../shared/stm32fxxxx/ethernet/apps/src/httpserver-socket.c
 
 # Cache
 libbsp_a_SOURCES += ../../../libcpu/shared/src/cache_manager.c

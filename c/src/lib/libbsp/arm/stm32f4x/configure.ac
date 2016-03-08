@@ -16,6 +16,23 @@ AM_CONDITIONAL(HAS_NETWORKING,test "$HAS_NETWORKING" = "yes")
 
 RTEMS_BSPOPTS_HELP([STM32F4_FAMILY_F4XXXX],[Chip belongs to the STM32F4XXXX family.])
 
+
+
+RTEMS_BSPOPTS_SET([STM32F4_FAMILY_F4XXXX],[stm32f4*],[1])
+RTEMS_BSPOPTS_HELP([STM32F4_FAMILY_F4XXXX],[Chip belongs to the STM32F4XXXX family.])
+
+RTEMS_BSPOPTS_SET([STM32F407xx],[stm32f4*],[1])
+RTEMS_BSPOPTS_HELP([STM32F407xx],[A precessor macro used in HAL headers])
+
+RTEMS_BSPOPTS_SET([RTEMS_TARGET_PROCESSOR],[stm32f4*],[STM32F407xx])
+RTEMS_BSPOPTS_HELP([RTEMS_TARGET_PROCESSOR],[The specific chip in the processor family that is used])
+
+RTEMS_BSPOPTS_SET([TARGET_STM_PROCESSOR],[stm32f4*],[407])
+RTEMS_BSPOPTS_HELP([TARGET_STM_PROCESSOR],[The specific chip in the processor family that is used])
+
+RTEMS_BSPOPTS_SET([TARGET_STM_PROCESSOR_PREFIX],[stm32f4*],[4xx])
+RTEMS_BSPOPTS_HELP([TARGET_STM_PROCESSOR_PREFIX],[The chip family number])
+
 ######### System Memory Address #########
 RTEMS_BSPOPTS_SET([SYS_MEM_ADDR],[*],[0x1FFF0000])
 RTEMS_BSPOPTS_HELP([SYS_MEM_ADDR],[System Memory Address])
