@@ -19,12 +19,30 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <hal-utils.h>
 #include <stm32f-processor-specific.h>
 #include <bspopts.h>
 
+//#include <iap_tftpserver.h>
+//TODO:: Fix the linking problem for the above header file
+typedef struct
+{
+  /* Status of firmware image being downloaded */
+  bool firmware_corrupted;
+
+  /* Valid firmware flashed or not */
+  bool firmware_flashed;
+
+  /* Firmware image to be flashed requested */
+    bool firmware_flash_requested;
+
+}tftp_firmware_image_info;
+
 #include stm_processor_header( TARGET_STM_PROCESSOR_PREFIX )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc )
+
+extern tftp_firmware_image_info firmware_info;
 
 void stm32f_bootloader_init( void )
 {
@@ -45,6 +63,10 @@ void stm32f_bootloader_init( void )
 
   /* Get default MSP value */
   uint32_t default_MSP = *( (uint32_t *) SYS_MEM_ADDR );
+
+  /* Update flags for use by bootloader */
+  firmware_info.firmware_flash_requested = true;
+  stm32_ethernet_iap_update_firmware_info();
 
   /* Disable all interrupts. Disables the running RTOS */
   __disable_irq();
