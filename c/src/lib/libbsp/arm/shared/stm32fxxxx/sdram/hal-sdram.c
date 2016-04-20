@@ -128,6 +128,27 @@ void MPU_Config( void )
 
   HAL_MPU_ConfigRegion( &MPU_InitStruct );
 
+
+  /* Configure the MPU attributes for external QSPI flash */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x90000000;
+  MPU_InitStruct.Size = MPU_Get_Region_Size(0x1000000);
+  MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RO;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x00;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+  // Check for valid memory region sizes first
+  if (MPU_InitStruct.Size == 0 ) {
+    stm32f_error_handler_with_reason("Invalid memory region size specified for external Flash");
+  }
+
+  HAL_MPU_ConfigRegion( &MPU_InitStruct );
+
   /* Enable the MPU */
   HAL_MPU_Enable( MPU_PRIVILEGED_DEFAULT );
 }

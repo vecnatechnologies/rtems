@@ -33,7 +33,7 @@ RTEMS_BSPOPTS_SET([TARGET_STM_PROCESSOR_PREFIX],[stm32f7*],[7xx])
 RTEMS_BSPOPTS_HELP([TARGET_STM_PROCESSOR_PREFIX],[The chip family number])
 
 ####################sud System Memory Address #########
-RTEMS_BSPOPTS_SET([SYS_MEM_ADDR],[*],[0x1FF00000])
+RTEMS_BSPOPTS_SET([SYS_MEM_ADDR],[*],[0x08000000])
 RTEMS_BSPOPTS_HELP([SYS_MEM_ADDR],[System Memory Address])
 
 #################### Bootloader firmware address offset in system memory #########
