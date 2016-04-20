@@ -35,7 +35,7 @@ typedef struct
   bool firmware_flashed;
 
   /* Firmware image to be flashed requested */
-    bool firmware_flash_requested;
+  bool firmware_flash_requested;
 
 }tftp_firmware_image_info;
 
