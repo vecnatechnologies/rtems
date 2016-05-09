@@ -8,6 +8,23 @@
 
 stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UARTS] = {
 
+  [0] .base_driver_info = {
+    .device_name     = "/dev/ttyS0",
+    .handle          = &(UartHandles[NUM_PROCESSOR_CONSOLE_UARTS]),
+    .interrupt_number = USART6_IRQn,
+    .uart_mode        = STM32F_UART_MODE_DMA,
+    .tx_dma_stream     = DMA2_Stream7,
+    .rx_dma_stream     = DMA2_Stream1,
+    .tx_pin            = {STM32F_GPIO_PORTC, 6},
+    .rx_pin            = {STM32F_GPIO_PORTC, 7},
+    .tx_dma            = {STM32F_DMA2_CONTROLLER, DMA2_Stream7_IRQn, DMA_CHANNEL_5, 7},
+    .rx_dma            = {STM32F_DMA2_CONTROLLER, DMA2_Stream1_IRQn, DMA_CHANNEL_5, 1},
+    .baud               = 115200,
+    .alt_func_config    = GPIO_AF8_USART6,
+    .uart               = STM32F_UART6,
+  }
+
+  /*
   //          UART1
   [0] .base_driver_info = {
     .device_name         = "/dev/ttyS0",
@@ -24,7 +41,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UART
     .alt_func_config        = GPIO_AF7_USART1,
     .uart                = STM32F_UART1,
   },
-/*
+
   //          UART2
   [1] .base_driver_info = {
     .device_name     = "/dev/ttyS1",
@@ -93,6 +110,7 @@ stm32f_uart_driver_entry stm32f_uart_driver_table[NUM_PROCESSOR_NON_CONSOLE_UART
     .uart            = STM32F_UART5,
   },
   */
+
 };
 
 stm32f_uart_device uart_device_table[NUM_PROCESSOR_NON_CONSOLE_UARTS];
