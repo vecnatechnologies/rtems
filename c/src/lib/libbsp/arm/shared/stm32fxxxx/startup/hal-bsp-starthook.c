@@ -144,11 +144,17 @@ static rtems_status_code set_system_clk(
   // Apply clock configuration
   RCC_OscInitStruct.OscillatorType = (
     ( hse_flag != 0 ) ? RCC_OSCILLATORTYPE_HSE : RCC_OSCILLATORTYPE_HSI );
-  RCC_OscInitStruct.HSEState =
-    ( ( hse_flag != 0 ) ? RCC_HSE_ON : RCC_HSE_OFF );
+
+  if( hse_flag != 0){
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  } else {
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = 16;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  }
+
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = (
-    ( hse_flag != 0 ) ? RCC_PLLSOURCE_HSE : RCC_PLLSOURCE_HSI );
   RCC_OscInitStruct.PLL.PLLM = pll_m;
   RCC_OscInitStruct.PLL.PLLN = pll_n;
   RCC_OscInitStruct.PLL.PLLP = pll_p;

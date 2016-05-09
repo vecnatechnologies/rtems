@@ -30,7 +30,6 @@
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, rcc )
 #include stm_header( TARGET_STM_PROCESSOR_PREFIX, gpio )
 
-#include <math.h>
 #include <rtems/irq-extension.h>
 
 /**
@@ -357,7 +356,10 @@ CAN_Timing_Values rtems_can_get_timing_values
   // Calculate S1 and S2
   // x = S1 + S2
   int s1_plus_s2 = best_x;
-  int s1 = roundf(.875F * (float) s1_plus_s2);
+  int s1 = (int) (.875F * (float) s1_plus_s2);
+  float remainder = ((.875F * (float) s1_plus_s2)) - (float) s1;
+  if (remainder >= 0.5) s1++;
+
   int s2 = s1_plus_s2 - s1;
   s_timeValues.s1 = s1;
   s_timeValues.s2 = s2;

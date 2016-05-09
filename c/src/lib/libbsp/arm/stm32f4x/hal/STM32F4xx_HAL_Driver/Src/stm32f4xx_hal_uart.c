@@ -1199,7 +1199,7 @@ void HAL_UART_IRQHandler(UART_HandleTypeDef *huart)
   /* UART in mode Receiver ---------------------------------------------------*/
   if((tmp1 != RESET) && (tmp2 != RESET))
   { 
-    UART_Receive_IT(huart);
+     UART_Receive_IT(huart);
   }
   
   tmp1 = __HAL_UART_GET_FLAG(huart, UART_FLAG_TXE);
@@ -1221,7 +1221,7 @@ void HAL_UART_IRQHandler(UART_HandleTypeDef *huart)
   if(huart->ErrorCode != HAL_UART_ERROR_NONE)
   {
     /* Set the UART state ready to be able to start again the process */
-    huart->State = HAL_UART_STATE_READY;
+    //huart->State = HAL_UART_STATE_READY;
     
     HAL_UART_ErrorCallback(huart);
   }  

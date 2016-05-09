@@ -40,13 +40,40 @@
 #define APB2_CLK                STM32F4_PCLK2
 
 // uart configuration
-#define NUM_PROCESSOR_NON_CONSOLE_UARTS     1
+#define NUM_PROCESSOR_NON_CONSOLE_UARTS     2
 #define NUM_PROCESSOR_CONSOLE_UARTS         1
 
 //TODO: Put this in configure.ac
 #define STM32F7_ENABLE_USART_1 1
 #define STM32F7_ENABLE_USART_6 1
 
+#elif defined(STM32F405xx)
+
+// This processor does not support external SDRAM
+#undef EXTERNAL_SDRAM
+
+// This processor does not support overdrive mode
+#undef ENABLE_PROCESSOR_OVERDRIVE
+
+// clock configuration
+#define SYSCLK_FREQUENCY        STM32F4_SYSCLK
+#define HSE_VALUE               STM32F4_HSE_OSCILLATOR
+#define HSI_FREQUENCY           16000000
+#define STM32F_FLASH_LATENCY    FLASH_LATENCY_7
+#undef  HSE_AVAILABLE
+#define HSE_AVAILABLE           0
+#define MAX_SYSCLK              168000000
+#define APB1_CLK                STM32F4_PCLK1
+#define APB2_CLK                STM32F4_PCLK2
+
+// uart configuration
+#define NUM_PROCESSOR_NON_CONSOLE_UARTS     2
+#define NUM_PROCESSOR_CONSOLE_UARTS         1
+
+//TODO: Put this in configure.ac
+#define STM32F7_ENABLE_USART_3 1
+#define STM32F7_ENABLE_USART_1 1
+#define STM32F7_ENABLE_USART_6 1
 
 #else
 #error "Unspecified processor type!!"

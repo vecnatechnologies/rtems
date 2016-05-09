@@ -50,6 +50,7 @@ include_bsp_HEADERS += include/stm32f-processor-specific.h
 #HAL Device headers
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
+include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/stm32f405xx.h
 include_bsp_HEADERS += hal/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
 
 # CMSIS header
