@@ -33,6 +33,12 @@ include_HEADERS += ../shared/CMSIS/Include/core_cmSimd.h
 include_HEADERS += ../shared/CMSIS/Include/cmsis_gcc.h
 include_HEADERS += include/bsp.h
 
+include_HEADERS += include/atsam_can.h
+include_HEADERS += ../shared/can/can.h
+include_HEADERS += ../shared/can/can-internal.h
+
+include_HEADERS += include/atsam_gpio.h
+
 nodist_include_HEADERS =
 nodist_include_HEADERS += ../../shared/include/coverhd.h
 nodist_include_HEADERS += include/bspopts.h
@@ -431,9 +437,14 @@ endif
 # I2C
 libbsp_a_SOURCES += i2c/atsam_i2c_bus.c
 libbsp_a_SOURCES += i2c/atsam_i2c_init.c
+# CAN
+libbsp_a_SOURCES += ../shared/can/can.c
+libbsp_a_SOURCES += can/atsam_can.c
 
 # RTC
 libbsp_a_SOURCES += ../../shared/tod.c
+# GPIO
+libbsp_a_SOURCES += gpio/atsam_gpio.c
 libbsp_a_SOURCES += rtc/rtc-config.c
 
 # Includes

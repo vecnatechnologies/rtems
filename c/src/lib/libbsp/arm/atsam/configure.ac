@@ -68,6 +68,12 @@ RTEMS_BSPOPTS_HELP([ATSAM_CONSOLE_DEVICE_INDEX],[device index for /dev/console (
 RTEMS_BSPOPTS_SET([ATSAM_CONSOLE_USE_INTERRUPTS],[*],[1])
 RTEMS_BSPOPTS_HELP([ATSAM_CONSOLE_USE_INTERRUPTS],[use interrupt driven mode for console devices (used by default)])
 
+RTEMS_BSPOPTS_SET([BSP_GPIO_PINS_PER_BANK],[*],[32])
+RTEMS_BSPOPTS_HELP([BSP_GPIO_PINS_PER_BANK],[Number of GPIO pins per port/bank])
+
+RTEMS_BSPOPTS_SET([BSP_GPIO_PIN_COUNT],[*],[160])
+RTEMS_BSPOPTS_HELP([BSP_GPIO_PIN_COUNT],[Number of GPIO pins per port/bank])
+
 AC_DEFUN([ATSAM_LINKCMD],[
 AC_ARG_VAR([$1],[$2])dnl
 [$1]=[$]{[$1]:-[$3]}

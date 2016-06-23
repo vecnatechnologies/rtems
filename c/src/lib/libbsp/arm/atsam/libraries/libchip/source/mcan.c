@@ -44,6 +44,7 @@
 #include "chip.h"
 #include "mcan_config.h"
 #include <assert.h>
+#include <rtems.h>
 /*---------------------------------------------------------------------------
  *      Definitions
  *---------------------------------------------------------------------------*/
@@ -449,6 +450,8 @@ static uint32_t can1MsgRam[MCAN1_STD_FLTS_WRDS +
 
 static const uint8_t dlcToMsgLength[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 };
 
+static rtems_id _can_tx_mutex_id;
+
 const MCan_ConfigType mcan0Config = {
 	MCAN0,
 	MCAN_BTP_BRP(MCAN0_BRP) | MCAN_BTP_TSEG1(MCAN0_TSEG1) |
@@ -544,6 +547,11 @@ void MCAN_Init(const MCan_ConfigType *mcanConfig)
 	uint32_t   *pMsgRam;
 	uint32_t    cntr;
 	IRQn_Type   mCanLine0Irq;
+
+  rtems_semaphore_create(rtems_build_name('M','C','A','N'),
+    1,
+    RTEMS_SIMPLE_BINARY_SEMAPHORE | RTEMS_LOCAL, 0,
+    &_can_tx_mutex_id);
 
 	/* Both MCAN controllers use programmable clock 5 to derive bit rate */
 	// select MCK divided by 1 as programmable clock 5 output
@@ -900,14 +908,20 @@ uint32_t MCAN_AddToTxFifoQ(const MCan_ConfigType *mcanConfig,
 {
 	Mcan *mcan = mcanConfig->pMCan;
 	uint32_t   putIdx = 255;
-	uint32_t *pThisTxBuf = 0;
-	uint8_t   *pTxData;
+	uint32_t   *pThisTxBuf = 0;
+	uint8_t    *pTxData;
 	uint8_t    msgLength;
 	uint8_t    cnt;
+
+	// The following code will obtain an index into the TX buffer.
+	// No other task should use this index until the TX buffer is marked
+	// for transmit.
+	rtems_semaphore_obtain(_can_tx_mutex_id, RTEMS_WAIT, RTEMS_NO_TIMEOUT);
 
 	// Configured for FifoQ and FifoQ not full?
 	if ((mcanConfig->nmbrTxFifoQElmts > 0) &&
 		((mcan->MCAN_TXFQS & MCAN_TXFQS_TFQF) == 0)) {
+
 		putIdx = (mcan->MCAN_TXFQS & MCAN_TXFQS_TFQPI_Msk) >> MCAN_TXFQS_TFQPI_Pos;
 		pThisTxBuf = mcanConfig->msgRam.pTxDedBuf + (putIdx *
 					 (mcanConfig->txBufElmtSize & ELMT_SIZE_MASK));
@@ -924,12 +938,14 @@ uint32_t MCAN_AddToTxFifoQ(const MCan_ConfigType *mcanConfig,
 		for (cnt = 0; cnt < msgLength; cnt++)
 			*pTxData++ = *data++;
 
-		/* enable transmit from buffer to set TC interrupt bit in IR, but
-		interrupt will not happen unless TC interrupt is enabled */
-		mcan->MCAN_TXBTIE = (1 << putIdx);
-		// request to send
-		mcan->MCAN_TXBAR = (1 << putIdx);
+    /* enable transmit from buffer to set TC interrupt bit in IR, but
+    interrupt will not happen unless TC interrupt is enabled */
+    mcan->MCAN_TXBTIE = (1 << putIdx);
+    // request to send
+    mcan->MCAN_TXBAR = (1 << putIdx);
 	}
+
+	rtems_semaphore_release(_can_tx_mutex_id);
 
 	return putIdx;  // now it points to the data field
 }
