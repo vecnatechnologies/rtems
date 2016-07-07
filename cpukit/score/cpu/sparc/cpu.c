@@ -116,6 +116,10 @@ RTEMS_STATIC_ASSERT(
   CPU_Interrupt_frame_alignment
 );
 
+#if (SPARC_HAS_FPU == 1) && !defined(SPARC_USE_SAFE_FP_SUPPORT)
+Context_Control_fp _CPU_Null_fp_context;
+#endif
+
 /*
  *  _CPU_Initialize
  *
@@ -355,6 +359,9 @@ void _CPU_Context_Initialize(
     tmp_psr &= ~SPARC_PSR_PIL_MASK;
     tmp_psr |= (new_level << 8) & SPARC_PSR_PIL_MASK;
     tmp_psr &= ~SPARC_PSR_EF_MASK;      /* disabled by default */
+
+    /* _CPU_Context_restore_heir() relies on this */
+    _Assert( ( tmp_psr & SPARC_PSR_ET_MASK ) != 0 );
 
 #if (SPARC_HAS_FPU == 1)
     /*

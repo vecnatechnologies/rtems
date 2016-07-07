@@ -80,6 +80,7 @@ SECTIONS {
 		 */
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		KEEP (*(SORT(.rtemsroset.*)))
 		*(.interp)
 		*(.note.gnu.build-id)
 		*(.hash)
@@ -218,6 +219,7 @@ SECTIONS {
 		PROVIDE_HIDDEN (__fini_array_end = .);
 
 		*(.data .data.* .gnu.linkonce.d.*)
+		KEEP (*(SORT(.rtemsrwset.*)))
 		KEEP (*(.gnu.linkonce.d.*personality*))
 		SORT(CONSTRUCTORS)
 

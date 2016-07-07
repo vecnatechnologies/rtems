@@ -45,7 +45,7 @@ typedef std::atomic_uint CPU_atomic_Uint;
 
 typedef std::atomic_ulong CPU_atomic_Ulong;
 
-typedef std::atomic_uintptr_t CPU_atomic_Pointer;
+typedef std::atomic_uintptr_t CPU_atomic_Uintptr;
 
 typedef std::atomic_flag CPU_atomic_Flag;
 
@@ -65,8 +65,7 @@ typedef std::memory_order CPU_atomic_Order;
 
 #define CPU_ATOMIC_INITIALIZER_ULONG( value ) ATOMIC_VAR_INIT( value )
 
-#define CPU_ATOMIC_INITIALIZER_PTR( value ) \
-  ATOMIC_VAR_INIT( (uintptr_t) (value) )
+#define CPU_ATOMIC_INITIALIZER_UINTPTR( value ) ATOMIC_VAR_INIT( value )
 
 #define CPU_ATOMIC_INITIALIZER_FLAG ATOMIC_FLAG_INIT
 
@@ -76,7 +75,7 @@ typedef atomic_uint CPU_atomic_Uint;
 
 typedef atomic_ulong CPU_atomic_Ulong;
 
-typedef atomic_uintptr_t CPU_atomic_Pointer;
+typedef atomic_uintptr_t CPU_atomic_Uintptr;
 
 typedef atomic_flag CPU_atomic_Flag;
 
@@ -96,8 +95,7 @@ typedef memory_order CPU_atomic_Order;
 
 #define CPU_ATOMIC_INITIALIZER_ULONG( value ) ATOMIC_VAR_INIT( value )
 
-#define CPU_ATOMIC_INITIALIZER_PTR( value ) \
-  ATOMIC_VAR_INIT( (uintptr_t) (value) )
+#define CPU_ATOMIC_INITIALIZER_UINTPTR( value ) ATOMIC_VAR_INIT( value )
 
 #define CPU_ATOMIC_INITIALIZER_FLAG ATOMIC_FLAG_INIT
 
@@ -107,7 +105,7 @@ typedef unsigned int CPU_atomic_Uint;
 
 typedef unsigned long CPU_atomic_Ulong;
 
-typedef uintptr_t CPU_atomic_Pointer;
+typedef uintptr_t CPU_atomic_Uintptr;
 
 typedef bool CPU_atomic_Flag;
 
@@ -127,7 +125,7 @@ typedef int CPU_atomic_Order;
 
 #define CPU_ATOMIC_INITIALIZER_ULONG( value ) ( value )
 
-#define CPU_ATOMIC_INITIALIZER_PTR( value ) ( (uintptr_t) (value) )
+#define CPU_ATOMIC_INITIALIZER_UINTPTR( value ) ( value )
 
 #define CPU_ATOMIC_INITIALIZER_FLAG false
 
@@ -167,14 +165,14 @@ static inline void _CPU_atomic_Init_ulong( CPU_atomic_Ulong *obj, unsigned long 
 #endif
 }
 
-static inline void _CPU_atomic_Init_ptr( CPU_atomic_Pointer *obj, void *desired )
+static inline void _CPU_atomic_Init_uintptr( CPU_atomic_Uintptr *obj, uintptr_t desired )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  obj->store( (uintptr_t) desired );
+  obj->store( desired );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  atomic_init( obj, (uintptr_t) desired );
+  atomic_init( obj, desired );
 #else
-  *obj = (uintptr_t) desired;
+  *obj = desired;
 #endif
 }
 
@@ -212,12 +210,12 @@ static inline unsigned long _CPU_atomic_Load_ulong( const CPU_atomic_Ulong *obj,
 #endif
 }
 
-static inline void *_CPU_atomic_Load_ptr( const CPU_atomic_Pointer *obj, CPU_atomic_Order order )
+static inline uintptr_t _CPU_atomic_Load_uintptr( const CPU_atomic_Uintptr *obj, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return (void *) obj->load( order );
+  return obj->load( order );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return (void *) atomic_load_explicit( obj, order );
+  return atomic_load_explicit( obj, order );
 #else
   uintptr_t val;
 
@@ -225,7 +223,7 @@ static inline void *_CPU_atomic_Load_ptr( const CPU_atomic_Pointer *obj, CPU_ato
   val = *obj;
   RTEMS_COMPILER_MEMORY_BARRIER();
 
-  return (void *) val;
+  return val;
 #endif
 }
 
@@ -255,16 +253,16 @@ static inline void _CPU_atomic_Store_ulong( CPU_atomic_Ulong *obj, unsigned long
 #endif
 }
 
-static inline void _CPU_atomic_Store_ptr( CPU_atomic_Pointer *obj, void *desired, CPU_atomic_Order order )
+static inline void _CPU_atomic_Store_uintptr( CPU_atomic_Uintptr *obj, uintptr_t desired, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  obj->store( (uintptr_t) desired );
+  obj->store( desired );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  atomic_store_explicit( obj, (uintptr_t) desired, order );
+  atomic_store_explicit( obj, desired, order );
 #else
   (void) order;
   RTEMS_COMPILER_MEMORY_BARRIER();
-  *obj = (uintptr_t) desired;
+  *obj = desired;
 #endif
 }
 
@@ -279,10 +277,10 @@ static inline unsigned int _CPU_atomic_Fetch_add_uint( CPU_atomic_Uint *obj, uns
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val + arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
@@ -299,32 +297,32 @@ static inline unsigned long _CPU_atomic_Fetch_add_ulong( CPU_atomic_Ulong *obj, 
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val + arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
 }
 
-static inline void *_CPU_atomic_Fetch_add_ptr( CPU_atomic_Pointer *obj, void *arg, CPU_atomic_Order order )
+static inline uintptr_t _CPU_atomic_Fetch_add_uintptr( CPU_atomic_Uintptr *obj, uintptr_t arg, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return (void *) obj->fetch_add( (uintptr_t) arg, order );
+  return obj->fetch_add( arg, order );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return (void *) atomic_fetch_add_explicit( obj, (uintptr_t) arg, order );
+  return atomic_fetch_add_explicit( obj, arg, order );
 #else
   uintptr_t val;
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
-  *obj = val + (uintptr_t) arg;
-  _ISR_Enable( level );
+  *obj = val + arg;
+  _ISR_Local_enable( level );
 
-  return (void *) val;
+  return val;
 #endif
 }
 
@@ -339,10 +337,10 @@ static inline unsigned int _CPU_atomic_Fetch_sub_uint( CPU_atomic_Uint *obj, uns
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val - arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
@@ -359,32 +357,32 @@ static inline unsigned long _CPU_atomic_Fetch_sub_ulong( CPU_atomic_Ulong *obj, 
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val - arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
 }
 
-static inline void *_CPU_atomic_Fetch_sub_ptr( CPU_atomic_Pointer *obj, void *arg, CPU_atomic_Order order )
+static inline uintptr_t _CPU_atomic_Fetch_sub_uintptr( CPU_atomic_Uintptr *obj, uintptr_t arg, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return (void *) obj->fetch_sub( (uintptr_t) arg, order );
+  return obj->fetch_sub( arg, order );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return (void *) atomic_fetch_sub_explicit( obj, (uintptr_t) arg, order );
+  return atomic_fetch_sub_explicit( obj, arg, order );
 #else
   uintptr_t val;
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
-  *obj = val - (uintptr_t) arg;
-  _ISR_Enable( level );
+  *obj = val - arg;
+  _ISR_Local_enable( level );
 
-  return (void *) val;
+  return val;
 #endif
 }
 
@@ -399,10 +397,10 @@ static inline unsigned int _CPU_atomic_Fetch_or_uint( CPU_atomic_Uint *obj, unsi
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val | arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
@@ -419,32 +417,32 @@ static inline unsigned long _CPU_atomic_Fetch_or_ulong( CPU_atomic_Ulong *obj, u
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val | arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
 }
 
-static inline void *_CPU_atomic_Fetch_or_ptr( CPU_atomic_Pointer *obj, void *arg, CPU_atomic_Order order )
+static inline uintptr_t _CPU_atomic_Fetch_or_uintptr( CPU_atomic_Uintptr *obj, uintptr_t arg, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return (void *) obj->fetch_or( (uintptr_t) arg, order );
+  return obj->fetch_or( arg, order );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return (void *) atomic_fetch_or_explicit( obj, (uintptr_t) arg, order );
+  return atomic_fetch_or_explicit( obj, arg, order );
 #else
   uintptr_t val;
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
-  *obj = val | (uintptr_t) arg;
-  _ISR_Enable( level );
+  *obj = val | arg;
+  _ISR_Local_enable( level );
 
-  return (void *) val;
+  return val;
 #endif
 }
 
@@ -459,10 +457,10 @@ static inline unsigned int _CPU_atomic_Fetch_and_uint( CPU_atomic_Uint *obj, uns
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val & arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
@@ -479,32 +477,32 @@ static inline unsigned long _CPU_atomic_Fetch_and_ulong( CPU_atomic_Ulong *obj, 
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = val & arg;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
 }
 
-static inline void *_CPU_atomic_Fetch_and_ptr( CPU_atomic_Pointer *obj, void *arg, CPU_atomic_Order order )
+static inline uintptr_t _CPU_atomic_Fetch_and_uintptr( CPU_atomic_Uintptr *obj, uintptr_t arg, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return (void *) obj->fetch_and( (uintptr_t) arg, order );
+  return obj->fetch_and( arg, order );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return (void *) atomic_fetch_and_explicit( obj, (uintptr_t) arg, order );
+  return atomic_fetch_and_explicit( obj, arg, order );
 #else
   uintptr_t val;
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
-  *obj = val & (uintptr_t) arg;
-  _ISR_Enable( level );
+  *obj = val & arg;
+  _ISR_Local_enable( level );
 
-  return (void *) val;
+  return val;
 #endif
 }
 
@@ -519,10 +517,10 @@ static inline unsigned int _CPU_atomic_Exchange_uint( CPU_atomic_Uint *obj, unsi
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = desired;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
@@ -539,32 +537,32 @@ static inline unsigned long _CPU_atomic_Exchange_ulong( CPU_atomic_Ulong *obj, u
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
   *obj = desired;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return val;
 #endif
 }
 
-static inline void *_CPU_atomic_Exchange_ptr( CPU_atomic_Pointer *obj, void *desired, CPU_atomic_Order order )
+static inline uintptr_t _CPU_atomic_Exchange_uintptr( CPU_atomic_Uintptr *obj, uintptr_t desired, CPU_atomic_Order order )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return (void *) obj->exchange( (uintptr_t) desired, order );
+  return obj->exchange( desired, order );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return (void *) atomic_exchange_explicit( obj, (uintptr_t) desired, order );
+  return atomic_exchange_explicit( obj, desired, order );
 #else
   uintptr_t val;
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   val = *obj;
-  *obj = (uintptr_t) desired;
-  _ISR_Enable( level );
+  *obj = desired;
+  _ISR_Local_enable( level );
 
-  return (void *) val;
+  return val;
 #endif
 }
 
@@ -577,15 +575,19 @@ static inline bool _CPU_atomic_Compare_exchange_uint( CPU_atomic_Uint *obj, unsi
 #else
   bool success;
   ISR_Level level;
+  unsigned int actual;
 
   (void) succ;
   (void) fail;
-  _ISR_Disable( level );
-  success = *obj == *expected;
+  _ISR_Local_disable( level );
+  actual = *obj;
+  success = ( actual == *expected );
   if ( success ) {
     *obj = desired;
+  } else {
+    *expected = actual;
   }
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return success;
 #endif
@@ -600,38 +602,46 @@ static inline bool _CPU_atomic_Compare_exchange_ulong( CPU_atomic_Ulong *obj, un
 #else
   bool success;
   ISR_Level level;
+  unsigned long actual;
 
   (void) succ;
   (void) fail;
-  _ISR_Disable( level );
-  success = *obj == *expected;
+  _ISR_Local_disable( level );
+  actual = *obj;
+  success = ( actual == *expected );
   if ( success ) {
     *obj = desired;
+  } else {
+    *expected = actual;
   }
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return success;
 #endif
 }
 
-static inline bool _CPU_atomic_Compare_exchange_ptr( CPU_atomic_Pointer *obj, void **expected, void *desired, CPU_atomic_Order succ, CPU_atomic_Order fail )
+static inline bool _CPU_atomic_Compare_exchange_uintptr( CPU_atomic_Uintptr *obj, uintptr_t *expected, uintptr_t desired, CPU_atomic_Order succ, CPU_atomic_Order fail )
 {
 #if defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_ATOMIC)
-  return obj->compare_exchange_strong( *(uintptr_t *) expected, (uintptr_t) desired, succ, fail );
+  return obj->compare_exchange_strong( *expected, desired, succ, fail );
 #elif defined(_RTEMS_SCORE_CPUSTDATOMIC_USE_STDATOMIC)
-  return atomic_compare_exchange_strong_explicit( obj, (uintptr_t *) expected, (uintptr_t) desired, succ, fail );
+  return atomic_compare_exchange_strong_explicit( obj, expected, desired, succ, fail );
 #else
   bool success;
   ISR_Level level;
+  uintptr_t actual;
 
   (void) succ;
   (void) fail;
-  _ISR_Disable( level );
-  success = *obj == (uintptr_t) *expected;
+  _ISR_Local_disable( level );
+  actual = *obj;
+  success = ( actual == *expected );
   if ( success ) {
-    *obj = (uintptr_t) desired;
+    *obj = desired;
+  } else {
+    *expected = actual;
   }
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return success;
 #endif
@@ -660,10 +670,10 @@ static inline bool _CPU_atomic_Flag_test_and_set( CPU_atomic_Flag *obj, CPU_atom
   ISR_Level level;
 
   (void) order;
-  _ISR_Disable( level );
+  _ISR_Local_disable( level );
   flag = *obj;
   *obj = true;
-  _ISR_Enable( level );
+  _ISR_Local_enable( level );
 
   return flag;
 #endif

@@ -8,6 +8,26 @@
 
 @section Introduction
 
+The Symmetric Multiprocessing (SMP) support of the RTEMS @value{VERSION} is
+available on
+
+@itemize @bullet
+@item ARM,
+@item PowerPC, and
+@item SPARC.
+@end itemize
+
+It must be explicitly enabled via the @code{--enable-smp} configure command
+line option.  To enable SMP in the application configuration see
+@ref{Configuring a System Enable SMP Support for Applications}.  The default
+scheduler for SMP applications supports up to 32 processors and is a global
+fixed priority scheduler, see also @ref{Configuring a System Configuring
+Clustered Schedulers}.  For example applications see
+@file{testsuites/smptests}.
+
+@strong{WARNING: The SMP support in RTEMS is work in progress.  Before you
+start using this RTEMS version for SMP ask on the RTEMS mailing list.}
+
 This chapter describes the services related to Symmetric Multiprocessing
 provided by RTEMS.
 
@@ -100,6 +120,9 @@ schedulers. However, only a subset of the available schedulers support
 affinity. Although the behavior is scheduler specific, if the scheduler
 does not support affinity, it is likely to ignore all attempts to set
 affinity.
+
+The scheduler with support for arbitary processor affinities uses a proof of
+concept implementation.  See @url{https://devel.rtems.org/ticket/2510}.
 
 @subsection Task Migration
 

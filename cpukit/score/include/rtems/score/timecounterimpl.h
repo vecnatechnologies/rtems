@@ -36,9 +36,10 @@ extern "C" {
  * @{
  */
 
-void _Timecounter_Initialize( void );
-
-void _Timecounter_Set_clock( const struct timespec *ts );
+void _Timecounter_Set_clock(
+  const struct bintime *bt,
+  ISR_lock_Context     *lock_context
+);
 
 /** @} */
 

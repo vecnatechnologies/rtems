@@ -7,7 +7,7 @@
  */
 
 /*
- *  COPYRIGHT (c) 1989-2011.
+ *  COPYRIGHT (c) 1989-2011, 2016.
  *  On-Line Applications Research Corporation (OAR).
  *
  *  The license and distribution terms for this file may be
@@ -29,33 +29,39 @@ extern "C" {
 extern rtems_device_minor_number  BSPPrintkPort;
 
 /**
- *  @brief bsp_com_outch
- *
- *  This function puts a character out of the console port.
- *
- *  @param[in] ch specifies the character to write
- */
-extern void bsp_com_outch(char ch);
-
-/**
- *  @brief bsp_com_inch
- *
- *  This function gets a character from the console
- *  port.
- *
- *  @return This method returns the character that
- *    was retrieved from the console port.
- */
-extern int bsp_com_inch(void);
-
-/**
  *  @brief
  *
- *  This function
+ *  This function is the ioctl() support for a VGA buffer driver.
  *
- *  @return This method returns
+ *  @return This method returns 0 on success.
  */
-int vt_ioctl( unsigned int cmd, unsigned long arg);
+int vt_ioctl(
+  unsigned int cmd,
+  unsigned long arg
+);
+
+/**
+ *  @brief console_find_console_entry
+ *
+ *  This method is used to search the console entries for a
+ *  specific device entry and return it. If match is NULL the
+ *  minor number provided is matched.
+ */
+console_tbl* console_find_console_entry(
+  const char                *match,
+  size_t                     length,
+  rtems_device_minor_number *match_minor
+);
+
+/**
+ *  @brief console_initialize_data
+ *
+ *  This must be called before dynamic registration of devices can occur.
+ *  It is normally called as a side-effect of @a console_initialize() but
+ *  if a probe and dynamic registration occurs before that, then this method
+ *  should be explicitly invoked.
+ */
+void console_initialize_data(void);
 
 /**
  *  @brief console_register_devices

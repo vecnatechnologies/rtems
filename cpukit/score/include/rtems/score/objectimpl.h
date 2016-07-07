@@ -86,7 +86,6 @@ typedef enum {
   OBJECTS_POSIX_THREADS             = 1,
   OBJECTS_POSIX_KEYS                = 2,
   OBJECTS_POSIX_INTERRUPTS          = 3,
-  OBJECTS_POSIX_MESSAGE_QUEUE_FDS   = 4,
   OBJECTS_POSIX_MESSAGE_QUEUES      = 5,
   OBJECTS_POSIX_MUTEXES             = 6,
   OBJECTS_POSIX_SEMAPHORES          = 7,
@@ -109,25 +108,17 @@ typedef enum {
   OBJECTS_FAKE_OBJECTS_SCHEDULERS = 1
 } Objects_Fake_objects_API;
 
-/**
- *  This enumerated type lists the locations which may be returned
- *  by _Objects_Get.  These codes indicate the success of locating
- *  an object with the specified ID.
- */
-typedef enum {
 #if defined(RTEMS_MULTIPROCESSING)
-  OBJECTS_REMOTE = 2,         /* object is remote */
-#endif
-  OBJECTS_LOCAL  = 0,         /* object is local */
-  OBJECTS_ERROR  = 1          /* id was invalid */
-} Objects_Locations;
-
 /**
  *  The following type defines the callout used when a local task
  *  is extracted from a remote thread queue (i.e. it's proxy must
  *  extracted from the remote queue).
  */
-typedef void ( *Objects_Thread_queue_Extract_callout )( void * );
+typedef void ( *Objects_Thread_queue_Extract_callout )(
+  Thread_Control *,
+  Objects_Id
+);
+#endif
 
 /**
  *  The following defines the structure for the information used to
@@ -169,8 +160,20 @@ typedef struct {
   #if defined(RTEMS_MULTIPROCESSING)
     /** This is this object class' method called when extracting a thread. */
     Objects_Thread_queue_Extract_callout extract;
-    /** This is this object class' pointer to the global name table */
-    Chain_Control    *global_table;
+
+    /**
+     * @brief The global objects of this object information sorted by object
+     * identifier.
+     */
+    RBTree_Control   Global_by_id;
+
+    /**
+     * @brief The global objects of this object information sorted by object
+     * name.
+     *
+     * Objects with the same name are sorted according to their identifier.
+     */
+    RBTree_Control   Global_by_name;
   #endif
 }   Objects_Information;
 
@@ -178,7 +181,7 @@ typedef struct {
  *  The following is referenced to the node number of the local node.
  */
 #if defined(RTEMS_MULTIPROCESSING)
-SCORE_EXTERN uint16_t       _Objects_Local_node;
+extern uint16_t _Objects_Local_node;
 #else
 #define _Objects_Local_node ((uint16_t)1)
 #endif
@@ -187,7 +190,7 @@ SCORE_EXTERN uint16_t       _Objects_Local_node;
  *  The following is referenced to the number of nodes in the system.
  */
 #if defined(RTEMS_MULTIPROCESSING)
-SCORE_EXTERN uint16_t    _Objects_Maximum_nodes;
+extern uint16_t _Objects_Maximum_nodes;
 #else
 #define _Objects_Maximum_nodes 1
 #endif
@@ -197,8 +200,8 @@ SCORE_EXTERN uint16_t    _Objects_Maximum_nodes;
  *  class.  From the ID, we can go to one of these information blocks,
  *  and obtain a pointer to the appropriate object control block.
  */
-SCORE_EXTERN Objects_Information
-    **_Objects_Information_table[OBJECTS_APIS_LAST + 1];
+extern Objects_Information ** const
+_Objects_Information_table[ OBJECTS_APIS_LAST + 1 ];
 
 /**
  *  This function extends an object class information record.
@@ -223,6 +226,20 @@ void _Objects_Shrink_information(
   Objects_Information *information
 );
 
+void _Objects_Do_initialize_information(
+  Objects_Information *information,
+  Objects_APIs         the_api,
+  uint16_t             the_class,
+  uint32_t             maximum,
+  uint16_t             size,
+  bool                 is_string,
+  uint32_t             maximum_name_length
+#if defined(RTEMS_MULTIPROCESSING)
+  ,
+  Objects_Thread_queue_Extract_callout extract
+#endif
+);
+
 /**
  *  @brief Initialize object Information
  *
@@ -244,20 +261,48 @@ void _Objects_Shrink_information(
  *  @param[in] is_string is true if this object uses string style names.
  *  @param[in] maximum_name_length is the maximum length of object names.
  */
-void _Objects_Initialize_information (
-  Objects_Information *information,
-  Objects_APIs         the_api,
-  uint16_t             the_class,
-  uint32_t             maximum,
-  uint16_t             size,
-  bool                 is_string,
-  uint32_t             maximum_name_length
 #if defined(RTEMS_MULTIPROCESSING)
-  ,
-  bool                 supports_global,
-  Objects_Thread_queue_Extract_callout extract
+  #define _Objects_Initialize_information( \
+    information, \
+    the_api, \
+    the_class, \
+    maximum, \
+    size, \
+    is_string, \
+    maximum_name_length, \
+    extract \
+  ) \
+    _Objects_Do_initialize_information( \
+      information, \
+      the_api, \
+      the_class, \
+      maximum, \
+      size, \
+      is_string, \
+      maximum_name_length, \
+      extract \
+    )
+#else
+  #define _Objects_Initialize_information( \
+    information, \
+    the_api, \
+    the_class, \
+    maximum, \
+    size, \
+    is_string, \
+    maximum_name_length, \
+    extract \
+  ) \
+    _Objects_Do_initialize_information( \
+      information, \
+      the_api, \
+      the_class, \
+      maximum, \
+      size, \
+      is_string, \
+      maximum_name_length \
+    )
 #endif
-);
 
 /**
  *  @brief Object API Maximum Class
@@ -347,45 +392,33 @@ Objects_Control *_Objects_Allocate( Objects_Information *information );
  * @code
  * rtems_status_code some_delete( rtems_id id )
  * {
- *   rtems_status_code  sc;
  *   Some_Control      *some;
- *   Objects_Locations  location;
  *
  *   // The object allocator mutex protects the executing thread from
  *   // asynchronous thread restart and deletion.
  *   _Objects_Allocator_lock();
  *
- *   // This will disable thread dispatching, so this starts a thread dispatch
- *   // critical section.
+ *   // Get the object under protection of the object allocator mutex.
  *   some = (Semaphore_Control *)
- *     _Objects_Get( &_Some_Information, id, &location );
+ *     _Objects_Get_no_protection( id, &_Some_Information );
  *
- *   switch ( location ) {
- *     case OBJECTS_LOCAL:
- *       // After the object close an object get with this identifier will
- *       // fail.
- *       _Objects_Close( &_Some_Information, &some->Object );
- *
- *       _Some_Delete( some );
- *
- *       // This enables thread dispatching, so the thread dispatch critical
- *       // section ends here.
- *       _Objects_Put( &some->Object );
- *
- *       // Thread dispatching is enabled.  The object free is only protected
- *       // by the object allocator mutex.
- *       _Objects_Free( &_Some_Information, &some->Object );
- *
- *       sc = RTEMS_SUCCESSFUL;
- *       break;
- *     default:
- *       sc = RTEMS_INVALID_ID;
- *       break;
+ *   if ( some == NULL ) {
+ *     _Objects_Allocator_unlock();
+ *     return RTEMS_INVALID_ID;
  *   }
  *
- *   _Objects_Allocator_unlock();
+ *   // After the object close an object get with this identifier will
+ *   // fail.
+ *   _Objects_Close( &_Some_Information, &some->Object );
  *
- *   return sc;
+ *   _Some_Delete( some );
+ *
+ *   // Thread dispatching is enabled.  The object free is only protected
+ *   // by the object allocator mutex.
+ *   _Objects_Free( &_Some_Information, &some->Object );
+ *
+ *   _Objects_Allocator_unlock();
+ *   return RTEMS_SUCCESSFUL;
  * }
  * @endcode
  */
@@ -447,28 +480,32 @@ Objects_Name_or_id_lookup_errors _Objects_Name_to_id_u32(
   Objects_Id          *id
 );
 
-#if defined(RTEMS_SCORE_OBJECT_ENABLE_STRING_NAMES)
+typedef enum {
+  OBJECTS_GET_BY_NAME_INVALID_NAME,
+  OBJECTS_GET_BY_NAME_NAME_TOO_LONG,
+  OBJECTS_GET_BY_NAME_NO_OBJECT
+} Objects_Get_by_name_error;
+
 /**
- *  @brief Converts an object name to an Id.
+ * @brief Gets an object control block identified by its name.
  *
- *  This method converts an object name to an Id.  It performs a look up
- *  using the object information block for this object class.
+ * The object information must use string names.
  *
- *  @param[in] information points to an object class information block.
- *  @param[in] name is the name of the object to find.
- *  @param[in] id will contain the Id if the search is successful.
+ * @param information The object information.  Must not be NULL.
+ * @param name The object name.
+ * @param name_length_p Optional parameter to return the name length.
+ * @param error The error indication in case of failure.  Must not be NULL.
  *
- *  @retval This method returns one of the values from the
- *          @ref Objects_Name_or_id_lookup_errors enumeration to indicate
- *          successful or failure.  On success @a id will contain the Id of
- *          the requested object.
+ * @retval NULL No object exists for this name or invalid parameters.
+ * @retval other The first object according to object index associated with
+ * this name.
  */
-Objects_Name_or_id_lookup_errors _Objects_Name_to_id_string(
-  Objects_Information *information,
-  const char          *name,
-  Objects_Id          *id
+Objects_Control *_Objects_Get_by_name(
+  const Objects_Information *information,
+  const char                *name,
+  size_t                    *name_length_p,
+  Objects_Get_by_name_error *error
 );
-#endif
 
 /**
  *  @brief Implements the common portion of the object Id to name directives.
@@ -493,69 +530,29 @@ Objects_Name_or_id_lookup_errors _Objects_Id_to_name (
 );
 
 /**
- *  @brief Maps object ids to object control blocks.
+ * @brief Maps the specified object identifier to the associated local object
+ * control block.
  *
- *  This function maps object ids to object control blocks.
- *  If id corresponds to a local object, then it returns
- *  the_object control pointer which maps to id and location
- *  is set to OBJECTS_LOCAL.  If the object class supports global
- *  objects and the object id is global and resides on a remote
- *  node, then location is set to OBJECTS_REMOTE, and the_object
- *  is undefined.  Otherwise, location is set to OBJECTS_ERROR
- *  and the_object is undefined.
+ * In this function interrupts are disabled during the object lookup.  In case
+ * an associated object exists, then interrupts remain disabled, otherwise the
+ * previous interrupt state is restored.
  *
- *  @param[in] information points to an object class information block.
- *  @param[in] id is the Id of the object whose name we are locating.
- *  @param[in] location will contain an indication of success or failure.
+ * @param id The object identifier.  This is the first parameter since usual
+ *   callers get the object identifier as the first parameter themself.
+ * @param lock_context The interrupt lock context.  This is the second
+ *   parameter since usual callers get the interrupt lock context as the second
+ *   parameter themself.
+ * @param information The object class information block.
  *
- *  @retval This method returns one of the values from the
- *          @ref Objects_Name_or_id_lookup_errors enumeration to indicate
- *          successful or failure.  On success @a id will contain the Id of
- *          the requested object.
- *
- *  @note _Objects_Get returns with dispatching disabled for
- *  local and remote objects.  _Objects_Get_isr_disable returns with
- *  dispatching disabled for remote objects and interrupts for local
- *  objects.
+ * @retval NULL No associated object exists.
+ * @retval other The pointer to the associated object control block.
+ * Interrupts are now disabled and must be restored using the specified lock
+ * context via _ISR_lock_ISR_enable() or _ISR_lock_Release_and_ISR_enable().
  */
-Objects_Control *_Objects_Get (
-  Objects_Information *information,
-  Objects_Id           id,
-  Objects_Locations   *location
-);
-
-/**
- *  @brief Maps object ids to object control blocks.
- *
- *  This function maps object ids to object control blocks.
- *  If id corresponds to a local object, then it returns
- *  the_object control pointer which maps to id and location
- *  is set to OBJECTS_LOCAL.  If the object class supports global
- *  objects and the object id is global and resides on a remote
- *  node, then location is set to OBJECTS_REMOTE, and the_object
- *  is undefined.  Otherwise, location is set to OBJECTS_ERROR
- *  and the_object is undefined.
- *
- *  @param[in] information points to an object class information block.
- *  @param[in] id is the Id of the object whose name we are locating.
- *  @param[in] location will contain an indication of success or failure.
- *  @param[in] lock_context is the previous interrupt state being turned.
- *
- *  @retval This method returns one of the values from the
- *          @ref Objects_Name_or_id_lookup_errors enumeration to indicate
- *          successful or failure.  On success @a name will contain the name of
- *          the requested object.
- *
- *  @note _Objects_Get returns with dispatching disabled for
- *  local and remote objects.  _Objects_Get_isr_disable returns with
- *  dispatchng disabled for remote objects and interrupts for local
- *  objects.
- */
-Objects_Control *_Objects_Get_isr_disable(
-  Objects_Information *information,
-  Objects_Id           id,
-  Objects_Locations   *location,
-  ISR_lock_Context    *lock_context
+Objects_Control *_Objects_Get(
+  Objects_Id                 id,
+  ISR_lock_Context          *lock_context,
+  const Objects_Information *information
 );
 
 /**
@@ -570,42 +567,39 @@ Objects_Control *_Objects_Get_isr_disable(
  *  is undefined.  Otherwise, location is set to OBJECTS_ERROR
  *  and the_object is undefined.
  *
- *  @param[in] information points to an object class information block.
  *  @param[in] id is the Id of the object whose name we are locating.
- *  @param[in] location will contain an indication of success or failure.
+ *    This is the first parameter since usual callers get the object identifier
+ *    as the first parameter themself.
+ *  @param[in] information points to an object class information block.
  *
  *  @retval This method returns one of the values from the
  *          @ref Objects_Name_or_id_lookup_errors enumeration to indicate
  *          successful or failure.  On success @a id will contain the Id of
  *          the requested object.
- *
- *  @note _Objects_Get returns with dispatching disabled for
- *  local and remote objects.  _Objects_Get_isr_disable returns with
- *  dispatching disabled for remote objects and interrupts for local
- *  objects.
  */
 Objects_Control *_Objects_Get_no_protection(
-  Objects_Information *information,
-  Objects_Id           id,
-  Objects_Locations   *location
+  Objects_Id                 id,
+  const Objects_Information *information
 );
 
 /**
- *  Like @ref _Objects_Get, but is used to find "next" open object.
+ *  Gets the next open object after the specified object identifier.
  *
- *  @param[in] information points to an object class information block.
+ *  Locks the object allocator mutex in case a next object exists.
+ *
  *  @param[in] id is the Id of the object whose name we are locating.
- *  @param[in] location_p will contain an indication of success or failure.
+ *    This is the first parameter since usual callers get the object identifier
+ *    as the first parameter themself.
+ *  @param[in] information points to an object class information block.
  *  @param[in] next_id_p is the Id of the next object we will look at.
  *
  *  @retval This method returns the pointer to the object located or
  *          NULL on error.
  */
 Objects_Control *_Objects_Get_next(
-    Objects_Information *information,
-    Objects_Id           id,
-    Objects_Locations   *location_p,
-    Objects_Id          *next_id_p
+  Objects_Id                 id,
+  const Objects_Information *information,
+  Objects_Id                *next_id_p
 );
 
 /**
@@ -774,7 +768,7 @@ RTEMS_INLINE_ROUTINE bool _Objects_Is_local_id(
 #if defined(RTEMS_MULTIPROCESSING)
   Objects_Id id
 #else
-  Objects_Id id __attribute__((unused))
+  Objects_Id id RTEMS_UNUSED
 #endif
 )
 {
@@ -801,33 +795,6 @@ RTEMS_INLINE_ROUTINE bool _Objects_Are_ids_equal(
 )
 {
   return ( left == right );
-}
-
-/**
- * This function returns a pointer to the local_table object
- * referenced by the index.
- *
- * @param[in] information points to an Object Information Table
- * @param[in] index is the index of the object the caller wants to access
- *
- * @return This method returns a pointer to a local object or NULL if the
- *         index is invalid and RTEMS_DEBUG is enabled.
- */
-RTEMS_INLINE_ROUTINE Objects_Control *_Objects_Get_local_object(
-  Objects_Information *information,
-  uint16_t             index
-)
-{
-  /*
-   * This routine is ONLY to be called from places in the code
-   * where the Id is known to be good.  Therefore, this should NOT
-   * occur in normal situations.
-   */
-  #if defined(RTEMS_DEBUG)
-    if ( index > information->maximum )
-      return NULL;
-  #endif
-  return information->local_table[ index ];
 }
 
 /**
@@ -969,35 +936,6 @@ RTEMS_INLINE_ROUTINE void _Objects_Open_string(
 }
 
 /**
- * @brief Puts back an object obtained with _Objects_Get().
- *
- * This function decrements the thread dispatch disable level.  The
- * _Thread_Dispatch() is called if the level reaches zero.
- */
-RTEMS_INLINE_ROUTINE void _Objects_Put(
-  Objects_Control *the_object
-)
-{
-  (void) the_object;
-  _Thread_Enable_dispatch();
-}
-
-/**
- * @brief Puts back an object obtained with _Objects_Get().
- *
- * This function decrements the thread dispatch disable level.  The
- * _Thread_Dispatch() is not called if the level reaches zero, thus a thread
- * dispatch will not take place immediately on the current processor.
- */
-RTEMS_INLINE_ROUTINE void _Objects_Put_without_thread_dispatch(
-  Objects_Control *the_object
-)
-{
-  (void) the_object;
-  _Thread_Unnest_dispatch();
-}
-
-/**
  * @brief Locks the object allocator mutex.
  *
  * While holding the allocator mutex the executing thread is protected from
@@ -1026,6 +964,11 @@ RTEMS_INLINE_ROUTINE void _Objects_Allocator_lock( void )
 RTEMS_INLINE_ROUTINE void _Objects_Allocator_unlock( void )
 {
   _RTEMS_Unlock_allocator();
+}
+
+RTEMS_INLINE_ROUTINE bool _Objects_Allocator_is_owner( void )
+{
+  return _RTEMS_Allocator_is_owner();
 }
 
 /** @} */

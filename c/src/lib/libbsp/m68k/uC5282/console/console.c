@@ -16,12 +16,13 @@
 
 #include <stdio.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <malloc.h>
+
+#include <rtems/console.h>
 #include <rtems/libio.h>
 #include <rtems/termiostypes.h>
-#include <termios.h>
 #include <bsp.h>
-#include <malloc.h>
-#include <rtems/mw_uid.h>
 
 #include <rtems/bspIo.h>
 

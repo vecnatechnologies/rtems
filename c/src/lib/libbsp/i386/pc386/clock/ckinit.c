@@ -24,7 +24,7 @@
  */
 
 #include <bsp.h>
-#include <bsp/irq.h>
+#include <bsp/irq-generic.h>
 #include <bspopts.h>
 #include <libcpu/cpuModel.h>
 #include <assert.h>
@@ -65,11 +65,10 @@ extern volatile uint32_t Clock_driver_ticks;
   } while (0)
 
 
-/*
- *  Hooks which get swapped based upon which nanoseconds since last
- *  tick method is preferred.
- */
-#define Clock_driver_support_at_tick()
+#ifdef RTEMS_SMP
+#define Clock_driver_support_at_tick() \
+  _SMP_Send_message_broadcast(SMP_MESSAGE_CLOCK_TICK)
+#endif
 
 #define Clock_driver_support_install_isr( _new, _old ) \
   do { \
@@ -151,7 +150,7 @@ static void clockOn(void)
   }
   pc386_clock_click_count = US_TO_TICK(pc386_microseconds_per_isr);
 
-  BSP_irq_enable_at_i8259s( BSP_PERIODIC_TIMER - BSP_IRQ_VECTOR_BASE );
+  bsp_interrupt_vector_enable( BSP_PERIODIC_TIMER - BSP_IRQ_VECTOR_BASE );
 
   #if 0
     printk( "configured usecs per tick=%d \n",
@@ -203,6 +202,12 @@ void Clock_driver_install_handler(void)
   clockOn();
 }
 
+#define Clock_driver_support_set_interrupt_affinity(online_processors) \
+  do { \
+    /* FIXME: Is there a way to do this on x86? */ \
+    (void) online_processors; \
+  } while (0)
+
 void Clock_driver_support_initialize_hardware(void)
 {
   bool use_tsc = false;
@@ -251,4 +256,3 @@ void Clock_driver_support_initialize_hardware(void)
   } while (0)
 
 #include "../../../shared/clockdrv_shell.h"
-

@@ -148,10 +148,6 @@ The @code{boot_card()} routine performs the following functions:
 @item It sets the command line argument variables
 for later use by the application.
 
-@item It invokes the BSP specific routine @code{bsp_start()} which is
-written in C and thus able to perform more advanced initialization.
-Often MMU and bus initialization occurs here.
-
 @item It invokes the BSP specific routine @code{bsp_work_area_initialize()}
 which is supposed to initialize the RTEMS Workspace and the C Program Heap.
 Usually the default implementation in
@@ -159,6 +155,12 @@ Usually the default implementation in
 implementations can use @code{bsp_work_area_initialize_default()} or
 @code{bsp_work_area_initialize_with_table()} available as inline functions from
 @code{#include <bsp/bootcard.h>}.
+
+@item It invokes the BSP specific routine @code{bsp_start()} which is
+written in C and thus able to perform more advanced initialization.
+Often MMU, bus and interrupt controller initialization occurs here.  Since the
+RTEMS Workspace and the C Program Heap was already initialized by
+@code{bsp_work_area_initialize()}, this routine may use @code{malloc()}, etc.
 
 @item It invokes the RTEMS directive
 @code{rtems_initialize_data_structures()} to initialize the RTEMS
@@ -168,12 +170,6 @@ enabled.
 @item It invokes the BSP specific routine @code{bsp_libc_init()} to initialize
 the C Library.  Usually the default implementation in
 @code{c/src/lib/libbsp/shared/bsplibc.c} should be sufficient.
-
-@item It invokes the BSP specific routine @code{bsp_pretasking_hook}. On
-most BSPs which utilize the framework, this routine does nothing.
-
-@item If @code{RTEMS_DEBUG} is enabled, then the RTEMS debug mask level
-is inialized appropriately.
 
 @item It invokes the RTEMS directive
 @code{rtems_initialize_before_drivers()} to initialize the MPCI Server
@@ -217,47 +213,39 @@ entered, any C++ Global Constructors will be invoked.
 
 That's it.  We just went through the entire sequence. 
 
-@subsection bsp_start() - BSP Specific Initialization
+@subsection bsp_work_area_initialize() - BSP Specific Work Area Initialization
 
 This is the first BSP specific C routine to execute during system
-initialization.  This routine often performs required fundamental
-hardware initialization such as setting bus controller registers
-that do not have a direct impact on whether or not C code can execute.
-The source code for this routine is usually found in the following
-file:
+initialization.  It must initialize the support for allocating memory from the
+C Program Heap and RTEMS Workspace commonly referred to as the work areas.
+Many BSPs place the work areas at the end of RAM although this is certainly not
+a requirement.  Usually the default implementation in
+@file{c/src/lib/libbsp/shared/bspgetworkarea.c} should be sufficient.  Custom
+implementations can use @code{bsp_work_area_initialize_default()} or
+@code{bsp_work_area_initialize_with_table()} available as inline functions from
+@code{#include <bsp/bootcard.h>}.
 
-@example
-c/src/lib/libbsp/CPU/BSP/startup/bspstart.c
-@end example
+@subsection bsp_start() - BSP Specific Initialization
 
-On older BSPs not using @code{boot_card()}'s support for allocating memory
-to the C Program Heap and RTEMS Workspace, one of the most important
-functions performed by this routine is determining where the RTEMS
-Workspace is to be located in memory.  All RTEMS objects and task stacks
-will be allocated from this Workspace.  The RTEMS Workspace is distinct
-from the application heap used for @code{malloc()}.  Many BSPs place
-the RTEMS Workspace area at the end of RAM although this is certainly
-not a requirement.
+This is the second BSP specific C routine to execute during system
+initialization.  It is called right after @code{bsp_work_area_initialize()}.
+The @code{bsp_start()} routine often performs required fundamental hardware
+initialization such as setting bus controller registers that do not have a
+direct impact on whether or not C code can execute.  The interrupt controllers
+are usually initialized here.  The source code for this routine is usually
+found in the file @file{c/src/lib/libbsp/$@{CPU@}/$@{BSP@}/startup/bspstart.c}.
+It is not allowed to create any operating system objects, e.g. RTEMS
+semaphores.
 
 After completing execution, this routine returns to the @code{boot_card()}
-routine.
+routine.  In case of errors, the initialization should be terminated via
+@code{bsp_fatal()}.
 
-@subsection RTEMS Pretasking Callback
+@subsection bsp_predriver_hook() - BSP Specific Predriver Hook
 
-The method @code{bsp_pretasking_hook()} is the BSP specific routine invoked
-once RTEMS API initialization is complete but before interrupts and tasking are
-enabled.  The idle thread exists at this time.  The pretasking hook is optional
-and the user may use the shared version.
-
-The @code{bsp_pretasking_hook()} routine is the appropriate place to initialize
-any BSP specific support components which depend on the RTEMS APIs.
-
-@subsection RTEMS Predriver Callback
-
-The @code{bsp_predriver_hook()} method is the BSP specific routine that
-is is invoked immediately before the the device drivers and MPCI are
-initialized. RTEMS initialization is complete but interrupts and tasking
-are disabled.
+The @code{bsp_predriver_hook()} method is the BSP specific routine that is
+invoked immediately before the the device drivers are initialized. RTEMS
+initialization is complete but interrupts and tasking are disabled.
 
 The BSP may use the shared version of this routine which is empty.
 Most BSPs do not provide a specific implementation of this callback.

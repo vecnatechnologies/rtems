@@ -20,17 +20,13 @@
 #endif
 
 #include <rtems/score/threadimpl.h>
-#include <rtems/score/assert.h>
-#include <rtems/config.h>
 
 /*
  *  Conditional magic to determine what style of C++ constructor
  *  initialization this target and compiler version uses.
  */
 #if defined(__USE_INIT_FINI__)
-  #if defined(__M32R__)
-    #define INIT_NAME __init
-  #elif defined(__ARM_EABI__)
+  #if defined(__ARM_EABI__)
     #define INIT_NAME __libc_init_array
   #else
     #define INIT_NAME _init
@@ -46,10 +42,12 @@
   #define EXECUTE_GLOBAL_CONSTRUCTORS
 #endif
 
-void *_Thread_Global_construction( void )
+void _Thread_Global_construction(
+  Thread_Control                 *executing,
+  const Thread_Entry_information *entry
+)
 {
-  Thread_Control *executing;
-  Thread_Entry    entry_point;
+  ISR_lock_Context lock_context;
 
 #if defined(EXECUTE_GLOBAL_CONSTRUCTORS)
   /*
@@ -60,34 +58,6 @@ void *_Thread_Global_construction( void )
   INIT_NAME();
 #endif
 
-#if defined(RTEMS_POSIX_API)
-  if ( Configuration_RTEMS_API.number_of_initialization_tasks > 0 ) {
-#endif
-    entry_point = (Thread_Entry)
-      Configuration_RTEMS_API.User_initialization_tasks_table[ 0 ].entry_point;
-#if defined(RTEMS_POSIX_API)
-  } else {
-    entry_point = (Thread_Entry)
-      Configuration_POSIX_API
-        .User_initialization_threads_table[ 0 ].thread_entry;
-  }
-#endif
-
-  _Thread_Disable_dispatch();
-
-  executing = _Thread_Executing;
-  executing->Start.entry_point = entry_point;
-
-  _Thread_Restart(
-    executing,
-    executing,
-    executing->Start.pointer_argument,
-    executing->Start.numeric_argument
-  );
-
-  _Thread_Enable_dispatch();
-
-  _Assert_Not_reached();
-
-  return NULL;
+  _ISR_lock_ISR_disable( &lock_context );
+  _Thread_Restart_self( _Thread_Executing, entry, &lock_context );
 }

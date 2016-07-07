@@ -7,7 +7,7 @@
  */
 
 /*
- *  COPYRIGHT (c) 1989-2011.
+ *  COPYRIGHT (c) 1989-2011, 2016.
  *  On-Line Applications Research Corporation (OAR).
  *
  *  The license and distribution terms for this file may be
@@ -34,25 +34,79 @@ rtems_device_minor_number   Console_Port_Minor  = 0;
 static bool                 console_initialized = false;
 
 /*
- *  console_initialize_pointers
+ *  console_find_console_entry
+ *
+ *  This method is used to search the console entries for a
+ *  specific device entry.
+ */
+console_tbl* console_find_console_entry(
+  const char                *match,
+  size_t                     length,
+  rtems_device_minor_number *match_minor
+)
+{
+  rtems_device_minor_number  minor;
+
+  /*
+   * The the match name is NULL get the minor number entry.
+   */
+  if (match == NULL) {
+    if (*match_minor < Console_Port_Count)
+      return Console_Port_Tbl[*match_minor];
+    return NULL;
+  }
+
+  for (minor=0; minor < Console_Port_Count ; minor++) {
+    console_tbl  *cptr = Console_Port_Tbl[minor];
+
+    /*
+     * Console table entries include /dev/ prefix, device names passed
+     * in on command line do not.
+     */
+    if ( !strncmp( cptr->sDeviceName, match, length ) ) {
+      *match_minor = minor;
+      return cptr;
+    }
+  }
+
+  return NULL;
+}
+
+/*
+ *  console_initialize_data
  *
  *  This method is used to initialize the table of pointers to the
  *  serial port configuration structure entries.
  */
-static void console_initialize_pointers(void)
+void console_initialize_data(void)
 {
   int i;
 
   if ( Console_Port_Tbl )
     return;
 
+  /*
+   * Allocate memory for the table of device pointers.
+   */
   Console_Port_Count = Console_Configuration_Count;
   Console_Port_Tbl   = malloc( Console_Port_Count * sizeof( console_tbl * ) );
   if (Console_Port_Tbl == NULL)
     bsp_fatal( BSP_FATAL_CONSOLE_NO_MEMORY_0 );
 
-  for (i=0 ; i < Console_Port_Count ; i++)
+  /*
+   * Allocate memory for the table of device specific data pointers.
+   */
+  Console_Port_Data  = calloc( Console_Port_Count, sizeof( console_data ) );
+  if ( Console_Port_Data == NULL ) {
+    bsp_fatal( BSP_FATAL_CONSOLE_NO_MEMORY_3 );
+  }
+
+  /*
+   * Fill in the Console Table
+   */
+  for (i=0 ; i < Console_Port_Count ; i++) {
     Console_Port_Tbl[i] = &Console_Configuration_Ports[i];
+  }
 }
 
 /*
@@ -69,10 +123,13 @@ void console_register_devices(
   int  old_number_of_ports;
   int  i;
 
-  console_initialize_pointers();
+  /*
+   * Initialize the console data elements
+   */
+  console_initialize_data();
 
   /*
-   *  console_initialize has been invoked so it is now too late to
+   *  console_initialize() has been invoked so it is now too late to
    *  register devices.
    */
   if ( console_initialized ) {
@@ -86,23 +143,31 @@ void console_register_devices(
   Console_Port_Count += number_of_ports;
   Console_Port_Tbl = realloc(
     Console_Port_Tbl,
-    Console_Port_Count * sizeof( console_tbl * )
+    Console_Port_Count * sizeof(console_tbl *)
   );
   if ( Console_Port_Tbl == NULL ) {
     bsp_fatal( BSP_FATAL_CONSOLE_NO_MEMORY_1 );
   }
 
-  Console_Port_Data  = calloc( Console_Port_Count, sizeof( console_data ) );
+  /*
+   * Since we can only add devices before console_initialize(),
+   * the data area will contain no information and must be zero
+   * before it is used. So extend the area and zero it out.
+   */
+  Console_Port_Data = realloc(
+    Console_Port_Data,
+    Console_Port_Count * sizeof(console_data)
+  );
   if ( Console_Port_Data == NULL ) {
     bsp_fatal( BSP_FATAL_CONSOLE_NO_MEMORY_2 );
   }
+  memset(Console_Port_Data, '\0', Console_Port_Count * sizeof(console_data));
 
   /*
    *  Now add the new devices at the end.
    */
-
   for (i=0 ; i < number_of_ports ; i++) {
-    Console_Port_Tbl[old_number_of_ports + i] = &new_ports[i];
+    Console_Port_Tbl[old_number_of_ports + i]  = &new_ports[i];
   }
 }
 
@@ -249,15 +314,10 @@ rtems_device_driver console_initialize(
 
   /*
    * If we have no devices which were registered earlier then we
-   * must still initialize pointers and set Console_Port_Data.
+   * must still initialize pointers for Console_Port_Tbl and
+   * Console_Port_Data.
    */
-  if ( ! Console_Port_Tbl ) {
-    console_initialize_pointers();
-    Console_Port_Data  = calloc( Console_Port_Count, sizeof( console_data ) );
-    if ( Console_Port_Data == NULL ) {
-      bsp_fatal( BSP_FATAL_CONSOLE_NO_MEMORY_3 );
-    }
-  }
+  console_initialize_data();
 
   /*
    *  console_initialize has been invoked so it is now too late to

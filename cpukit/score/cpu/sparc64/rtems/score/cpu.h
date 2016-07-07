@@ -170,6 +170,9 @@ extern "C" {
 
 #define CPU_STACK_GROWS_UP               FALSE
 
+/* FIXME: Is this the right value? */
+#define CPU_CACHE_LINE_BYTES 32
+
 /*
  *  The following is the variable attribute used to force alignment
  *  of critical data structures.  On some processors it may make
@@ -184,9 +187,7 @@ extern "C" {
  *  and is 16 if quad-word fp instructions are available (e.g. LDQF).
  */
 
-#define CPU_STRUCTURE_ALIGNMENT          __attribute__ ((aligned (16)))
-
-#define CPU_TIMESTAMP_USE_INT64_INLINE TRUE
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( 16 )
 
 /*
  *  Define what is required to specify how the network to host conversion
@@ -207,6 +208,8 @@ extern "C" {
 #define CPU_MODES_INTERRUPT_MASK   0x0000000F
 
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 /*
  *  This structure represents the organization of the minimum stack frame
@@ -546,7 +549,7 @@ typedef struct {
  *  context area during _CPU_Context_Initialize.
  */
 
-SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context CPU_STRUCTURE_ALIGNMENT;
+extern Context_Control_fp _CPU_Null_fp_context;
 
 /*
  *  This flag is context switched with each thread.  It indicates
@@ -555,7 +558,7 @@ SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context CPU_STRUCTURE_ALIGNMENT;
  *  attempts on a previously interrupted thread's stack.
  */
 
-SCORE_EXTERN volatile uint32_t _CPU_ISR_Dispatch_disable;
+extern volatile uint32_t _CPU_ISR_Dispatch_disable;
 
 /*
  *  The following type defines an entry in the SPARC's trap table.
@@ -888,7 +891,6 @@ void _CPU_Context_Initialize(
 
 #if ( SPARC_HAS_BITSCAN == 0 )
 #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
-#define CPU_USE_GENERIC_BITFIELD_DATA TRUE
 #else
 #error "scan instruction not currently supported by RTEMS!!"
 #endif
@@ -976,7 +978,7 @@ void _CPU_Context_switch(
 
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /*
  *  _CPU_Context_save_fp

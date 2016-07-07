@@ -20,6 +20,8 @@
 #include <bsp.h>
 #include <rtems/clockdrv.h>
 #include <rtems/score/percpu.h>
+#include <rtems/score/smpimpl.h>
+#include <rtems/score/watchdogimpl.h>
 
 #ifdef Clock_driver_nanoseconds_since_last_tick
 #error "Update driver to use the timecounter instead of nanoseconds extension"
@@ -44,16 +46,48 @@
   #define Clock_driver_support_find_timer()
 #endif
 
+/**
+ * @brief Do nothing by default.
+ */
+#ifndef Clock_driver_support_at_tick
+  #define Clock_driver_support_at_tick()
+#endif
+
+/**
+ * @brief Do nothing by default.
+ */
+#ifndef Clock_driver_support_set_interrupt_affinity
+  #define Clock_driver_support_set_interrupt_affinity(online_processors)
+#endif
+
 /*
  * A specialized clock driver may use for example rtems_timecounter_tick_simple()
  * instead of the default.
  */
 #ifndef Clock_driver_timecounter_tick
-  #ifdef CLOCK_DRIVER_USE_DUMMY_TIMECOUNTER
-    #define Clock_driver_timecounter_tick() rtems_clock_tick()
-  #else
-    #define Clock_driver_timecounter_tick() rtems_timecounter_tick()
-  #endif
+static void Clock_driver_timecounter_tick( void )
+{
+#if defined(CLOCK_DRIVER_USE_DUMMY_TIMECOUNTER)
+  rtems_clock_tick();
+#elif defined(RTEMS_SMP) && defined(CLOCK_DRIVER_USE_ONLY_BOOT_PROCESSOR)
+  uint32_t cpu_count = _SMP_Get_processor_count();
+  uint32_t cpu_index;
+
+  for ( cpu_index = 0 ; cpu_index < cpu_count ; ++cpu_index ) {
+    Per_CPU_Control *cpu;
+
+    cpu = _Per_CPU_Get_by_index( cpu_index );
+
+    if ( _Per_CPU_Is_boot_processor( cpu ) ) {
+      rtems_timecounter_tick();
+    } else if ( _Processor_mask_Is_set( _SMP_Online_processors, cpu_index ) ) {
+      _Watchdog_Tick( cpu );
+    }
+  }
+#else
+  rtems_timecounter_tick();
+#endif
+}
 #endif
 
 /**
@@ -103,12 +137,21 @@ rtems_isr Clock_isr(
 
       Clock_driver_timecounter_tick();
 
-      while (
-        _Thread_Heir == _Thread_Executing
-          && _Thread_Executing->Start.entry_point
-            == (Thread_Entry) rtems_configuration_get_idle_task()
-      ) {
-        _Timecounter_Tick_simple(interval, (*tc->tc_get_timecount)(tc));
+      if (!rtems_configuration_is_smp_enabled()) {
+        while (
+          _Thread_Heir == _Thread_Executing
+            && _Thread_Executing->Start.Entry.Kinds.Idle.entry
+              == rtems_configuration_get_idle_task()
+        ) {
+          ISR_lock_Context lock_context;
+
+          _Timecounter_Acquire(&lock_context);
+          _Timecounter_Tick_simple(
+            interval,
+            (*tc->tc_get_timecount)(tc),
+            &lock_context
+          );
+        }
       }
 
       Clock_driver_support_at_tick();
@@ -184,6 +227,10 @@ rtems_device_driver Clock_initialize(
    */
   (void) Old_ticker;
   Clock_driver_support_install_isr( Clock_isr, Old_ticker );
+
+  #ifdef RTEMS_SMP
+    Clock_driver_support_set_interrupt_affinity( _SMP_Online_processors );
+  #endif
 
   /*
    *  Now initialize the hardware that is the source of the tick ISR.

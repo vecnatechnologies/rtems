@@ -52,38 +52,48 @@ RTEMS_BSPOPTS_HELP([BSP_CONSOLE_BAUD],[default baud for console and other serial
 RTEMS_BSPOPTS_SET([BSP_USE_UART_INTERRUPTS],[*],[1])
 RTEMS_BSPOPTS_HELP([BSP_USE_UART_INTERRUPTS],[enable usage of interrupts for the UART modules])
 
+RTEMS_BSPOPTS_SET([U_BOOT_USE_FDT],[qoriq_t*],[1])
+RTEMS_BSPOPTS_SET([U_BOOT_USE_FDT],[*],[])
+RTEMS_BSPOPTS_HELP([U_BOOT_USE_FDT],[enables U-Boot support using FDT])
+
+RTEMS_BSPOPTS_SET([BSP_FDT_BLOB_SIZE_MAX],[qoriq_t*],[262144])
+RTEMS_BSPOPTS_SET([BSP_FDT_BLOB_SIZE_MAX],[*],[])
+RTEMS_BSPOPTS_HELP([BSP_FDT_BLOB_SIZE_MAX],[maximum size of the FDT blob in bytes])
+
+RTEMS_BSPOPTS_SET([BSP_FDT_BLOB_READ_ONLY],[qoriq_t*],[1])
+RTEMS_BSPOPTS_SET([BSP_FDT_BLOB_READ_ONLY],[*],[])
+RTEMS_BSPOPTS_HELP([BSP_FDT_BLOB_READ_ONLY],[place the FDT blob into the read-only data area])
+
+RTEMS_BSPOPTS_SET([HAS_UBOOT],[qoriq_t*],[])
 RTEMS_BSPOPTS_SET([HAS_UBOOT],[*],[1])
-RTEMS_BSPOPTS_HELP([HAS_UBOOT],[enables U-Boot support])
+RTEMS_BSPOPTS_HELP([HAS_UBOOT],[enables legacy U-Boot support without FDT])
 
 RTEMS_BSPOPTS_SET([U_BOOT_64_BIT_PHYS_SIZE],[qoriq_t*],[1])
 RTEMS_BSPOPTS_SET([U_BOOT_64_BIT_PHYS_SIZE],[*],[])
-RTEMS_BSPOPTS_HELP([U_BOOT_64_BIT_PHYS_SIZE],[if defined, then use uint64_t for phys_size_t])
+RTEMS_BSPOPTS_HELP([U_BOOT_64_BIT_PHYS_SIZE],[if defined, then use uint64_t for phys_size_t (only used by legacy U-Boot support)])
 
 RTEMS_BSPOPTS_SET([U_BOOT_GENERIC_BOARD_INFO],[qoriq_t*],[1])
 RTEMS_BSPOPTS_SET([U_BOOT_GENERIC_BOARD_INFO],[*],[])
-RTEMS_BSPOPTS_HELP([U_BOOT_GENERIC_BOARD_INFO],[if defined, then use the generic bd_t structure])
+RTEMS_BSPOPTS_HELP([U_BOOT_GENERIC_BOARD_INFO],[if defined, then use the generic bd_t structure (only used by legacy U-Boot support)])
 
 RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_BEGIN],[qoriq_p2020*],[0x3fff0000])
-RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_BEGIN],[qoriq_t2080*],[0x7fef4000])
-RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_BEGIN],[qoriq_t4240*],[0x7ff33000])
+RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_BEGIN],[qoriq_t*],[])
 RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_BEGIN],[*],[0x1fff0000])
-RTEMS_BSPOPTS_HELP([U_BOOT_BOOT_PAGE_BEGIN],[the begin address of the boot page set up by U-Boot])
+RTEMS_BSPOPTS_HELP([U_BOOT_BOOT_PAGE_BEGIN],[the begin address of the boot page set up by U-Boot (only used by legacy U-Boot support)])
 
 RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_LAST],[qoriq_p2020*],[0x3fffffff])
-RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_LAST],[qoriq_t2080*],[0x7fef4fff])
-RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_LAST],[qoriq_t4240*],[0x7ff33fff])
+RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_LAST],[qoriq_t*],[])
 RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_LAST],[*],[0x1fffffff])
-RTEMS_BSPOPTS_HELP([U_BOOT_BOOT_PAGE_LAST],[the last address of the boot page set up by U-Boot])
+RTEMS_BSPOPTS_HELP([U_BOOT_BOOT_PAGE_LAST],[the last address of the boot page set up by U-Boot (only used by legacy U-Boot support)])
 
 RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_SPIN_OFFSET],[qoriq_p2020*],[0xf240])
-RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_SPIN_OFFSET],[qoriq_t*],[0x0200])
+RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_SPIN_OFFSET],[qoriq_t*],[])
 RTEMS_BSPOPTS_SET([U_BOOT_BOOT_PAGE_SPIN_OFFSET],[*],[0xf2a0])
-RTEMS_BSPOPTS_HELP([U_BOOT_BOOT_PAGE_SPIN_OFFSET],[the offset to the spin table in the boot page set up by U-Boot])
+RTEMS_BSPOPTS_HELP([U_BOOT_BOOT_PAGE_SPIN_OFFSET],[the offset to the spin table in the boot page set up by U-Boot (only used by legacy U-Boot support)])
 
-RTEMS_BSPOPTS_SET([QORIQ_CPU_COUNT],[qoriq_t2080*],[8])
-RTEMS_BSPOPTS_SET([QORIQ_CPU_COUNT],[qoriq_t4240*],[24])
+RTEMS_BSPOPTS_SET([QORIQ_CPU_COUNT],[qoriq_t*],[24])
 RTEMS_BSPOPTS_SET([QORIQ_CPU_COUNT],[*],[2])
-RTEMS_BSPOPTS_HELP([QORIQ_CPU_COUNT],[virtual processor count])
+RTEMS_BSPOPTS_HELP([QORIQ_CPU_COUNT],[maximum virtual processor count])
 
 RTEMS_BSPOPTS_SET([QORIQ_THREAD_COUNT],[qoriq_t*],[2])
 RTEMS_BSPOPTS_SET([QORIQ_THREAD_COUNT],[*],[1])
@@ -138,6 +148,10 @@ RTEMS_BSPOPTS_SET([QORIQ_TLB1_ENTRY_COUNT],[qoriq_t*],[64])
 RTEMS_BSPOPTS_SET([QORIQ_TLB1_ENTRY_COUNT],[*],[16])
 RTEMS_BSPOPTS_HELP([QORIQ_TLB1_ENTRY_COUNT],[TLB1 entry count])
 
+RTEMS_BSPOPTS_SET([QORIQ_INITIAL_HID0],[qoriq_t*],[0x40000000])
+RTEMS_BSPOPTS_SET([QORIQ_INITIAL_HID0],[*],[])
+RTEMS_BSPOPTS_HELP([QORIQ_INITIAL_HID0],[initial HID0 value (EN_L2MMU_MHD is set by default on the T-series)])
+
 RTEMS_BSPOPTS_SET([QORIQ_INITIAL_MSR],[qoriq_t*],[0x02002200])
 RTEMS_BSPOPTS_SET([QORIQ_INITIAL_MSR],[*],[0x02000200])
 RTEMS_BSPOPTS_HELP([QORIQ_INITIAL_MSR],[initial MSR value])
@@ -153,6 +167,22 @@ RTEMS_BSPOPTS_HELP([QORIQ_INITIAL_BUCSR],[initial BUCSR value])
 RTEMS_BSPOPTS_SET([QORIQ_MMU_DEVICE_MAS7],[qoriq_t*],[0xf])
 RTEMS_BSPOPTS_SET([QORIQ_MMU_DEVICE_MAS7],[*],[0x0])
 RTEMS_BSPOPTS_HELP([QORIQ_MMU_DEVICE_MAS7],[MAS7 value for device TLB1 entries])
+
+RTEMS_BSPOPTS_SET([QORIQ_HAS_HYPERVISOR_MODE],[qoriq_t*],[1])
+RTEMS_BSPOPTS_SET([QORIQ_HAS_HYPERVISOR_MODE],[*],[])
+RTEMS_BSPOPTS_HELP([QORIQ_HAS_HYPERVISOR_MODE],[defined if the processor core has a hypervisor mode])
+
+RTEMS_BSPOPTS_SET([QORIQ_CLUSTER_1_L2CSR0],[qoriq_t*],[0xfec20000])
+RTEMS_BSPOPTS_SET([QORIQ_CLUSTER_1_L2CSR0],[*],[])
+RTEMS_BSPOPTS_HELP([QORIQ_CLUSTER_1_L2CSR0],[address of Cluster 1 L2CSR0 register])
+
+RTEMS_BSPOPTS_SET([QORIQ_CLUSTER_2_L2CSR0],[qoriq_t4240*],[0xfec60000])
+RTEMS_BSPOPTS_SET([QORIQ_CLUSTER_2_L2CSR0],[*],[])
+RTEMS_BSPOPTS_HELP([QORIQ_CLUSTER_2_L2CSR0],[address of Cluster 2 L2CSR0 register])
+
+RTEMS_BSPOPTS_SET([QORIQ_CLUSTER_3_L2CSR0],[qoriq_t4240*],[0xfeca0000])
+RTEMS_BSPOPTS_SET([QORIQ_CLUSTER_3_L2CSR0],[*],[])
+RTEMS_BSPOPTS_HELP([QORIQ_CLUSTER_3_L2CSR0],[address of Cluster 3 L2CSR0 register])
 
 RTEMS_BSPOPTS_SET([QORIQ_CLOCK_TIMER],[qoriq_core_1],[4])
 RTEMS_BSPOPTS_SET([QORIQ_CLOCK_TIMER],[*],[0])

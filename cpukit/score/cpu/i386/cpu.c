@@ -17,6 +17,8 @@
 #include "config.h"
 #endif
 
+#include <inttypes.h>
+
 #include <rtems.h>
 #include <rtems/system.h>
 #include <rtems/score/types.h>
@@ -43,6 +45,10 @@ I386_ASSERT_OFFSET(edi, EDI);
 
 #ifdef RTEMS_SMP
   I386_ASSERT_OFFSET(is_executing, IS_EXECUTING);
+#endif
+
+#if CPU_HARDWARE_FP
+Context_Control_fp _CPU_Null_fp_context;
 #endif
 
 void _CPU_Initialize(void)
@@ -111,17 +117,13 @@ uint32_t   _CPU_ISR_Get_level( void )
 {
   uint32_t   level;
 
+#if !defined(RTEMS_PARAVIRT)
   i386_get_interrupt_level( level );
+#else
+  level = i386_get_interrupt_level();
+#endif
 
   return level;
-}
-
-void *_CPU_Thread_Idle_body( uintptr_t ignored )
-{
-  while(1){
-    __asm__ volatile ("hlt");
-  }
-  return NULL;
 }
 
 struct Frame_ {
@@ -133,19 +135,19 @@ void _CPU_Exception_frame_print (const CPU_Exception_frame *ctx)
 {
   unsigned int faultAddr = 0;
   printk("----------------------------------------------------------\n");
-  printk("Exception %d caught at PC %x by thread %d\n",
+  printk("Exception %" PRIu32 " caught at PC %" PRIx32 " by thread %" PRId32 "\n",
 	 ctx->idtIndex,
 	 ctx->eip,
 	 _Thread_Executing->Object.id);
   printk("----------------------------------------------------------\n");
   printk("Processor execution context at time of the fault was  :\n");
   printk("----------------------------------------------------------\n");
-  printk(" EAX = %x	EBX = %x	ECX = %x	EDX = %x\n",
+  printk(" EAX = %" PRIx32 "	EBX = %" PRIx32 "	ECX = %" PRIx32 "	EDX = %" PRIx32 "\n",
 	 ctx->eax, ctx->ebx, ctx->ecx, ctx->edx);
-  printk(" ESI = %x	EDI = %x	EBP = %x	ESP = %x\n",
+  printk(" ESI = %" PRIx32 "	EDI = %" PRIx32 "	EBP = %" PRIx32 "	ESP = %" PRIx32 "\n",
 	 ctx->esi, ctx->edi, ctx->ebp, ctx->esp0);
   printk("----------------------------------------------------------\n");
-  printk("Error code pushed by processor itself (if not 0) = %x\n",
+  printk("Error code pushed by processor itself (if not 0) = %" PRIx32 "\n",
 	 ctx->faultCode);
   printk("----------------------------------------------------------\n");
   if (ctx->idtIndex == I386_EXCEPTION_PAGE_FAULT){
@@ -168,7 +170,7 @@ void _CPU_Exception_frame_print (const CPU_Exception_frame *ctx)
 	printk("Call Stack Trace of EIP:\n");
 	if ( fp ) {
 		for ( i=1; fp->up; fp=fp->up, i++ ) {
-			printk("0x%08x ",fp->pc);
+			printk("0x%08" PRIx32 " ",fp->pc);
 			if ( ! (i&3) )
 				printk("\n");
 		}

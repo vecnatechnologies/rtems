@@ -24,9 +24,7 @@
 #include <bsp/default-initial-extension.h>
 
 #include <rtems.h>
-#include <rtems/console.h>
 #include <libcpu/io.h>
-#include <rtems/clockdrv.h>
 #include <bsp/vectors.h>
 
 /**
@@ -178,6 +176,7 @@ extern "C" {
  *
  */
 int BSP_i2c_initialize(void);
+#define BSP_PREDRIVER_I2C_INIT
 
 /* System Control Register */
 #define BSP_MVME3100_SYS_CR				((volatile uint8_t *)0xe2000001)

@@ -22,15 +22,17 @@
 
 void _Scheduler_EDF_Node_initialize(
   const Scheduler_Control *scheduler,
-  Thread_Control          *the_thread
+  Scheduler_Node          *node,
+  Thread_Control          *the_thread,
+  Priority_Control         priority
 )
 {
-  Scheduler_EDF_Node *node = _Scheduler_EDF_Thread_get_node( the_thread );
+  Scheduler_EDF_Node *the_node;
 
   (void) scheduler;
 
-  _Scheduler_Node_do_initialize( &node->Base, the_thread );
+  _Scheduler_Node_do_initialize( node, the_thread, priority );
 
-  node->thread = the_thread;
-  node->queue_state = SCHEDULER_EDF_QUEUE_STATE_NEVER_HAS_BEEN;
+  the_node = _Scheduler_EDF_Node_downcast( node );
+  the_node->thread = the_thread;
 }

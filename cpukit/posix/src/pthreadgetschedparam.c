@@ -26,6 +26,7 @@
 
 #include <rtems/posix/pthreadimpl.h>
 #include <rtems/posix/priorityimpl.h>
+#include <rtems/score/schedulerimpl.h>
 #include <rtems/score/threadimpl.h>
 
 int pthread_getschedparam(
@@ -34,35 +35,34 @@ int pthread_getschedparam(
   struct sched_param *param
 )
 {
-  Objects_Locations        location;
-  POSIX_API_Control       *api;
   Thread_Control          *the_thread;
+  ISR_lock_Context         lock_context;
+  POSIX_API_Control       *api;
+  const Scheduler_Control *scheduler;
+  Priority_Control         priority;
 
-  if ( !policy || !param  )
+  if ( policy == NULL || param == NULL ) {
     return EINVAL;
-
-  the_thread = _Thread_Get( thread, &location );
-  switch ( location ) {
-
-    case OBJECTS_LOCAL:
-      api = the_thread->API_Extensions[ THREAD_API_POSIX ];
-      if ( policy )
-        *policy = api->schedpolicy;
-      if ( param ) {
-        *param  = api->schedparam;
-        param->sched_priority =
-          _POSIX_Priority_From_core( the_thread->current_priority );
-      }
-      _Objects_Put( &the_thread->Object );
-      return 0;
-
-#if defined(RTEMS_MULTIPROCESSING)
-    case OBJECTS_REMOTE:
-#endif
-    case OBJECTS_ERROR:
-      break;
   }
 
-  return ESRCH;
+  the_thread = _Thread_Get( thread, &lock_context );
 
+  if ( the_thread == NULL ) {
+    return ESRCH;
+  }
+
+  api = the_thread->API_Extensions[ THREAD_API_POSIX ];
+
+  _Thread_Lock_acquire_default_critical( the_thread, &lock_context );
+
+  *policy = api->Attributes.schedpolicy;
+  *param  = api->Attributes.schedparam;
+
+  scheduler = _Scheduler_Get_own( the_thread );
+  priority = the_thread->real_priority;
+
+  _Thread_Lock_release_default( the_thread, &lock_context );
+
+  param->sched_priority = _POSIX_Priority_From_core( scheduler, priority );
+  return 0;
 }

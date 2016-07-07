@@ -20,6 +20,7 @@
 
 #include <rtems/score/smp.h>
 #include <rtems/score/percpu.h>
+#include <rtems/score/processormask.h>
 #include <rtems/fatal.h>
 #include <rtems/rtems/cache.h>
 
@@ -59,6 +60,16 @@ extern "C" {
 #define SMP_MESSAGE_MULTICAST_ACTION 0x4UL
 
 /**
+ * @brief SMP message to request a clock tick.
+ *
+ * This message is provided for systems without a proper interrupt affinity
+ * support and may be used by the clock driver.
+ *
+ * @see _SMP_Send_message().
+ */
+#define SMP_MESSAGE_CLOCK_TICK 0x8UL
+
+/**
  * @brief SMP fatal codes.
  */
 typedef enum {
@@ -91,6 +102,16 @@ static inline void _SMP_Fatal( SMP_Fatal_code code )
 #if defined( RTEMS_SMP )
 
 /**
+ * @brief Set of online processors.
+ *
+ * A processor is online if was started during system initialization.  In this
+ * case its corresponding bit in the mask is set.
+ *
+ * @see _SMP_Handler_initialize().
+ */
+extern Processor_mask _SMP_Online_processors;
+
+/**
  * @brief Performs high-level initialization of a secondary processor and runs
  * the application threads.
  *
@@ -115,7 +136,7 @@ static inline void _SMP_Fatal( SMP_Fatal_code code )
  * This function does not return to the caller.
  */
 void _SMP_Start_multitasking_on_secondary_processor( void )
-  RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+  RTEMS_NO_RETURN;
 
 typedef void ( *SMP_Test_message_handler )( Per_CPU_Control *cpu_self );
 
@@ -141,18 +162,29 @@ void _SMP_Multicast_actions_process( void );
 
 /**
  * @brief Interrupt handler for inter-processor interrupts.
+ *
+ * @return The received message.
  */
-static inline void _SMP_Inter_processor_interrupt_handler( void )
+static inline long unsigned _SMP_Inter_processor_interrupt_handler( void )
 {
-  Per_CPU_Control *cpu_self = _Per_CPU_Get();
+  Per_CPU_Control *cpu_self;
+  unsigned long    message;
 
-  if ( _Atomic_Load_ulong( &cpu_self->message, ATOMIC_ORDER_RELAXED ) != 0 ) {
-    unsigned long message = _Atomic_Exchange_ulong(
-      &cpu_self->message,
-      0UL,
-      ATOMIC_ORDER_RELAXED
-    );
+  cpu_self = _Per_CPU_Get();
 
+  /*
+   * In the common case the inter-processor interrupt is issued to carry out a
+   * thread dispatch.
+   */
+  cpu_self->dispatch_necessary = true;
+
+  message = _Atomic_Exchange_ulong(
+    &cpu_self->message,
+    0,
+    ATOMIC_ORDER_ACQUIRE
+  );
+
+  if ( message != 0 ) {
     if ( ( message & SMP_MESSAGE_SHUTDOWN ) != 0 ) {
       _SMP_Fatal( SMP_FATAL_SHUTDOWN_RESPONSE );
       /* does not continue past here */
@@ -166,6 +198,8 @@ static inline void _SMP_Inter_processor_interrupt_handler( void )
       _SMP_Multicast_actions_process();
     }
   }
+
+  return message;
 }
 
 /**
@@ -180,7 +214,7 @@ static inline void _SMP_Inter_processor_interrupt_handler( void )
 bool _SMP_Should_start_processor( uint32_t cpu_index );
 
 /**
- *  @brief Sends a SMP message to a processor.
+ *  @brief Sends an SMP message to a processor.
  *
  *  The target processor may be the sending processor.
  *
@@ -190,21 +224,16 @@ bool _SMP_Should_start_processor( uint32_t cpu_index );
 void _SMP_Send_message( uint32_t cpu_index, unsigned long message );
 
 /**
- *  @brief Request of others CPUs.
+ *  @brief Sends an SMP message to all other online processors.
  *
- *  This method is invoked by RTEMS when it needs to make a request
- *  of the other CPUs.  It should be implemented using some type of
- *  interprocessor interrupt. CPUs not including the originating
- *  CPU should receive the message.
- *
- *  @param [in] message is message to send
+ *  @param[in] message The message.
  */
 void _SMP_Send_message_broadcast(
   unsigned long message
 );
 
 /**
- *  @brief Sends a SMP message to a set of processors.
+ *  @brief Sends an SMP message to a set of processors.
  *
  *  The sending processor may be part of the set.
  *
@@ -218,10 +247,10 @@ void _SMP_Send_message_multicast(
   unsigned long message
 );
 
-typedef void ( *SMP_Multicast_action_handler )( void *arg );
+typedef void ( *SMP_Action_handler )( void *arg );
 
 /**
- *  @brief Initiates a SMP multicast action to a set of processors.
+ *  @brief Initiates an SMP multicast action to a set of processors.
  *
  *  The current processor may be part of the set.
  *
@@ -233,8 +262,52 @@ typedef void ( *SMP_Multicast_action_handler )( void *arg );
 void _SMP_Multicast_action(
   const size_t setsize,
   const cpu_set_t *cpus,
-  SMP_Multicast_action_handler handler,
+  SMP_Action_handler handler,
   void *arg
+);
+
+/**
+ * @brief Executes a handler with argument on the specified processor on behalf
+ * of the boot processor.
+ *
+ * The calling processor must be the boot processor.  In case the specified
+ * processor is not online or not in the
+ * PER_CPU_STATE_READY_TO_START_MULTITASKING state, then no action is
+ * performed.
+ *
+ * @param cpu The processor to execute the action.
+ * @param handler The handler of the action.
+ * @param arg The argument of the action.
+ *
+ * @retval true The handler executed on the specified processor.
+ * @retval false Otherwise.
+ *
+ * @see _SMP_Before_multitasking_action_broadcast().
+ */
+bool _SMP_Before_multitasking_action(
+  Per_CPU_Control    *cpu,
+  SMP_Action_handler  handler,
+  void               *arg
+);
+
+/**
+ * @brief Executes a handler with argument on all online processors except the
+ * boot processor on behalf of the boot processor.
+ *
+ * The calling processor must be the boot processor.
+ *
+ * @param handler The handler of the action.
+ * @param arg The argument of the action.
+ *
+ * @retval true The handler executed on all online processors except the boot
+ * processor.
+ * @retval false Otherwise.
+ *
+ * @see _SMP_Before_multitasking_action().
+ */
+bool _SMP_Before_multitasking_action_broadcast(
+  SMP_Action_handler  handler,
+  void               *arg
 );
 
 #endif /* defined( RTEMS_SMP ) */

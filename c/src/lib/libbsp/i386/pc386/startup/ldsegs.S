@@ -110,7 +110,6 @@ next_step:
 	movw ax, fs
 	movw ax, gs
 
-#if (BSP_IS_EDISON == 0)
 /*---------------------------------------------------------------------+
 | Now we have to reprogram the interrupts :-(. We put them right after
 | the intel-reserved hardware interrupts, at int 0x20-0x2F. There they
@@ -121,6 +120,7 @@ next_step:
 | it isn't fun.
 +---------------------------------------------------------------------*/
 
+#if (BSP_IS_EDISON == 0)
 	movb	$0x11, al		/* initialization sequence          */
 	outb	al, $0x20		/* send it to 8259A-1               */
 	call	SYM(pc386_delay)
@@ -147,16 +147,16 @@ next_step:
 	outb	al, $0xA1
 	call	SYM(pc386_delay)
 
+	/*
+	 * The IMR values must correspond to the initial value of i8259s_cache.
+	 */
 	movb	$0xFF, al		/* mask off all interrupts for now  */
 	outb	al, $0xA1
 	call	SYM(pc386_delay)
 	movb	$0xFB, al		/* mask all irq's but irq2 which    */
 	outb	al, $0x21		/* is cascaded                      */
 	call	SYM(pc386_delay)
-
-	movw	$0xFFFB, SYM(i8259s_cache) /* set up same values in cache */
-
-  #endif
+#endif
 	jmp	SYM (_establish_stack)	# return to the bsp entry code
 
 /*-------------------------------------------------------------------------+

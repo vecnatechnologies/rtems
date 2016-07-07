@@ -7,9 +7,9 @@ EXTRA_DIST = MERGE.PROCEDURE bsp.am
 
 # shared
 EXTRA_DIST += shared/bootcard.c shared/bspclean.c \
-    shared/bsplibc.c shared/bsppost.c shared/console-polled.c \
+    shared/console-polled.c \
     shared/console.c shared/gnatinstallhandler.c shared/sbrk.c \
-    shared/tod.c shared/gpio.c
+    shared/tod.c
 EXTRA_DIST += shared/vmeUniverse/vmeUniverse.c \
     shared/vmeUniverse/vmeUniverse.h \
     shared/vmeUniverse/vmeUniverseDMA.h \
@@ -28,6 +28,9 @@ EXTRA_DIST += shared/vmeUniverse/vmeUniverse.c \
 EXTRA_DIST += shared/include/coverhd.h
 EXTRA_DIST += shared/gdbstub/rtems-stub-glue.c
 EXTRA_DIST += shared/include/bootcard.h
+
+EXTRA_DIST += shared/pci/pci_bus_count.c
+EXTRA_DIST += shared/pci/pci_find_device.c
 
 include_bspdir = $(includedir)/bsp
 

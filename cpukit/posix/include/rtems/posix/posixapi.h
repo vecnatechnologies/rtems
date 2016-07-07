@@ -20,7 +20,11 @@
 #define _RTEMS_POSIX_POSIXAPI_H
 
 #include <rtems/config.h>
+#include <rtems/score/assert.h>
+#include <rtems/score/apimutex.h>
 #include <rtems/score/objectimpl.h>
+#include <rtems/score/threadimpl.h>
+#include <rtems/seterr.h>
 
 /**
  * @defgroup POSIXAPI RTEMS POSIX API
@@ -48,35 +52,71 @@ typedef enum {
  */
 void _POSIX_Fatal_error( POSIX_Fatal_domain domain, int eno );
 
-/**
- * @brief Initialize POSIX API.
- *
- * This method is responsible for initializing each of the POSIX
- * API managers.
- */
-void _POSIX_API_Initialize(void);
+extern const int _POSIX_Get_by_name_error_table[ 3 ];
+
+RTEMS_INLINE_ROUTINE int _POSIX_Get_by_name_error(
+  Objects_Get_by_name_error error
+)
+{
+  _Assert( (size_t) error < RTEMS_ARRAY_SIZE( _POSIX_Get_by_name_error_table ) );
+  return _POSIX_Get_by_name_error_table[ error ];
+}
+
+RTEMS_INLINE_ROUTINE int _POSIX_Get_error( Status_Control status )
+{
+  return STATUS_GET_POSIX( status );
+}
+
+RTEMS_INLINE_ROUTINE int _POSIX_Get_error_after_wait(
+  const Thread_Control *executing
+)
+{
+  return _POSIX_Get_error( _Thread_Wait_get_status( executing ) );
+}
+
+RTEMS_INLINE_ROUTINE int _POSIX_Zero_or_minus_one_plus_errno(
+  Status_Control status
+)
+{
+  if ( status == STATUS_SUCCESSFUL ) {
+    return 0;
+  }
+
+  rtems_set_errno_and_return_minus_one( _POSIX_Get_error( status ) );
+}
 
 /**
- * @brief Queries the object identifier @a id for a @a name.
+ * @brief Macro to generate a function body to get a POSIX object by
+ * identifier.
  *
- * @param[in] information Object information.
- * @param[in] name Zero terminated name string to look up.
- * @param[out] id Pointer for identifier.  The pointer must be valid.
- * @param[out] len Pointer for string length.  The pointer must be valid.
- *
- * @retval 0 Successful operation.
- * @retval EINVAL The @a name pointer is @c NULL or the @a name string has
- * zero length.
- * @retval ENAMETOOLONG The @a name string length is greater than or equal to
- * @c NAME_MAX.
- * @retval ENOENT Found no corresponding identifier.
+ * Generates a function body to get the object for the specified indentifier.
+ * Performs automatic initialization if requested and necessary.  This is an
+ * ugly macro, since C lacks support for templates.
  */
-int _POSIX_Name_to_id(
-  Objects_Information *information,
-  const char          *name,
-  Objects_Id          *id,
-  size_t              *len
-);
+#define _POSIX_Get_object_body( \
+  type, \
+  id, \
+  queue_context, \
+  info, \
+  initializer, \
+  init \
+) \
+  Objects_Control *the_object; \
+  if ( id == NULL ) { \
+    return NULL; \
+  } \
+  the_object = \
+    _Objects_Get( (Objects_Id) *id, &queue_context->Lock_context, info ); \
+  if ( the_object == NULL ) { \
+    _Once_Lock(); \
+    if ( *id == initializer ) { \
+      init( id, NULL ); \
+    } \
+    _Once_Unlock(); \
+    the_object = \
+      _Objects_Get( (Objects_Id) *id, &queue_context->Lock_context, info ); \
+  } \
+  return (type *) the_object
 
 /** @} */
 

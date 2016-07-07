@@ -127,14 +127,9 @@ SYM(_CPU_Context_restore_heir):
          *      g5 = scratch
          */
 
-        ld      [%o1 + PSR_OFFSET], %g1       ! g1 = saved psr
-
         and     %o2, SPARC_PSR_CWP_MASK, %g3  ! g3 = CWP
-                                              ! g1 = psr w/o cwp
-        andn    %g1, SPARC_PSR_ET_MASK | SPARC_PSR_CWP_MASK, %g1
-        or      %g1, %g3, %g1                 ! g1 = heirs psr
-        mov     %g1, %psr                     ! restore status register and
-                                              ! **** DISABLE TRAPS ****
+        andn    %o2, SPARC_PSR_ET_MASK, %g1   ! g1 = psr with traps disabled
+        mov     %g1, %psr                     ! **** DISABLE TRAPS ****
         mov     %wim, %g2                     ! g2 = wim
         mov     1, %g4
         sll     %g4, %g3, %g4                 ! g4 = WIM mask for CW invalid
@@ -173,18 +168,14 @@ save_frame_loop:
 
 done_flushing:
 
-        add     %g3, 1, %g3                   ! calculate desired WIM
-        and     %g3, SPARC_NUMBER_OF_REGISTER_WINDOWS - 1, %g3
+        ! Wait three instructions after the write to PSR before using
+        ! non-global registers or instructions affecting the CWP
+        mov     %g1, %psr                     ! restore cwp
+        add     %g3, 1, %g2                   ! calculate desired WIM
+        and     %g2, SPARC_NUMBER_OF_REGISTER_WINDOWS - 1, %g2
         mov     1, %g4
-        sll     %g4, %g3, %g4                 ! g4 = new WIM
+        sll     %g4, %g2, %g4                 ! g4 = new WIM
         mov     %g4, %wim
-
-        or      %g1, SPARC_PSR_ET_MASK, %g1
-        mov     %g1, %psr                     ! **** ENABLE TRAPS ****
-                                              !   and restore CWP
-        nop
-        nop
-        nop
 
 #if defined(RTEMS_SMP)
         ! The executing context no longer executes on this processor
@@ -201,6 +192,12 @@ try_update_is_executing:
 
         ! The next load is in a delay slot, which is all right
 #endif
+
+        ld      [%o1 + PSR_OFFSET], %g1       ! g1 = heir psr with traps enabled
+        andn    %g1, SPARC_PSR_CWP_MASK, %g1  ! g1 = heir psr w/o cwp
+        or      %g1, %g3, %g1                 ! g1 = heir psr with cwp
+        mov     %g1, %psr                     ! restore status register and
+                                              ! **** ENABLE TRAPS ****
 
         ld      [%o1 + G5_OFFSET], %g5        ! restore the global registers
         ld      [%o1 + G7_OFFSET], %g7
@@ -236,30 +233,24 @@ check_is_executing:
         beq     try_update_is_executing
          mov    1, %g1
 
-        ! Check if a thread dispatch is necessary
-        ldub    [%g6 + PER_CPU_DISPATCH_NEEDED], %g1
-        cmp     %g1, 0
-        beq     check_is_executing
-         nop
-
-        ! We have a new heir
-
-        ! Clear the thread dispatch necessary flag
-        stub    %g0, [%g6 + PER_CPU_DISPATCH_NEEDED]
-
-        ! Here we assume a strong memory order, otherwise a memory barrier must
-        ! be inserted here
+        ! We may have a new heir
 
         ! Read the executing and heir
-        ld      [%g6 + PER_CPU_OFFSET_EXECUTING], %g1
-        ld      [%g6 + PER_CPU_OFFSET_HEIR], %g2
+        ld      [%g6 + PER_CPU_OFFSET_EXECUTING], %g2
+        ld      [%g6 + PER_CPU_OFFSET_HEIR], %g4
+
+        ! Update the executing only if necessary to avoid cache line
+        ! monopolization.
+        cmp     %g2, %g4
+        beq     try_update_is_executing
+         mov    1, %g1
 
         ! Calculate the heir context pointer
-        sub     %o1, %g1, %g1
-        add     %g1, %g2, %o1
+        sub     %o1, %g2, %g2
+        add     %g2, %g4, %o1
 
         ! Update the executing
-        st      %g2, [%g6 + PER_CPU_OFFSET_EXECUTING]
+        st      %g4, [%g6 + PER_CPU_OFFSET_EXECUTING]
 
         ba      try_update_is_executing
          mov    1, %g1
@@ -460,10 +451,12 @@ dont_do_the_window:
         subcc    %l7, 1, %l7             ! outermost interrupt handler?
         bnz      dont_switch_stacks      ! No, then do not switch stacks
 
-#if defined( RTEMS_PROFILING )
-         sethi   %hi(SYM(_SPARC_Counter)), %o5
-        ld       [%o5 + %lo(SYM(_SPARC_Counter))], %l4
-        ld       [%l4], %o5
+#if defined(RTEMS_PROFILING)
+         sethi   %hi(_SPARC_Counter), %o5
+        ld       [%o5 + %lo(_SPARC_Counter)], %l4
+        call     %l4, 0
+         nop
+        mov      %o0, %o5
 #else
          nop
 #endif
@@ -545,13 +538,15 @@ pil_fixed:
                                         !   WAS LOADED WHEN ISF WAS SAVED!!!
         mov      %l3, %o0               ! o0 = 1st arg = vector number
         call     %g4, 0
-#if defined( RTEMS_PROFILING )
+#if defined(RTEMS_PROFILING)
          mov     %o5, %l3               ! save interrupt entry instant
         cmp      %l7, 0
         bne      profiling_not_outer_most_exit
          nop
         ta       SPARC_SWTRAP_IRQDIS    ! Call interrupt disable trap handler
-        ld       [%l4], %o2             ! o2 = 3rd arg = interrupt exit instant
+        call     %l4, 0                 ! Call _SPARC_Counter.counter_read
+         nop
+        mov      %o0, %o2               ! o2 = 3rd arg = interrupt exit instant
         mov      %l3, %o1               ! o1 = 2nd arg = interrupt entry instant
         call     SYM(_Profiling_Outer_most_interrupt_entry_and_exit), 0
          mov     %g6, %o0               ! o0 = 1st arg = per-CPU control

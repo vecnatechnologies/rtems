@@ -34,7 +34,6 @@ AM_CONDITIONAL(RTEMS_VGA,[test "$BSP_ENABLE_VGA" = "1"])
 RTEMS_BSPOPTS_SET([BSP_ENABLE_COM1_COM4],[*],[1])
 RTEMS_BSPOPTS_HELP([BSP_ENABLE_COM1_COM4],
 [Set if COM1..COM4 support is enabled.])
-AM_CONDITIONAL(RTEMS_VGA,[test "$BSP_ENABLE_COM1_COM4" = "1"])
 
 RTEMS_BSPOPTS_SET([BSP_ENABLE_IDE],[edison],[0])
 RTEMS_BSPOPTS_SET([BSP_ENABLE_IDE],[*],[1])
@@ -142,6 +141,12 @@ RTEMS_BSPOPTS_SET([BSP_HAS_SMP],[*],[1])
 RTEMS_BSPOPTS_HELP([BSP_HAS_SMP],
 [Always defined when on a pc386 to enable the pc386 support for
  determining the CPU core number in an SMP configuration.])
+
+RTEMS_BSPOPTS_SET([BSP_GDB_STUB],[*],[1])
+RTEMS_BSPOPTS_HELP([BSP_GDB_STUB],
+[Defined by default. Enables use of the GDB stub for debugging via a
+ serial port.])
+AM_CONDITIONAL(BSP_GDB_STUB, test "$BSP_GDB_STUB" = "1")
 
 ## if this is an i386, does gas have good code16 support?
 RTEMS_I386_GAS_CODE16

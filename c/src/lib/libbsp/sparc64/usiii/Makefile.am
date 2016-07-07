@@ -84,9 +84,8 @@ project_lib_DATA = start.$(OBJEXT)
 
 dist_project_lib_DATA += ../shared/startup/linkcmds
 
-startup_SOURCES = ../../shared/bspclean.c ../../shared/bsplibc.c \
-    ../../shared/bspstart.c ../../shared/bsppretaskinghook.c \
-    ../../shared/bsppost.c \
+startup_SOURCES = ../../shared/bspclean.c \
+    ../../shared/bspstart.c \
     ../../shared/bootcard.c ../../shared/sbrk.c \
     ../../shared/bspgetworkarea.c \
     ../../shared/bsppredriverhook.c \

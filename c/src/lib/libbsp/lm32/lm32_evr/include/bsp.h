@@ -26,8 +26,6 @@
 #include <bsp/default-initial-extension.h>
 
 #include <rtems.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
 
 /**
  * @defgroup lm32_evr EVR Support

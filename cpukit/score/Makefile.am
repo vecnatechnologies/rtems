@@ -16,14 +16,15 @@ include_sys_HEADERS += include/sys/timex.h
 
 include_rtemsdir = $(includedir)/rtems
 
-include_rtems_HEADERS = include/rtems/debug.h
+include_rtems_HEADERS =
+include_rtems_HEADERS += include/rtems/linkersets.h
+include_rtems_HEADERS += include/rtems/sysinit.h
 include_rtems_HEADERS += include/rtems/system.h
 include_rtems_HEADERS += include/rtems/seterr.h
 
 include_rtems_scoredir = $(includedir)/rtems/score
 
 include_rtems_score_HEADERS = include/rtems/score/address.h
-include_rtems_score_HEADERS += include/rtems/score/apiext.h
 include_rtems_score_HEADERS += include/rtems/score/apimutex.h
 include_rtems_score_HEADERS += include/rtems/score/assert.h
 include_rtems_score_HEADERS += include/rtems/score/atomic.h
@@ -60,6 +61,7 @@ include_rtems_score_HEADERS += include/rtems/score/priority.h
 include_rtems_score_HEADERS += include/rtems/score/prioritybitmap.h
 include_rtems_score_HEADERS += include/rtems/score/prioritybitmapimpl.h
 include_rtems_score_HEADERS += include/rtems/score/profiling.h
+include_rtems_score_HEADERS += include/rtems/score/processormask.h
 include_rtems_score_HEADERS += include/rtems/score/rbtree.h
 include_rtems_score_HEADERS += include/rtems/score/rbtreeimpl.h
 include_rtems_score_HEADERS += include/rtems/score/resource.h
@@ -80,11 +82,13 @@ include_rtems_score_HEADERS += include/rtems/score/schedulersmpimpl.h
 include_rtems_score_HEADERS += include/rtems/score/smp.h
 include_rtems_score_HEADERS += include/rtems/score/smpbarrier.h
 include_rtems_score_HEADERS += include/rtems/score/smplock.h
+include_rtems_score_HEADERS += include/rtems/score/smplockseq.h
 include_rtems_score_HEADERS += include/rtems/score/smpimpl.h
 include_rtems_score_HEADERS += include/rtems/score/stack.h
 include_rtems_score_HEADERS += include/rtems/score/stackimpl.h
 include_rtems_score_HEADERS += include/rtems/score/states.h
 include_rtems_score_HEADERS += include/rtems/score/statesimpl.h
+include_rtems_score_HEADERS += include/rtems/score/status.h
 include_rtems_score_HEADERS += include/rtems/score/sysstate.h
 include_rtems_score_HEADERS += include/rtems/score/thread.h
 include_rtems_score_HEADERS += include/rtems/score/threadimpl.h
@@ -126,6 +130,10 @@ if HAS_SMP
 include_rtems_score_HEADERS += include/rtems/score/schedulerprioritysmpimpl.h
 include_rtems_score_HEADERS += include/rtems/score/schedulerpriorityaffinitysmp.h
 include_rtems_score_HEADERS += include/rtems/score/schedulersimplesmp.h
+include_rtems_score_HEADERS += include/rtems/score/schedulerstrongapa.h
+include_rtems_score_HEADERS += include/rtems/score/smplockmcs.h
+include_rtems_score_HEADERS += include/rtems/score/smplockstats.h
+include_rtems_score_HEADERS += include/rtems/score/smplockticket.h
 endif
 
 ## src
@@ -146,6 +154,7 @@ libscore_a_SOURCES += src/schedulerchangeroot.c
 libscore_a_SOURCES += src/schedulerpriorityaffinitysmp.c
 libscore_a_SOURCES += src/schedulerprioritysmp.c
 libscore_a_SOURCES += src/schedulersimplesmp.c
+libscore_a_SOURCES += src/schedulerstrongapa.c
 libscore_a_SOURCES += src/schedulersmpdebug.c
 libscore_a_SOURCES += src/smp.c
 libscore_a_SOURCES += src/smplock.c
@@ -173,9 +182,8 @@ libscore_a_SOURCES += src/coremsg.c src/coremsgbroadcast.c \
     src/coremsgsubmit.c
 
 ## CORE_MUTEX_C_FILES
-libscore_a_SOURCES += src/coremutex.c src/coremutexflush.c \
-    src/coremutexseize.c src/coremutexsurrender.c \
-    src/coremutexseizeintr.c
+libscore_a_SOURCES += src/coremutexseize.c
+libscore_a_SOURCES += src/coremutexsurrender.c
 
 ## CORE_PERCPU_C_FILES
 libscore_a_SOURCES += src/percpu.c
@@ -192,7 +200,7 @@ libscore_a_SOURCES += src/coresem.c
 
 ## CORE_SPINLOCK_C_FILES
 if HAS_PTHREADS
-libscore_a_SOURCES += src/corespinlock.c src/corespinlockrelease.c \
+libscore_a_SOURCES += src/corespinlockrelease.c \
     src/corespinlockwait.c
 endif
 
@@ -204,36 +212,35 @@ libscore_a_SOURCES += src/heap.c src/heapallocate.c src/heapextend.c \
 
 ## OBJECT_C_FILES
 libscore_a_SOURCES += src/objectallocate.c src/objectclose.c \
-    src/objectextendinformation.c src/objectfree.c src/objectget.c \
-    src/objectgetisr.c src/objectgetnext.c src/objectinitializeinformation.c \
+    src/objectextendinformation.c src/objectfree.c \
+    src/objectgetnext.c src/objectinitializeinformation.c \
     src/objectnametoid.c src/objectnametoidstring.c \
     src/objectshrinkinformation.c src/objectgetnoprotection.c \
     src/objectidtoname.c src/objectgetnameasstring.c src/objectsetname.c \
     src/objectgetinfo.c src/objectgetinfoid.c src/objectapimaximumclass.c \
     src/objectnamespaceremove.c \
     src/objectactivecount.c
+libscore_a_SOURCES += src/objectgetlocal.c
 
 ## SCHEDULER_C_FILES
 libscore_a_SOURCES += src/log2table.c
 libscore_a_SOURCES += src/scheduler.c
 libscore_a_SOURCES += src/schedulergetaffinity.c
 libscore_a_SOURCES += src/schedulersetaffinity.c
+libscore_a_SOURCES += src/schedulerdefaultmappriority.c
 libscore_a_SOURCES += src/schedulerdefaultnodedestroy.c
 libscore_a_SOURCES += src/schedulerdefaultnodeinit.c
 libscore_a_SOURCES += src/schedulerdefaultreleasejob.c
 libscore_a_SOURCES += src/schedulerdefaultschedule.c
 libscore_a_SOURCES += src/schedulerdefaultstartidle.c
 libscore_a_SOURCES += src/schedulerdefaulttick.c
-libscore_a_SOURCES += src/schedulerdefaultupdate.c
 
 ## SCHEDULERPRIORITY_C_FILES
 libscore_a_SOURCES += src/schedulerpriority.c \
     src/schedulerpriorityblock.c \
     src/schedulerprioritychangepriority.c \
-    src/schedulerpriorityprioritycompare.c \
     src/schedulerpriorityschedule.c \
     src/schedulerpriorityunblock.c \
-    src/schedulerpriorityupdate.c \
     src/schedulerpriorityyield.c
 
 ## SCHEDULERSIMPLE_C_FILES
@@ -249,11 +256,9 @@ libscore_a_SOURCES += src/scheduleredf.c \
     src/scheduleredfnodeinit.c \
     src/scheduleredfblock.c \
     src/scheduleredfchangepriority.c \
-    src/scheduleredfprioritycompare.c \
     src/scheduleredfreleasejob.c \
     src/scheduleredfschedule.c \
     src/scheduleredfunblock.c \
-    src/scheduleredfupdate.c \
     src/scheduleredfyield.c
 
 ## SCHEDULERCBS_C_FILES
@@ -284,7 +289,7 @@ libscore_a_SOURCES += src/freechain.c
 
 ## RBTREE_C_FILES
 libscore_a_SOURCES += \
-    src/rbtreeextract.c src/rbtreefind.c \
+    src/rbtreeextract.c \
     src/rbtreeinsert.c src/rbtreeiterate.c src/rbtreenext.c
 libscore_a_SOURCES += src/rbtreereplace.c
 
@@ -292,20 +297,20 @@ libscore_a_SOURCES += src/rbtreereplace.c
 libscore_a_SOURCES += src/thread.c src/threadchangepriority.c \
     src/threadclearstate.c src/threadcreateidle.c \
     src/threaddispatch.c \
-    src/threadenabledispatch.c src/threaddisabledispatch.c \
     src/threadget.c src/threadhandler.c src/threadinitialize.c \
     src/threadloadenv.c \
     src/threadrestart.c src/threadsetpriority.c \
     src/threadsetstate.c \
     src/threadstackallocate.c src/threadstackfree.c src/threadstart.c \
     src/threadstartmultitasking.c src/iterateoverthreads.c
+libscore_a_SOURCES += src/threadentryadaptoridle.c
+libscore_a_SOURCES += src/threadentryadaptornumeric.c
+libscore_a_SOURCES += src/threadentryadaptorpointer.c
+libscore_a_SOURCES += src/threadgetcputimeused.c
 libscore_a_SOURCES += src/threadglobalconstruction.c
 libscore_a_SOURCES += src/threadtimeout.c
+libscore_a_SOURCES += src/threadwaitgetid.c
 libscore_a_SOURCES += src/threadyield.c
-
-if HAS_SMP
-libscore_a_SOURCES += src/threaddispatchdisablelevel.c
-endif
 
 ## THREADQ_C_FILES
 libscore_a_SOURCES += src/threadq.c \
@@ -322,14 +327,13 @@ libscore_a_SOURCES += src/timespecaddto.c src/timespecfromticks.c \
 
 ## TOD_C_FILES
 libscore_a_SOURCES += src/coretod.c src/coretodset.c \
-    src/coretodtickle.c \
     src/coretodtickspersec.c \
     src/coretodadjust.c
 libscore_a_SOURCES += src/coretodabsolutetimeout.c
 
 ## WATCHDOG_C_FILES
-libscore_a_SOURCES += src/watchdog.c src/watchdogadjust.c \
-    src/watchdoginsert.c src/watchdogremove.c
+libscore_a_SOURCES += src/watchdoginsert.c
+libscore_a_SOURCES += src/watchdogremove.c
 libscore_a_SOURCES += src/watchdogtick.c
 libscore_a_SOURCES += src/watchdogtickssinceboot.c
 
@@ -338,9 +342,7 @@ libscore_a_SOURCES += src/userextaddset.c \
     src/userext.c src/userextremoveset.c src/userextiterate.c
 
 ## STD_C_FILES
-libscore_a_SOURCES += src/apiext.c src/chain.c src/chainappend.c \
-    src/chainextract.c src/chainget.c src/chaininsert.c \
-    src/chainappendempty.c src/chainprependempty.c src/chaingetempty.c \
+libscore_a_SOURCES += src/chain.c \
     src/chainnodecount.c \
     src/debugisthreaddispatchingallowed.c \
     src/interr.c src/isr.c src/wkspace.c src/wkstringduplicate.c
@@ -356,6 +358,7 @@ libscore_a_SOURCES += src/sched.c
 libscore_a_SOURCES += src/semaphore.c
 libscore_a_SOURCES += src/smpbarrierwait.c
 libscore_a_SOURCES += src/kern_tc.c
+libscore_a_SOURCES += src/libatomic.c
 
 EXTRA_DIST = src/Unlimited.txt
 

@@ -39,7 +39,6 @@ include_rtems_rtems_HEADERS += include/rtems/rtems/ratemon.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/ratemonimpl.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/region.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/regionimpl.h
-include_rtems_rtems_HEADERS += include/rtems/rtems/rtemsapi.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/sem.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/semimpl.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/signal.h
@@ -61,7 +60,6 @@ include_rtems_rtems_HEADERS += include/rtems/rtems/eventmp.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/mp.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/msgmp.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/partmp.h
-include_rtems_rtems_HEADERS += include/rtems/rtems/regionmp.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/semmp.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/signalmp.h
 include_rtems_rtems_HEADERS += include/rtems/rtems/taskmp.h
@@ -90,7 +88,6 @@ librtems_a_SOURCES += src/tasks.c
 librtems_a_SOURCES += src/taskcreate.c
 librtems_a_SOURCES += src/taskdelete.c
 librtems_a_SOURCES += src/taskgetaffinity.c
-librtems_a_SOURCES += src/taskgetnote.c
 librtems_a_SOURCES += src/taskgetscheduler.c
 librtems_a_SOURCES += src/taskident.c
 librtems_a_SOURCES += src/taskinitusers.c
@@ -100,21 +97,12 @@ librtems_a_SOURCES += src/taskrestart.c
 librtems_a_SOURCES += src/taskresume.c
 librtems_a_SOURCES += src/taskself.c
 librtems_a_SOURCES += src/tasksetaffinity.c
-librtems_a_SOURCES += src/tasksetnote.c
 librtems_a_SOURCES += src/tasksetpriority.c
 librtems_a_SOURCES += src/tasksetscheduler.c
 librtems_a_SOURCES += src/taskstart.c
 librtems_a_SOURCES += src/tasksuspend.c
 librtems_a_SOURCES += src/taskwakeafter.c
 librtems_a_SOURCES += src/taskwakewhen.c
-if HAS_SMP
-else
-librtems_a_SOURCES += src/taskvariableadd.c
-librtems_a_SOURCES += src/taskvariabledelete.c
-librtems_a_SOURCES += src/taskvariableget.c
-librtems_a_SOURCES += src/taskvariable_invoke_dtor.c
-endif
-librtems_a_SOURCES += src/taskdata.c
 librtems_a_SOURCES += src/schedulergetprocessorset.c
 librtems_a_SOURCES += src/schedulerident.c
 
@@ -131,7 +119,6 @@ librtems_a_SOURCES += src/ratemonreportstatistics.c
 librtems_a_SOURCES += src/ratemonident.c
 librtems_a_SOURCES += src/ratemonperiod.c
 librtems_a_SOURCES += src/ratemontimeout.c
-librtems_a_SOURCES += src/ratemondata.c
 
 ## INTR_C_FILES
 librtems_a_SOURCES += src/intrbody.c
@@ -142,13 +129,10 @@ librtems_a_SOURCES += src/barrier.c
 librtems_a_SOURCES += src/barriercreate.c
 librtems_a_SOURCES += src/barrierdelete.c
 librtems_a_SOURCES += src/barrierident.c
-librtems_a_SOURCES += src/barriertranslatereturncode.c
 librtems_a_SOURCES += src/barrierrelease.c
 librtems_a_SOURCES += src/barrierwait.c
-librtems_a_SOURCES += src/barrierdata.c
 
 ## CLOCK_C_FILES
-librtems_a_SOURCES += src/clockget.c
 librtems_a_SOURCES += src/clockgetsecondssinceepoch.c
 librtems_a_SOURCES += src/clockgettickspersecond.c
 librtems_a_SOURCES += src/clockgettod.c
@@ -174,7 +158,6 @@ librtems_a_SOURCES += src/timerreset.c
 librtems_a_SOURCES += src/timerserver.c
 librtems_a_SOURCES += src/timerserverfireafter.c
 librtems_a_SOURCES += src/timerserverfirewhen.c
-librtems_a_SOURCES += src/rtemstimerdata.c
 
 ## MESSAGE_QUEUE_C_FILES
 librtems_a_SOURCES += src/msg.c
@@ -186,9 +169,7 @@ librtems_a_SOURCES += src/msgqgetnumberpending.c
 librtems_a_SOURCES += src/msgqident.c
 librtems_a_SOURCES += src/msgqreceive.c
 librtems_a_SOURCES += src/msgqsend.c
-librtems_a_SOURCES += src/msgqtranslatereturncode.c
 librtems_a_SOURCES += src/msgqurgent.c
-librtems_a_SOURCES += src/msgdata.c
 
 ## SEMAPHORE_C_FILES
 librtems_a_SOURCES += src/sem.c
@@ -198,12 +179,9 @@ librtems_a_SOURCES += src/semident.c
 librtems_a_SOURCES += src/semobtain.c
 librtems_a_SOURCES += src/semrelease.c
 librtems_a_SOURCES += src/semflush.c
-librtems_a_SOURCES += src/semtranslatereturncode.c
-librtems_a_SOURCES += src/semdata.c
 librtems_a_SOURCES += src/semsetpriority.c
 
 ## EVENT_C_FILES
-librtems_a_SOURCES += src/event.c
 librtems_a_SOURCES += src/eventreceive.c
 librtems_a_SOURCES += src/eventseize.c
 librtems_a_SOURCES += src/eventsend.c
@@ -212,7 +190,6 @@ librtems_a_SOURCES += src/systemeventsend.c
 librtems_a_SOURCES += src/systemeventreceive.c
 
 ## SIGNAL_C_FILES
-librtems_a_SOURCES += src/signal.c
 librtems_a_SOURCES += src/signalcatch.c
 librtems_a_SOURCES += src/signalsend.c
 
@@ -229,7 +206,6 @@ librtems_a_SOURCES += src/regiongetinfo.c
 librtems_a_SOURCES += src/regiongetfreeinfo.c
 librtems_a_SOURCES += src/regionresizesegment.c
 librtems_a_SOURCES += src/regionprocessqueue.c
-librtems_a_SOURCES += src/regiondata.c
 
 ## PARTITION_C_FILES
 librtems_a_SOURCES += src/part.c
@@ -238,7 +214,6 @@ librtems_a_SOURCES += src/partdelete.c
 librtems_a_SOURCES += src/partgetbuffer.c
 librtems_a_SOURCES += src/partident.c
 librtems_a_SOURCES += src/partreturnbuffer.c
-librtems_a_SOURCES += src/partdata.c
 
 ## DPMEM_C_FILES
 librtems_a_SOURCES += src/dpmem.c
@@ -247,7 +222,6 @@ librtems_a_SOURCES += src/dpmemdelete.c
 librtems_a_SOURCES += src/dpmemexternal2internal.c
 librtems_a_SOURCES += src/dpmemident.c
 librtems_a_SOURCES += src/dpmeminternal2external.c
-librtems_a_SOURCES += src/dpmemdata.c
 
 ## WORKSPACE_FILES
 librtems_a_SOURCES += src/workspace.c
@@ -267,7 +241,6 @@ librtems_a_SOURCES += src/eventmp.c
 librtems_a_SOURCES += src/mp.c
 librtems_a_SOURCES += src/msgmp.c
 librtems_a_SOURCES += src/partmp.c
-librtems_a_SOURCES += src/regionmp.c
 librtems_a_SOURCES += src/semmp.c
 librtems_a_SOURCES += src/signalmp.c
 librtems_a_SOURCES += src/taskmp.c

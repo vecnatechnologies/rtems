@@ -560,18 +560,9 @@ RTEMS_INLINE_ROUTINE bool rtems_chain_is_tail(
  *
  * @arg the_node specifies the node to extract
  */
-#if defined( RTEMS_SMP )
 void rtems_chain_extract(
   rtems_chain_node *the_node
 );
-#else
-RTEMS_INLINE_ROUTINE void rtems_chain_extract(
-  rtems_chain_node *the_node
-)
-{
-  _Chain_Extract( the_node );
-}
-#endif
 
 /**
  * @brief Extract the specified node from a chain (unprotected).
@@ -600,18 +591,9 @@ RTEMS_INLINE_ROUTINE void rtems_chain_extract_unprotected(
  *
  *  NOTE: It disables interrupts to ensure the atomicity of the get operation.
  */
-#if defined( RTEMS_SMP )
 rtems_chain_node *rtems_chain_get(
   rtems_chain_control *the_chain
 );
-#else
-RTEMS_INLINE_ROUTINE rtems_chain_node *rtems_chain_get(
-  rtems_chain_control *the_chain
-)
-{
-  return _Chain_Get( the_chain );
-}
-#endif
 
 /**
  * @brief See _Chain_Get_unprotected().
@@ -624,6 +606,16 @@ RTEMS_INLINE_ROUTINE rtems_chain_node *rtems_chain_get_unprotected(
 }
 
 /**
+ * @brief See _Chain_Get_first_unprotected().
+ */
+RTEMS_INLINE_ROUTINE rtems_chain_node *rtems_chain_get_first_unprotected(
+  rtems_chain_control *the_chain
+)
+{
+  return _Chain_Get_first_unprotected( the_chain );
+}
+
+/**
  * @brief Insert a node on a chain
  *
  * This routine inserts @a the_node on a chain immediately following
@@ -632,20 +624,10 @@ RTEMS_INLINE_ROUTINE rtems_chain_node *rtems_chain_get_unprotected(
  * NOTE: It disables interrupts to ensure the atomicity
  * of the extract operation.
  */
-#if defined( RTEMS_SMP )
 void rtems_chain_insert(
   rtems_chain_node *after_node,
   rtems_chain_node *the_node
 );
-#else
-RTEMS_INLINE_ROUTINE void rtems_chain_insert(
-  rtems_chain_node *after_node,
-  rtems_chain_node *the_node
-)
-{
-  _Chain_Insert( after_node, the_node );
-}
-#endif
 
 /**
  * @brief See _Chain_Insert_unprotected().
@@ -666,20 +648,10 @@ RTEMS_INLINE_ROUTINE void rtems_chain_insert_unprotected(
  * NOTE: It disables interrupts to ensure the atomicity of the
  * append operation.
  */
-#if defined( RTEMS_SMP )
 void rtems_chain_append(
   rtems_chain_control *the_chain,
   rtems_chain_node    *the_node
 );
-#else
-RTEMS_INLINE_ROUTINE void rtems_chain_append(
-  rtems_chain_control *the_chain,
-  rtems_chain_node    *the_node
-)
-{
-  _Chain_Append( the_chain, the_node );
-}
-#endif
 
 /**
  * @brief Append a node on the end of a chain (unprotected).
@@ -708,20 +680,10 @@ RTEMS_INLINE_ROUTINE void rtems_chain_append_unprotected(
  * NOTE: It disables interrupts to ensure the atomicity of the
  *       prepend operation.
  */
-#if defined( RTEMS_SMP )
 void rtems_chain_prepend(
   rtems_chain_control *the_chain,
   rtems_chain_node    *the_node
 );
-#else
-RTEMS_INLINE_ROUTINE void rtems_chain_prepend(
-  rtems_chain_control *the_chain,
-  rtems_chain_node    *the_node
-)
-{
-  _Chain_Prepend( the_chain, the_node );
-}
-#endif
 
 /** 
  * @brief Prepend a node (unprotected).
@@ -750,20 +712,10 @@ RTEMS_INLINE_ROUTINE void rtems_chain_prepend_unprotected(
  * @retval true The chain was empty before the append.
  * @retval false The chain contained at least one node before the append.
  */
-#if defined( RTEMS_SMP )
 bool rtems_chain_append_with_empty_check(
   rtems_chain_control *chain,
   rtems_chain_node *node
 );
-#else
-RTEMS_INLINE_ROUTINE bool rtems_chain_append_with_empty_check(
-  rtems_chain_control *chain,
-  rtems_chain_node *node
-)
-{
-  return _Chain_Append_with_empty_check( chain, node );
-}
-#endif
 
 /**
  * @brief Checks if the @a chain is empty and prepends the @a node.
@@ -773,20 +725,10 @@ RTEMS_INLINE_ROUTINE bool rtems_chain_append_with_empty_check(
  * @retval true The chain was empty before the prepend.
  * @retval false The chain contained at least one node before the prepend.
  */
-#if defined( RTEMS_SMP )
 bool rtems_chain_prepend_with_empty_check(
   rtems_chain_control *chain,
   rtems_chain_node *node
 );
-#else
-RTEMS_INLINE_ROUTINE bool rtems_chain_prepend_with_empty_check(
-  rtems_chain_control *chain,
-  rtems_chain_node *node
-)
-{
-  return _Chain_Prepend_with_empty_check( chain, node );
-}
-#endif
 
 /**
  * @brief Tries to get the first @a node and check if the @a chain is empty
@@ -800,20 +742,10 @@ RTEMS_INLINE_ROUTINE bool rtems_chain_prepend_with_empty_check(
  * @retval true The chain is empty after the node removal.
  * @retval false The chain contained at least one node after the node removal.
  */
-#if defined( RTEMS_SMP )
 bool rtems_chain_get_with_empty_check(
   rtems_chain_control *chain,
   rtems_chain_node **node
 );
-#else
-RTEMS_INLINE_ROUTINE bool rtems_chain_get_with_empty_check(
-  rtems_chain_control *chain,
-  rtems_chain_node **node
-)
-{
-  return _Chain_Get_with_empty_check( chain, node );
-}
-#endif
 
 /**
  * @brief Returns the node count of the chain.

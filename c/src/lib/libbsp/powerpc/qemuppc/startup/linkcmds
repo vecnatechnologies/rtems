@@ -97,6 +97,7 @@ SECTIONS
   {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     *(.rodata1)
+    KEEP (*(SORT(.rtemsroset.*)))
     . = ALIGN (bsp_section_align);
     __rodata_end = .;
   } >ROM =0
@@ -127,6 +128,7 @@ SECTIONS
   {
     __data_start = .;
     *(.data .data.* .gnu.linkonce.d.*)
+    KEEP (*(SORT(.rtemsrwset.*)))
     KEEP (*(.gnu.linkonce.d.*personality*))
     SORT(CONSTRUCTORS)
     *(.data1)

@@ -99,9 +99,11 @@ extern "C" {
 
 #define CPU_PROVIDES_IDLE_THREAD_BODY    TRUE
 #define CPU_STACK_GROWS_UP               FALSE
-#define CPU_STRUCTURE_ALIGNMENT          __attribute__ ((aligned (4)))
 
-#define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC TRUE
+/* FIXME: Is this the right value? */
+#define CPU_CACHE_LINE_BYTES 16
+
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /*
  *  Define what is required to specify how the network to host conversion
@@ -112,6 +114,8 @@ extern "C" {
 #define CPU_LITTLE_ENDIAN                        FALSE
 
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 #if ( CPU_HARDWARE_FP == TRUE ) && !defined( __mcoldfire__ )
   #if defined( __mc68060__ )
@@ -311,33 +315,6 @@ typedef struct {
 
 extern void*                     _VBR;
 
-#if ( M68K_HAS_VBR == 0 )
-
-/*
- * Table of ISR handler entries that resides in RAM. The FORMAT/ID is
- * pushed onto the stack. This is not is the same order as VBR processors.
- * The ISR handler takes the format and uses it for dispatching the user
- * handler.
- *
- * FIXME : should be moved to below CPU_INTERRUPT_NUMBER_OF_VECTORS
- *
- */
-
-typedef struct {
-  uint16_t   move_a7;            /* move #FORMAT_ID,%a7@- */
-  uint16_t   format_id;
-  uint16_t   jmp;                /* jmp  _ISR_Handlers */
-  uint32_t   isr_handler;
-} _CPU_ISR_handler_entry;
-
-#define M68K_MOVE_A7 0x3F3C
-#define M68K_JMP     0x4EF9
-
-      /* points to jsr-exception-table in targets wo/ VBR register */
-SCORE_EXTERN _CPU_ISR_handler_entry _CPU_ISR_jump_table[256];
-
-#endif /* M68K_HAS_VBR */
-
 #endif /* ASM */
 
 /* constants */
@@ -514,7 +491,6 @@ void *_CPU_Thread_Idle_body( uintptr_t ignored );
  */
 
 #define CPU_USE_GENERIC_BITFIELD_CODE FALSE
-#define CPU_USE_GENERIC_BITFIELD_DATA FALSE
 
 #if ( M68K_HAS_BFFFO != 1 )
 /*
@@ -679,7 +655,7 @@ void _CPU_Context_switch(
 
 void _CPU_Context_Restart_self(
   Context_Control  *the_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /*
  *  _CPU_Context_save_fp
@@ -762,7 +738,7 @@ static inline CPU_Counter_ticks _CPU_Counter_difference(
 
 void M68KFPSPInstallExceptionHandlers (void);
 
-SCORE_EXTERN int (*_FPSP_install_raw_handler)(
+extern int (*_FPSP_install_raw_handler)(
   uint32_t   vector,
   proc_ptr new_handler,
   proc_ptr *old_handler

@@ -467,6 +467,13 @@ lidate */
 
 #define FSL_EIS_SVR 1023
 
+/* Freescale Book E Implementation Standards (EIS): Thread Management and Control Registers */
+
+#define FSL_EIS_TENSR 437
+#define FSL_EIS_TENS 438
+#define FSL_EIS_TENC 439
+#define FSL_EIS_PPR32 898
+
 /* Freescale Book E Implementation Standards (EIS): MMU Control and Status */
 
 #define FSL_EIS_MAS0 624
@@ -537,6 +544,8 @@ lidate */
 
 #define FSL_EIS_MAS7 944
 
+#define FSL_EIS_MAS8 341
+
 #define FSL_EIS_MMUCFG 1015
 #define FSL_EIS_MMUCSR0 1012
 #define FSL_EIS_PID0 48
@@ -550,7 +559,17 @@ lidate */
 #define FSL_EIS_L1CFG0 515
 #define FSL_EIS_L1CFG1 516
 #define FSL_EIS_L1CSR0 1010
+#define FSL_EIS_L1CSR0_CFI (1 << (63 - 62))
 #define FSL_EIS_L1CSR1 1011
+#define FSL_EIS_L1CSR1_ICFI (1 << (63 - 62))
+
+/* Freescale Book E Implementation Standards (EIS): L2 Cache */
+
+#define FSL_EIS_L2CFG0 519
+#define FSL_EIS_L2CSR0 1017
+#define FSL_EIS_L2CSR0_L2FI (1 << (63 - 42))
+#define FSL_EIS_L2CSR0_L2FL (1 << (63 - 52))
+#define FSL_EIS_L2CSR1 1018
 
 /* Freescale Book E Implementation Standards (EIS): Timer */
 
@@ -620,6 +639,14 @@ static inline uint32_t ppc_interrupt_get_disable_mask( void )
 static inline uint32_t ppc_interrupt_disable( void )
 {
   uint32_t level;
+
+#if defined(__PPC_CPU_E6500__)
+  __asm__ volatile (
+    "mfmsr %0;"
+    "wrteei 0"
+    : "=r" (level)
+  );
+#else
   uint32_t mask;
 
   __asm__ volatile (
@@ -630,17 +657,26 @@ static inline uint32_t ppc_interrupt_disable( void )
     "mtmsr %1"
     : "=r" (level), "=r" (mask)
   );
+#endif
 
   return level;
 }
 
 static inline void ppc_interrupt_enable( uint32_t level )
 {
+#if defined(__PPC_CPU_E6500__)
+  __asm__ volatile (
+    "wrtee %0"
+    :
+    : "r" (level)
+  );
+#else
   __asm__ volatile (
     "mtmsr %0"
     :
     : "r" (level)
   );
+#endif
 }
 
 static inline void ppc_interrupt_flash( uint32_t level )

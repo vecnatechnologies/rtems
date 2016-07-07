@@ -28,9 +28,14 @@
 
 #include <rtems/system.h>
 #include <rtems/config.h>
+#include <rtems/sysinit.h>
 #include <rtems/score/watchdog.h>
 #include <rtems/seterr.h>
 #include <rtems/posix/mqueueimpl.h>
+
+Objects_Information _POSIX_Message_queue_Information;
+
+Objects_Information _POSIX_Message_queue_Information_fds;
 
 /*
  *  _POSIX_Message_queue_Manager_initialization
@@ -42,7 +47,7 @@
  *  Output parameters:  NONE
  */
 
-void _POSIX_Message_queue_Manager_initialization(void)
+static void _POSIX_Message_queue_Manager_initialization(void)
 {
   _Objects_Initialize_information(
     &_POSIX_Message_queue_Information, /* object information table */
@@ -53,26 +58,13 @@ void _POSIX_Message_queue_Manager_initialization(void)
     sizeof( POSIX_Message_queue_Control ),
                                 /* size of this object's control block */
     true,                       /* true if names for this object are strings */
-    _POSIX_PATH_MAX             /* maximum length of each object's name */
-#if defined(RTEMS_MULTIPROCESSING)
-    ,
-    false,                      /* true if this is a global object class */
+    _POSIX_PATH_MAX,            /* maximum length of each object's name */
     NULL                        /* Proxy extraction support callout */
-#endif
-  );
-  _Objects_Initialize_information(
-    &_POSIX_Message_queue_Information_fds,
-    OBJECTS_POSIX_API,
-    OBJECTS_POSIX_MESSAGE_QUEUE_FDS,
-    Configuration_POSIX_API.maximum_message_queue_descriptors,
-    sizeof( POSIX_Message_queue_Control_fd ),
-                                /* size of this object's control block */
-    true,                       /* true if names for this object are strings */
-    NAME_MAX                    /* maximum length of each object's name */
-#if defined(RTEMS_MULTIPROCESSING)
-    ,
-    false,                      /* true if this is a global object class */
-    NULL                        /* Proxy extraction support callout */
-#endif
   );
 }
+
+RTEMS_SYSINIT_ITEM(
+  _POSIX_Message_queue_Manager_initialization,
+  RTEMS_SYSINIT_POSIX_MESSAGE_QUEUE,
+  RTEMS_SYSINIT_ORDER_MIDDLE
+);

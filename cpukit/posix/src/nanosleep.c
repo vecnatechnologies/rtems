@@ -28,7 +28,7 @@
 #include <rtems/score/watchdogimpl.h>
 
 static Thread_queue_Control _Nanosleep_Pseudo_queue =
-  THREAD_QUEUE_FIFO_INITIALIZER( _Nanosleep_Pseudo_queue, "Nanosleep" );
+  THREAD_QUEUE_INITIALIZER( "Nanosleep" );
 
 /*
  *  14.2.5 High Resolution Sleep, P1003.1b-1993, p. 269
@@ -46,6 +46,7 @@ int nanosleep(
   Per_CPU_Control *cpu_self;
 
   Watchdog_Interval  ticks;
+  Watchdog_Interval  start;
   Watchdog_Interval  elapsed;
 
 
@@ -81,22 +82,25 @@ int nanosleep(
     return 0;
   }
 
+  start = _Watchdog_Ticks_since_boot;
+
   /*
    *  Block for the desired amount of time
    */
   _Thread_queue_Enqueue(
     &_Nanosleep_Pseudo_queue,
+    &_Thread_queue_Operations_FIFO,
     executing,
     STATES_DELAYING | STATES_INTERRUPTIBLE_BY_SIGNAL,
     ticks,
-    0
+    1
   );
 
   /*
    * Calculate the time that passed while we were sleeping and how
    * much remains from what we requested.
    */
-  elapsed = executing->Timer.stop_time - executing->Timer.start_time;
+  elapsed = _Watchdog_Ticks_since_boot - start;
   if ( elapsed >= ticks )
     ticks = 0;
   else

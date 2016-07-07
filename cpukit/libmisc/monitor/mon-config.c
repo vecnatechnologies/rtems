@@ -55,8 +55,8 @@ rtems_monitor_config_canonical(
 
 const void *
 rtems_monitor_config_next(
-    void                  *object_info __attribute__((unused)),
-    rtems_monitor_config_t *canonical_config __attribute__((unused)),
+    void                  *object_info RTEMS_UNUSED,
+    rtems_monitor_config_t *canonical_config RTEMS_UNUSED,
     rtems_id              *next_id
 )
 {
@@ -66,7 +66,7 @@ rtems_monitor_config_next(
     if (n >= 1)
         goto failed;
 
-    _Thread_Disable_dispatch();
+    _Objects_Allocator_lock();
 
     *next_id += 1;
     return (const void *) c;
@@ -79,7 +79,7 @@ failed:
 
 void
 rtems_monitor_config_dump_header(
-    bool verbose __attribute__((unused))
+    bool verbose RTEMS_UNUSED
 )
 {
     fprintf(stdout,"\
@@ -93,7 +93,7 @@ INITIAL (startup) Configuration Info\n");
 int
 rtems_monitor_config_dump(
     rtems_monitor_config_t *monitor_config,
-    bool                 verbose __attribute__((unused))
+    bool                 verbose RTEMS_UNUSED
 )
 {
     int     length = 0;

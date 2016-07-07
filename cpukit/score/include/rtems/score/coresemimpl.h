@@ -22,8 +22,10 @@
 #include <rtems/score/coresem.h>
 #include <rtems/score/objectimpl.h>
 #include <rtems/score/threaddispatch.h>
+#include <rtems/score/threadimpl.h>
 #include <rtems/score/threadqimpl.h>
 #include <rtems/score/statesimpl.h>
+#include <rtems/score/status.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,48 +37,6 @@ extern "C" {
 /**@{**/
 
 /**
- *  Core Semaphore handler return statuses.
- */
-typedef enum {
-  /** This status indicates that the operation completed successfully. */
-  CORE_SEMAPHORE_STATUS_SUCCESSFUL,
-  /** This status indicates that the calling task did not want to block
-   *  and the operation was unable to complete immediately because the
-   *  resource was unavailable.
-   */
-  CORE_SEMAPHORE_STATUS_UNSATISFIED_NOWAIT,
-  /** This status indicates that the thread was blocked waiting for an
-   *  operation to complete and the semaphore was deleted.
-   */
-  CORE_SEMAPHORE_WAS_DELETED,
-  /** This status indicates that the calling task was willing to block
-   *  but the operation was unable to complete within the time allotted
-   *  because the resource never became available.
-   */
-  CORE_SEMAPHORE_TIMEOUT,
-  /** This status indicates that an attempt was made to unlock the semaphore
-   *  and this would have made its count greater than that allowed.
-   */
-  CORE_SEMAPHORE_MAXIMUM_COUNT_EXCEEDED
-}   CORE_semaphore_Status;
-
-/**
- *  @brief Core semaphore last status value.
- *
- *  This is the last status value.
- */
-#define CORE_SEMAPHORE_STATUS_LAST CORE_SEMAPHORE_MAXIMUM_COUNT_EXCEEDED
-
-/**
- *  The following type defines the callout which the API provides
- *  to support global/multiprocessor operations on semaphores.
- */
-typedef void ( *CORE_semaphore_API_mp_support_callout )(
-                 Thread_Control *,
-                 Objects_Id
-             );
-
-/**
  *  @brief Initialize the semaphore based on the parameters passed.
  *
  *  This package is the implementation of the CORE Semaphore Handler.
@@ -86,19 +46,47 @@ typedef void ( *CORE_semaphore_API_mp_support_callout )(
  *  This routine initializes the semaphore based on the parameters passed.
  *
  *  @param[in] the_semaphore is the semaphore to initialize
- *  @param[in] the_semaphore_attributes define the behavior of this instance
  *  @param[in] initial_value is the initial count of the semaphore
  */
 void _CORE_semaphore_Initialize(
-  CORE_semaphore_Control          *the_semaphore,
-  const CORE_semaphore_Attributes *the_semaphore_attributes,
-  uint32_t                         initial_value
+  CORE_semaphore_Control *the_semaphore,
+  uint32_t                initial_value
 );
 
-RTEMS_INLINE_ROUTINE void _CORE_semaphore_Destroy(
-  CORE_semaphore_Control *the_semaphore
+RTEMS_INLINE_ROUTINE void _CORE_semaphore_Acquire_critical(
+  CORE_semaphore_Control *the_semaphore,
+  Thread_queue_Context   *queue_context
 )
 {
+  _Thread_queue_Acquire_critical(
+    &the_semaphore->Wait_queue,
+    &queue_context->Lock_context
+  );
+}
+
+RTEMS_INLINE_ROUTINE void _CORE_semaphore_Release(
+  CORE_semaphore_Control *the_semaphore,
+  Thread_queue_Context   *queue_context
+)
+{
+  _Thread_queue_Release(
+    &the_semaphore->Wait_queue,
+    &queue_context->Lock_context
+  );
+}
+
+RTEMS_INLINE_ROUTINE void _CORE_semaphore_Destroy(
+  CORE_semaphore_Control        *the_semaphore,
+  const Thread_queue_Operations *operations,
+  Thread_queue_Context          *queue_context
+)
+{
+  _Thread_queue_Flush_critical(
+    &the_semaphore->Wait_queue.Queue,
+    operations,
+    _Thread_queue_Flush_status_object_was_deleted,
+    queue_context
+  );
   _Thread_queue_Destroy( &the_semaphore->Wait_queue );
 }
 
@@ -110,101 +98,47 @@ RTEMS_INLINE_ROUTINE void _CORE_semaphore_Destroy(
  *  given to that task.  Otherwise, the unit will be returned to the semaphore.
  *
  *  @param[in] the_semaphore is the semaphore to surrender
- *  @param[in] id is the Id of the API level Semaphore object associated
- *         with this instance of a SuperCore Semaphore
- *  @param[in] api_semaphore_mp_support is the routine to invoke if the
- *         thread unblocked is remote
- *  @param[in] lock_context is a temporary variable used to contain the ISR
+ *  @param[in] operations The thread queue operations.
+ *  @param[in] queue_context is a temporary variable used to contain the ISR
  *        disable level cookie
  *
  *  @retval an indication of whether the routine succeeded or failed
  */
-RTEMS_INLINE_ROUTINE CORE_semaphore_Status _CORE_semaphore_Surrender(
-  CORE_semaphore_Control                *the_semaphore,
-  Objects_Id                             id,
-  CORE_semaphore_API_mp_support_callout  api_semaphore_mp_support,
-  ISR_lock_Context                      *lock_context
+RTEMS_INLINE_ROUTINE Status_Control _CORE_semaphore_Surrender(
+  CORE_semaphore_Control        *the_semaphore,
+  const Thread_queue_Operations *operations,
+  uint32_t                       maximum_count,
+  Thread_queue_Context          *queue_context
 )
 {
   Thread_Control *the_thread;
-  CORE_semaphore_Status status;
+  Status_Control  status;
 
-  status = CORE_SEMAPHORE_STATUS_SUCCESSFUL;
+  status = STATUS_SUCCESSFUL;
 
-  _Thread_queue_Acquire_critical( &the_semaphore->Wait_queue, lock_context );
+  _CORE_semaphore_Acquire_critical( the_semaphore, queue_context );
 
-  the_thread = _Thread_queue_First_locked( &the_semaphore->Wait_queue );
+  the_thread = _Thread_queue_First_locked(
+    &the_semaphore->Wait_queue,
+    operations
+  );
   if ( the_thread != NULL ) {
-#if defined(RTEMS_MULTIPROCESSING)
-    _Thread_Dispatch_disable();
-#endif
-
     _Thread_queue_Extract_critical(
       &the_semaphore->Wait_queue.Queue,
-      the_semaphore->Wait_queue.operations,
+      operations,
       the_thread,
-      lock_context
+      queue_context
     );
-
-#if defined(RTEMS_MULTIPROCESSING)
-    if ( !_Objects_Is_local_id( the_thread->Object.id ) )
-      (*api_semaphore_mp_support) ( the_thread, id );
-
-    _Thread_Dispatch_enable( _Per_CPU_Get() );
-#endif
   } else {
-    if ( the_semaphore->count < the_semaphore->Attributes.maximum_count )
+    if ( the_semaphore->count < maximum_count )
       the_semaphore->count += 1;
     else
-      status = CORE_SEMAPHORE_MAXIMUM_COUNT_EXCEEDED;
+      status = STATUS_MAXIMUM_COUNT_EXCEEDED;
 
-    _Thread_queue_Release( &the_semaphore->Wait_queue, lock_context );
+    _CORE_semaphore_Release( the_semaphore, queue_context );
   }
 
   return status;
-}
-
-/**
- *  @brief Core semaphore flush.
- *
- *  This package is the implementation of the CORE Semaphore Handler.
- *  This core object utilizes standard Dijkstra counting semaphores to provide
- *  synchronization and mutual exclusion capabilities.
- *
- *  This routine assists in the deletion of a semaphore by flushing the
- *  associated wait queue.
- *
- *  @param[in] the_semaphore is the semaphore to flush
- *  @param[in] remote_extract_callout is the routine to invoke if the
- *         thread unblocked is remote
- *  @param[in] status is the status to be returned to the unblocked thread
- */
-RTEMS_INLINE_ROUTINE void _CORE_semaphore_Flush(
-  CORE_semaphore_Control         *the_semaphore,
-  Thread_queue_Flush_callout      remote_extract_callout,
-  uint32_t                        status
-)
-{
-  _Thread_queue_Flush(
-    &the_semaphore->Wait_queue,
-    remote_extract_callout,
-    status
-  );
-}
-
-/**
- * This function returns true if the priority attribute is
- * enabled in the @a attribute_set and false otherwise.
- *
- * @param[in] the_attribute is the attribute set to test
- *
- * @return true if the priority attribute is enabled
- */
-RTEMS_INLINE_ROUTINE bool _CORE_semaphore_Is_priority(
-  const CORE_semaphore_Attributes *the_attribute
-)
-{
-   return ( the_attribute->discipline == CORE_SEMAPHORE_DISCIPLINES_PRIORITY );
 }
 
 /**
@@ -215,7 +149,7 @@ RTEMS_INLINE_ROUTINE bool _CORE_semaphore_Is_priority(
  * @return the current count of this semaphore
  */
 RTEMS_INLINE_ROUTINE uint32_t  _CORE_semaphore_Get_count(
-  CORE_semaphore_Control  *the_semaphore
+  const CORE_semaphore_Control *the_semaphore
 )
 {
   return the_semaphore->count;
@@ -228,50 +162,46 @@ RTEMS_INLINE_ROUTINE uint32_t  _CORE_semaphore_Get_count(
  * available.
  *
  * @param[in] the_semaphore is the semaphore to obtain
- * @param[in,out] executing The currently executing thread.
- * @param[in] id is the Id of the owning API level Semaphore object
+ * @param[in] operations The thread queue operations.
+ * @param[in] executing The currently executing thread.
  * @param[in] wait is true if the thread is willing to wait
  * @param[in] timeout is the maximum number of ticks to block
- * @param[in] lock_context is a temporary variable used to contain the ISR
+ * @param[in] queue_context is a temporary variable used to contain the ISR
  *        disable level cookie
- *
- * @note There is currently no MACRO version of this routine.
  */
-RTEMS_INLINE_ROUTINE void _CORE_semaphore_Seize(
-  CORE_semaphore_Control  *the_semaphore,
-  Thread_Control          *executing,
-  Objects_Id               id,
-  bool                     wait,
-  Watchdog_Interval        timeout,
-  ISR_lock_Context        *lock_context
+RTEMS_INLINE_ROUTINE Status_Control _CORE_semaphore_Seize(
+  CORE_semaphore_Control        *the_semaphore,
+  const Thread_queue_Operations *operations,
+  Thread_Control                *executing,
+  bool                           wait,
+  Watchdog_Interval              timeout,
+  Thread_queue_Context          *queue_context
 )
 {
-  /* disabled when you get here */
+  _Assert( _ISR_Get_level() != 0 );
 
-  executing->Wait.return_code = CORE_SEMAPHORE_STATUS_SUCCESSFUL;
-  _Thread_queue_Acquire_critical( &the_semaphore->Wait_queue, lock_context );
+  _CORE_semaphore_Acquire_critical( the_semaphore, queue_context );
   if ( the_semaphore->count != 0 ) {
     the_semaphore->count -= 1;
-    _Thread_queue_Release( &the_semaphore->Wait_queue, lock_context );
-    return;
+    _CORE_semaphore_Release( the_semaphore, queue_context );
+    return STATUS_SUCCESSFUL;
   }
 
   if ( !wait ) {
-    _Thread_queue_Release( &the_semaphore->Wait_queue, lock_context );
-    executing->Wait.return_code = CORE_SEMAPHORE_STATUS_UNSATISFIED_NOWAIT;
-    return;
+    _CORE_semaphore_Release( the_semaphore, queue_context );
+    return STATUS_UNSATISFIED;
   }
 
-  executing->Wait.id = id;
+  _Thread_queue_Context_set_expected_level( queue_context, 1 );
   _Thread_queue_Enqueue_critical(
     &the_semaphore->Wait_queue.Queue,
-    the_semaphore->Wait_queue.operations,
+    operations,
     executing,
     STATES_WAITING_FOR_SEMAPHORE,
     timeout,
-    CORE_SEMAPHORE_TIMEOUT,
-    lock_context
+    queue_context
   );
+  return _Thread_Wait_get_status( executing );
 }
 
 /** @} */

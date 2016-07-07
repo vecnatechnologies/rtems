@@ -32,9 +32,6 @@
 #include <bsp/default-initial-extension.h>
 
 #include <rtems.h>
-#include <rtems/console.h>
-#include <rtems/iosupp.h>
-#include <rtems/clockdrv.h>
 
 #ifdef __cplusplus
 extern "C" {

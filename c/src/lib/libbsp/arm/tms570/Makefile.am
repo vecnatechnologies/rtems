@@ -41,6 +41,10 @@ include_bsp_HEADERS += include/tms570-vim.h
 include_bsp_HEADERS += include/tms570-pom.h
 include_bsp_HEADERS += include/tms570-sci-driver.h
 include_bsp_HEADERS += include/system-clocks.h
+include_bsp_HEADERS += include/tms570-pinmux.h
+
+include_bsp_HEADERS += include/tms570-pins.h
+include_bsp_HEADERS += include/tms570ls3137zwt-pins.h
 
 include_bsp_ti_hercules_HEADERS = include/ti_herc/reg_adc.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_ccmsr.h
@@ -50,7 +54,7 @@ include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_dcc.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_dma.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_dmm.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_efuse.h
-include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_emac.h
+include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_emacc.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_emacm.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_emif.h
 include_bsp_ti_hercules_HEADERS += include/ti_herc/reg_esm.h
@@ -94,6 +98,7 @@ project_lib_DATA += startup/linkcmds
 
 EXTRA_DIST =
 EXTRA_DIST += startup/linkcmds.tms570ls3137_hdk
+EXTRA_DIST += startup/linkcmds.tms570ls3137_hdk_with_loader
 EXTRA_DIST += startup/linkcmds.tms570ls3137_hdk_sdram
 EXTRA_DIST += startup/linkcmds.tms570ls3137_hdk_intram
 
@@ -111,8 +116,6 @@ libbsp_a_LIBADD =
 libbsp_a_SOURCES += ../../shared/bootcard.c
 libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
-libbsp_a_SOURCES += ../../shared/bsplibc.c
-libbsp_a_SOURCES += ../../shared/bsppost.c
 libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
 libbsp_a_SOURCES += ../../shared/gnatinstallhandler.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
@@ -122,7 +125,6 @@ libbsp_a_SOURCES += ../../shared/cpucounterdiff.c
 # Startup
 libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
 libbsp_a_SOURCES += ../shared/startup/bsp-start-init-registers.S
-libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += startup/bspreset.c
 libbsp_a_SOURCES += startup/bspstart.c
 
@@ -151,7 +153,7 @@ libbsp_a_SOURCES += clock/benchmark_timer.c
 # RTC
 
 # GPIO
-
+libbsp_a_SOURCES += pinmux/pinmux.c
 # Timer
 
 # Benchmark Timer

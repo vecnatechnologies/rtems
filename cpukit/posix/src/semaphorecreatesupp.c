@@ -47,18 +47,12 @@ int _POSIX_Semaphore_Create_support(
   POSIX_Semaphore_Control  **the_sem
 )
 {
-  POSIX_Semaphore_Control   *the_semaphore;
-  CORE_semaphore_Attributes *the_sem_attr;
-  char                      *name;
+  POSIX_Semaphore_Control *the_semaphore;
+  char                    *name;
 
   /* Sharing semaphores among processes is not currently supported */
   if (pshared != 0)
     rtems_set_errno_and_return_minus_one( ENOSYS );
-
-  the_semaphore = _POSIX_Semaphore_Allocate_unprotected();
-  if ( !the_semaphore ) {
-    rtems_set_errno_and_return_minus_one( ENOSPC );
-  }
 
   /*
    * Make a copy of the user's string for name just in case it was
@@ -67,11 +61,16 @@ int _POSIX_Semaphore_Create_support(
   if ( name_arg != NULL ) {
     name = _Workspace_String_duplicate( name_arg, name_len );
     if ( !name ) {
-      _POSIX_Semaphore_Free( the_semaphore );
       rtems_set_errno_and_return_minus_one( ENOMEM );
     }
   } else {
     name = NULL;
+  }
+
+  the_semaphore = _POSIX_Semaphore_Allocate_unprotected();
+  if ( !the_semaphore ) {
+    _Workspace_Free( name );
+    rtems_set_errno_and_return_minus_one( ENOSPC );
   }
 
   the_semaphore->process_shared  = pshared;
@@ -86,8 +85,6 @@ int _POSIX_Semaphore_Create_support(
     the_semaphore->linked = false;
   }
 
-  the_sem_attr = &the_semaphore->Semaphore.Attributes;
-
   /*
    *  POSIX does not appear to specify what the discipline for
    *  blocking tasks on this semaphore should be.  It could somehow
@@ -95,14 +92,7 @@ int _POSIX_Semaphore_Create_support(
    *  thing is certain, no matter what we decide, it won't be
    *  the same as  all other POSIX implementations. :)
    */
-  the_sem_attr->discipline = CORE_SEMAPHORE_DISCIPLINES_FIFO;
-
-  /*
-   *  This effectively disables limit checking.
-   */
-  the_sem_attr->maximum_count = 0xFFFFFFFF;
-
-  _CORE_semaphore_Initialize( &the_semaphore->Semaphore, the_sem_attr, value );
+  _CORE_semaphore_Initialize( &the_semaphore->Semaphore, value );
 
   /*
    *  Make the semaphore available for use.

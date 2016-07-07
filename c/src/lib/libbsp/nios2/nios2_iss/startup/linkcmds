@@ -195,6 +195,7 @@ SECTIONS
         . = ALIGN(32 / 8);
         *(.rodata .rodata.* .gnu.linkonce.r.*)
         *(.rodata1)
+        KEEP (*(SORT(.rtemsroset.*)))
     } > onchip_memory_0
 
     .tdata : {
@@ -227,6 +228,7 @@ SECTIONS
         *(.got.plt) *(.got)
         *(.data1)
         *(.data .data.* .gnu.linkonce.d.*)
+        KEEP (*(SORT(.rtemsrwset.*)))
 
         _gp = ABSOLUTE(. + 0x8000);
         PROVIDE(gp = _gp);

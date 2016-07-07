@@ -1,11 +1,13 @@
-/*
- *  This file contains the libchip configuration information
- *  to instantiate the libchip driver for the VGA console
- *  and serial ports on a PC.
+/**
+ * @file
+ *
+ * This file contains the libchip configuration information
+ * to instantiate the libchip driver for the VGA console
+ * and serial ports on a PC.
  */
 
 /*
- *  COPYRIGHT (c) 1989-2014.
+ *  COPYRIGHT (c) 1989-2014, 2016.
  *  On-Line Applications Research Corporation (OAR).
  *
  *  The license and distribution terms for this file may be
@@ -13,17 +15,15 @@
  *  http://www.rtems.org/license/LICENSE.
  */
 
-#include <unistd.h> /* write */
-
 #include <bsp.h>
+#include <bsp/bspimpl.h>
 #include <libchip/serial.h>
 #include <libchip/ns16550.h>
 #if BSP_ENABLE_VGA
 #include "vgacons.h"
 #endif
 #include <bsp/irq.h>
-#include <rtems/pci.h>
-#include <bsp/rtd316.h>
+#include "../../../shared/console_private.h"
 
 #if BSP_ENABLE_VGA
 #define VGA_CONSOLE_FUNCTIONS  &vgacons_fns
@@ -44,19 +44,19 @@
   #define COM3_BASE_IO  0x2F8
   #define COM4_BASE_IO  0x2E8
 
-  #define CLOCK_RATE     (115200 * 16)
+  #define CLOCK_RATE    (115200 * 16)
 
   static uint8_t com_get_register(uint32_t addr, uint8_t i)
   {
     register uint8_t val;
-  
-    inport_byte( (addr + i),val );
+
+    inport_byte( (addr + i), val );
     return val;
   }
 
   static void com_set_register(uint32_t addr, uint8_t i, uint8_t val)
   {
-    outport_byte( (addr + i),val );
+    outport_byte( (addr + i), val );
   }
 #endif
 
@@ -64,29 +64,15 @@
   extern const console_fns edison_fns;
 #endif
 
-console_tbl     Console_Configuration_Ports[] = {
-#if (BSP_IS_EDISON == 1)
-  {
-    "/dev/vgacons",                        /* sDeviceName */
-    -1,                                     /* deviceType */
-    &edison_fns,                           /* pDeviceFns */
-    NULL,                                  /* deviceProbe */
-    NULL,                                  /* pDeviceFlow */
-    16,                                    /* ulMargin */
-    8,                                     /* ulHysteresis */
-    (void *) NULL,              /* NULL */ /* pDeviceParams */
-    0x00000000,                            /* ulCtrlPort1 */
-    0x00000000,                            /* ulCtrlPort2 */
-    0x00000000,                            /* ulDataPort */
-    NULL,                                  /* getRegister */
-    NULL,                                  /* setRegister */
-    NULL,/* unused */                      /* getData */
-    NULL,/* unused */                      /* setData */
-    0X0,                                   /* ulClock */
-    0x0                                     /* ulIntVector -- base for port */
-  },
-#endif
+/*
+ * Default to the PC VGA console if present and configured.
+ */
+console_tbl Console_Configuration_Ports[] = {
 #if BSP_ENABLE_VGA
+  /*
+   * If present the VGA console must always be minor 0.
+   * See console_control.
+   */
   {
     "/dev/vgacons",                        /* sDeviceName */
     VGA_CONSOLE,                           /* deviceType */
@@ -103,8 +89,35 @@ console_tbl     Console_Configuration_Ports[] = {
     NULL,                                  /* setRegister */
     NULL,/* unused */                      /* getData */
     NULL,/* unused */                      /* setData */
-    0X0,                                   /* ulClock */
-    0x0                                     /* ulIntVector -- base for port */
+    0x0,                                   /* ulClock */
+    0x0                                    /* ulIntVector -- base for port */
+  },
+#endif
+};
+
+unsigned long Console_Configuration_Count =
+    (sizeof(Console_Configuration_Ports)/sizeof(console_tbl));
+
+static console_tbl Legacy_Ports[] = {
+#if (BSP_IS_EDISON == 1)
+  {
+    "/dev/com1",                           /* sDeviceName */
+    -1,                                    /* deviceType */
+    &edison_fns,                           /* pDeviceFns */
+    NULL,                                  /* deviceProbe */
+    NULL,                                  /* pDeviceFlow */
+    16,                                    /* ulMargin */
+    8,                                     /* ulHysteresis */
+    (void *) NULL,              /* NULL */ /* pDeviceParams */
+    0x00000000,                            /* ulCtrlPort1 */
+    0x00000000,                            /* ulCtrlPort2 */
+    0x00000000,                            /* ulDataPort */
+    NULL,                                  /* getRegister */
+    NULL,                                  /* setRegister */
+    NULL,/* unused */                      /* getData */
+    NULL,/* unused */                      /* setData */
+    0x0,                                   /* ulClock */
+    0x0                                    /* ulIntVector -- base for port */
   },
 #endif
 #if BSP_ENABLE_COM1_COM4
@@ -112,7 +125,7 @@ console_tbl     Console_Configuration_Ports[] = {
     "/dev/com1",                           /* sDeviceName */
     SERIAL_NS16550,                        /* deviceType */
     COM_CONSOLE_FUNCTIONS,                 /* pDeviceFns */
-    NULL,                                  /* deviceProbe, assume it is there */
+    NULL,                                  /* deviceProbe */
     NULL,                                  /* pDeviceFlow */
     16,                                    /* ulMargin */
     8,                                     /* ulHysteresis */
@@ -131,7 +144,7 @@ console_tbl     Console_Configuration_Ports[] = {
     "/dev/com2",                           /* sDeviceName */
     SERIAL_NS16550,                        /* deviceType */
     COM_CONSOLE_FUNCTIONS,                 /* pDeviceFns */
-    NULL,                                  /* deviceProbe, assume it is there */
+    NULL,                                  /* deviceProbe */
     NULL,                                  /* pDeviceFlow */
     16,                                    /* ulMargin */
     8,                                     /* ulHysteresis */
@@ -146,12 +159,11 @@ console_tbl     Console_Configuration_Ports[] = {
     CLOCK_RATE,                            /* ulClock */
     BSP_UART_COM2_IRQ                      /* ulIntVector -- base for port */
   },
-
   {
     "/dev/com3",                           /* sDeviceName */
     SERIAL_NS16550,                        /* deviceType */
     COM_CONSOLE_FUNCTIONS,                 /* pDeviceFns */
-    NULL,                                  /* deviceProbe, assume it is there */
+    NULL,                                  /* deviceProbe */
     NULL,                                  /* pDeviceFlow */
     16,                                    /* ulMargin */
     8,                                     /* ulHysteresis */
@@ -166,12 +178,11 @@ console_tbl     Console_Configuration_Ports[] = {
     CLOCK_RATE,                            /* ulClock */
     BSP_UART_COM3_IRQ                      /* ulIntVector -- base for port */
   },
-
   {
     "/dev/com4",                           /* sDeviceName */
     SERIAL_NS16550,                        /* deviceType */
     COM_CONSOLE_FUNCTIONS,                 /* pDeviceFns */
-    NULL,                                  /* deviceProbe, assume it is there */
+    NULL,                                  /* deviceProbe */
     NULL,                                  /* pDeviceFlow */
     16,                                    /* ulMargin */
     8,                                     /* ulHysteresis */
@@ -187,12 +198,26 @@ console_tbl     Console_Configuration_Ports[] = {
     BSP_UART_COM4_IRQ                      /* ulIntVector -- base for port */
   },
 #endif
-
 };
 
-/*
- *  Define a variable that contains the number of statically configured
- *  console devices.
- */
-unsigned long  Console_Configuration_Count = \
-    (sizeof(Console_Configuration_Ports)/sizeof(console_tbl));
+#define Legacy_Port_Count \
+    (sizeof(Legacy_Ports)/sizeof(console_tbl))
+
+void legacy_uart_probe(void)
+{
+#if BSP_ENABLE_COM1_COM4
+  const char *opt;
+  /*
+   * Check the command line to see if com1-com4 are disabled.
+   */
+  opt = bsp_cmdline_arg("--disable-com1-com4");
+  if ( opt ) {
+    printk( "COM1-COM4: disabled\n" );
+  } else {
+    if (Legacy_Port_Count) {
+      printk("Legacy UART Ports: COM1-COM4\n");
+      console_register_devices( Legacy_Ports, Legacy_Port_Count );
+    }
+  }
+#endif
+}

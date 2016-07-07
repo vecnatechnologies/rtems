@@ -74,7 +74,9 @@ static void test_initial_values(void)
   rtems_test_assert(null_mt->mt_fs_root == null_loc);
   rtems_test_assert(!null_mt->mounted);
   rtems_test_assert(!null_mt->writeable);
-  rtems_test_assert(null_loc->reference_count == 4);
+  rtems_test_assert(null_loc->reference_count == 6);
+  rtems_test_assert(null_loc->deferred_released_next == NULL);
+  rtems_test_assert(null_loc->deferred_released_count == 2);
 }
 
 static void test_location_obtain(void)
@@ -493,9 +495,7 @@ static void test_check_access(void)
 
 static void Init(rtems_task_argument arg)
 {
-  rtems_test_begink();
-
-  rtems_libio_init();
+  TEST_BEGIN();
 
   test_initial_values();
   test_location_obtain();
@@ -506,7 +506,7 @@ static void Init(rtems_task_argument arg)
   test_user_env();
   test_check_access();
 
-  rtems_test_endk();
+  TEST_END();
   exit(0);
 }
 

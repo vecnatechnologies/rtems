@@ -23,6 +23,7 @@
 #include <rtems/score/corerwlockimpl.h>
 #include <rtems/score/objectimpl.h>
 
+#include <errno.h>
 #include <pthread.h>
 
 #ifdef __cplusplus
@@ -34,38 +35,7 @@ extern "C" {
  * this class of objects.
  */
 
-POSIX_EXTERN Objects_Information  _POSIX_RWLock_Information;
-
-/**
- * @brief POSIX RWLock manager initialization.
- *
- * This routine performs the initialization necessary for this manager.
- */
-
-void _POSIX_RWLock_Manager_initialization(void);
-
-/**
- * @brief POSIX translate core RWLock return code.
- *
- * This routine translates SuperCore RWLock status codes into the
- * corresponding POSIX ones.
- *
- *
- * @param[in] the_RWLock_status is the SuperCore status.
- *
- * @return the corresponding POSIX status
- * @retval 0 The status indicates that the operation completed successfully.
- * @retval EINVAL The status indicates that the thread was blocked waiting for
- * an operation to complete and the RWLock was deleted.
- * @retval EBUSY This status indicates that the RWLock was not 
- * immediately available.
- * @retval ETIMEDOUT This status indicates that the calling task was 
- * willing to block but the operation was unable to complete within
- * the time allotted because the resource never became available.
- */
-int _POSIX_RWLock_Translate_core_RWLock_return_code(
-  CORE_RWLock_Status  the_RWLock_status
-);
+extern Objects_Information _POSIX_RWLock_Information;
 
 /**
  * @brief Allocate a RWLock control block.
@@ -94,8 +64,8 @@ RTEMS_INLINE_ROUTINE void _POSIX_RWLock_Free (
 }
 
 POSIX_RWLock_Control *_POSIX_RWLock_Get(
-  pthread_rwlock_t  *rwlock,
-  Objects_Locations *location
+  pthread_rwlock_t     *rwlock,
+  Thread_queue_Context *queue_context
 );
 
 #ifdef __cplusplus

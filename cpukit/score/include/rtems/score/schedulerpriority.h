@@ -44,12 +44,12 @@ extern "C" {
     _Scheduler_priority_Yield,            /* yield entry point */ \
     _Scheduler_priority_Block,            /* block entry point */ \
     _Scheduler_priority_Unblock,          /* unblock entry point */ \
-    _Scheduler_priority_Change_priority,  /* change priority entry point */ \
-    SCHEDULER_OPERATION_DEFAULT_ASK_FOR_HELP \
-    _Scheduler_default_Node_initialize,   /* node initialize entry point */ \
-    _Scheduler_default_Node_destroy,      /* node destroy entry point */ \
     _Scheduler_priority_Update_priority,  /* update priority entry point */ \
-    _Scheduler_priority_Priority_compare, /* compares two priorities */ \
+    _Scheduler_default_Map_priority,      /* map priority entry point */ \
+    _Scheduler_default_Unmap_priority,    /* unmap priority entry point */ \
+    SCHEDULER_OPERATION_DEFAULT_ASK_FOR_HELP \
+    _Scheduler_priority_Node_initialize,  /* node initialize entry point */ \
+    _Scheduler_default_Node_destroy,      /* node destroy entry point */ \
     _Scheduler_default_Release_job,       /* new period of task */ \
     _Scheduler_default_Tick,              /* tick entry point */ \
     _Scheduler_default_Start_idle         /* start idle entry point */ \
@@ -77,6 +77,11 @@ typedef struct {
  * @brief Data for ready queue operations.
  */
 typedef struct {
+  /**
+   * @brief The thread priority currently used by the scheduler.
+   */
+  unsigned int current_priority;
+
   /** This field points to the Ready FIFO for this thread's priority. */
   Chain_Control                        *ready_chain;
 
@@ -133,16 +138,6 @@ void _Scheduler_priority_Schedule(
 );
 
 /**
- *  @brief Updates the scheduler node to reflect the new priority of the
- *  thread.
- */
-void _Scheduler_priority_Update_priority(
-  const Scheduler_Control *scheduler,
-  Thread_Control          *the_thread,
-  Priority_Control         new_priority
-);
-
-/**
  *  @brief Add @a the_thread to the scheduling decision.
  *
  *  This routine adds @a the_thread to the scheduling decision,
@@ -157,11 +152,16 @@ Scheduler_Void_or_thread _Scheduler_priority_Unblock(
   Thread_Control          *the_thread
 );
 
-Scheduler_Void_or_thread _Scheduler_priority_Change_priority(
+Scheduler_Void_or_thread _Scheduler_priority_Update_priority(
   const Scheduler_Control *scheduler,
+  Thread_Control          *the_thread
+);
+
+void _Scheduler_priority_Node_initialize(
+  const Scheduler_Control *scheduler,
+  Scheduler_Node          *node,
   Thread_Control          *the_thread,
-  Priority_Control         new_priority,
-  bool                     prepend_it
+  Priority_Control         priority
 );
 
 /**
@@ -187,18 +187,6 @@ Scheduler_Void_or_thread _Scheduler_priority_Change_priority(
 Scheduler_Void_or_thread _Scheduler_priority_Yield(
   const Scheduler_Control *scheduler,
   Thread_Control          *the_thread
-);
-
-/**
- *  @brief Compare two priorities.
- *
- *  This routine compares two priorities.
- *
- * @retval >0 for p1 > p2; 0 for p1 == p2; <0 for p1 < p2.
- */
-int _Scheduler_priority_Priority_compare(
-  Priority_Control   p1,
-  Priority_Control   p2
 );
 
 /**@}*/

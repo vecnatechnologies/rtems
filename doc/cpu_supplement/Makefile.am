@@ -1,5 +1,5 @@
 #
-#  COPYRIGHT (c) 1988-2012.
+#  COPYRIGHT (c) 1988-2015.
 #  On-Line Applications Research Corporation (OAR).
 #  All rights reserved.
 
@@ -13,14 +13,11 @@ REPLACE2 = $(PERL) $(top_srcdir)/tools/word-replace2
 GENERATED_FILES =
 GENERATED_FILES += general.texi
 GENERATED_FILES += arm.texi
-GENERATED_FILES += avr.texi
 GENERATED_FILES += bfin.texi
 GENERATED_FILES += epiphany.texi
-GENERATED_FILES += h8300.texi
 GENERATED_FILES += i386.texi
 GENERATED_FILES += lm32.texi
 GENERATED_FILES += m32c.texi
-GENERATED_FILES += m32r.texi
 GENERATED_FILES += m68k.texi
 GENERATED_FILES += microblaze.texi
 GENERATED_FILES += mips.texi
@@ -53,11 +50,6 @@ arm.texi: arm.t
 	    -u "Top" \
 	    -n "" < $< > $@
 
-avr.texi: avr.t
-	$(BMENU2) -p "" \
-	    -u "Top" \
-	    -n "" < $< > $@
-
 bfin.texi: bfin.t
 	$(BMENU2) -p "" \
 	    -u "Top" \
@@ -68,22 +60,12 @@ epiphany.texi: epiphany.t
 	    -u "Top" \
 	    -n "" < $< > $@
 
-h8300.texi: h8300.t
-	$(BMENU2) -p "" \
-	    -u "Top" \
-	    -n "" < $< > $@
-
 i386.texi: i386.t
 	$(BMENU2) -p "" \
 	    -u "Top" \
 	    -n "" < $< > $@
 
 m32c.texi: m32c.t
-	$(BMENU2) -p "" \
-	    -u "Top" \
-	    -n "" < $< > $@
-
-m32r.texi: m32r.t
 	$(BMENU2) -p "" \
 	    -u "Top" \
 	    -n "" < $< > $@

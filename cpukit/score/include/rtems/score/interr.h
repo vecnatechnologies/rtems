@@ -154,14 +154,16 @@ typedef enum {
   INTERNAL_ERROR_BAD_ATTRIBUTES,
   INTERNAL_ERROR_IMPLEMENTATION_KEY_CREATE_INCONSISTENCY,
   OBSOLETE_INTERNAL_ERROR_IMPLEMENTATION_BLOCKING_OPERATION_CANCEL,
-  INTERNAL_ERROR_MUTEX_OBTAIN_FROM_BAD_STATE,
+  INTERNAL_ERROR_THREAD_QUEUE_ENQUEUE_FROM_BAD_STATE,
   INTERNAL_ERROR_UNLIMITED_AND_MAXIMUM_IS_0,
   OBSOLETE_INTERNAL_ERROR_SHUTDOWN_WHEN_NOT_UP,
   INTERNAL_ERROR_GXX_KEY_ADD_FAILED,
   INTERNAL_ERROR_GXX_MUTEX_INIT_FAILED,
   INTERNAL_ERROR_NO_MEMORY_FOR_HEAP,
   INTERNAL_ERROR_CPU_ISR_INSTALL_VECTOR,
-  INTERNAL_ERROR_RESOURCE_IN_USE
+  INTERNAL_ERROR_RESOURCE_IN_USE,
+  INTERNAL_ERROR_RTEMS_INIT_TASK_ENTRY_IS_NULL,
+  INTERNAL_ERROR_POSIX_INIT_THREAD_ENTRY_IS_NULL
 } Internal_errors_Core_list;
 
 typedef CPU_Uint32ptr Internal_errors_t;
@@ -190,9 +192,7 @@ extern Internal_errors_Information _Internal_errors_What_happened;
  * determines that a fatal error has occurred or a final system state is
  * reached (for example after exit()).
  *
- * The first action is to disable interrupts.
- *
- * The second action of this function is to call the fatal handler of the user
+ * The first action of this function is to call the fatal handler of the user
  * extensions.  For the initial extensions the following conditions are
  * required
  * - a valid stack pointer and enough stack space,
@@ -228,7 +228,7 @@ void _Terminate(
   Internal_errors_Source  the_source,
   bool                    is_internal,
   Internal_errors_t       the_error
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 #ifdef __cplusplus
 }

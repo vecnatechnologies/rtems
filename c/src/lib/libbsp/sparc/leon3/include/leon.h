@@ -194,6 +194,24 @@ extern rtems_interrupt_lock LEON3_IrqCtrl_Lock;
     LEON3_IrqCtrl_Regs->iforce = (1 << (_source)); \
   } while (0)
 
+#define LEON_Enable_interrupt_broadcast( _source ) \
+  do { \
+    rtems_interrupt_lock_context _lock_context; \
+    uint32_t _mask = 1U << ( _source ); \
+    LEON3_IRQCTRL_ACQUIRE( &_lock_context ); \
+    LEON3_IrqCtrl_Regs->bcast |= _mask; \
+    LEON3_IRQCTRL_RELEASE( &_lock_context ); \
+  } while (0)
+
+#define LEON_Disable_interrupt_broadcast( _source ) \
+  do { \
+    rtems_interrupt_lock_context _lock_context; \
+    uint32_t _mask = 1U << ( _source ); \
+    LEON3_IRQCTRL_ACQUIRE( &_lock_context ); \
+    LEON3_IrqCtrl_Regs->bcast &= ~_mask; \
+    LEON3_IRQCTRL_RELEASE( &_lock_context ); \
+  } while (0)
+
 #define LEON_Is_interrupt_pending( _source ) \
   (LEON3_IrqCtrl_Regs->ipend & (1 << (_source)))
 
@@ -369,14 +387,10 @@ extern int leon3_timer_core_index;
  */
 extern unsigned int leon3_timer_prescaler;
 
-void leon3_cpu_counter_initialize(void);
-
 /* GRLIB extended IRQ controller register */
 void leon3_ext_irq_init(void);
 
-void bsp_debug_uart_init(void);
-
-void leon3_power_down_loop(void) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+void leon3_power_down_loop(void) RTEMS_NO_RETURN;
 
 static inline uint32_t leon3_get_cpu_count(
   volatile struct irqmp_regs *irqmp
@@ -439,6 +453,51 @@ static inline bool leon3_irqmp_has_timestamp(
 )
 {
   return (irqmp_ts->control >> 27) > 0;
+}
+
+static inline uint32_t leon3_up_counter_low(void)
+{
+  uint32_t asr23;
+
+  __asm__ volatile (
+    "mov %%asr23, %0"
+    : "=&r" (asr23)
+  );
+
+  return asr23;
+}
+
+static inline uint32_t leon3_up_counter_high(void)
+{
+  uint32_t asr22;
+
+  __asm__ volatile (
+    "mov %%asr22, %0"
+    : "=&r" (asr22)
+  );
+
+  return asr22;
+}
+
+static inline void leon3_up_counter_enable(void)
+{
+  __asm__ volatile (
+    "mov %g0, %asr23"
+  );
+}
+
+static inline bool leon3_up_counter_is_available(void)
+{
+  return leon3_up_counter_low() != leon3_up_counter_low();
+}
+
+static inline uint32_t leon3_up_counter_frequency(void)
+{
+  /*
+   * For simplicity, assume that the interrupt controller uses the processor
+   * clock.  This is at least true on the GR740.
+   */
+  return ambapp_freq_get(&ambapp_plb, LEON3_IrqCtrl_Adev);
 }
 
 #endif /* !ASM */

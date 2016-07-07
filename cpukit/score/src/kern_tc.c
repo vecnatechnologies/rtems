@@ -14,25 +14,27 @@
  */
 
 #ifdef __rtems__
-#define _KERNEL
-#define bintime _Timecounter_Bintime
-#define binuptime _Timecounter_Binuptime
-#define boottimebin _Timecounter_Boottimebin
-#define getbintime _Timecounter_Getbintime
-#define getbinuptime _Timecounter_Getbinuptime
-#define getmicrotime _Timecounter_Getmicrotime
-#define getmicrouptime _Timecounter_Getmicrouptime
-#define getnanotime _Timecounter_Getnanotime
-#define getnanouptime _Timecounter_Getnanouptime
-#define microtime _Timecounter_Microtime
-#define microuptime _Timecounter_Microuptime
-#define nanotime _Timecounter_Nanotime
-#define nanouptime _Timecounter_Nanouptime
-#define tc_init _Timecounter_Install
-#define timecounter _Timecounter
-#define time_second _Timecounter_Time_second
-#define time_uptime _Timecounter_Time_uptime
+#define	_KERNEL
+#define	binuptime(_bt) _Timecounter_Binuptime(_bt)
+#define	nanouptime(_tsp) _Timecounter_Nanouptime(_tsp)
+#define	microuptime(_tvp) _Timecounter_Microuptime(_tvp)
+#define	bintime(_bt) _Timecounter_Bintime(_bt)
+#define	nanotime(_tsp) _Timecounter_Nanotime(_tsp)
+#define	microtime(_tvp) _Timecounter_Microtime(_tvp)
+#define	getbinuptime(_bt) _Timecounter_Getbinuptime(_bt)
+#define	getnanouptime(_tsp) _Timecounter_Getnanouptime(_tsp)
+#define	getmicrouptime(_tvp) _Timecounter_Getmicrouptime(_tvp)
+#define	getbintime(_bt) _Timecounter_Getbintime(_bt)
+#define	getnanotime(_tsp) _Timecounter_Getnanotime(_tsp)
+#define	getmicrotime(_tvp) _Timecounter_Getmicrotime(_tvp)
+#define	tc_init _Timecounter_Install
+#define	timecounter _Timecounter
+#define	time_second _Timecounter_Time_second
+#define	time_uptime _Timecounter_Time_uptime
+#define	boottimebin _Timecounter_Boottimebin
 #include <rtems/score/timecounterimpl.h>
+#include <rtems/score/smp.h>
+#include <rtems/score/todimpl.h>
 #include <rtems/score/watchdogimpl.h>
 #endif /* __rtems__ */
 #include <sys/cdefs.h>
@@ -64,9 +66,12 @@ __FBSDID("$FreeBSD r284178 2015-06-09T11:49:56Z$");
 #ifdef __rtems__
 #include <limits.h>
 #include <rtems.h>
-ISR_LOCK_DEFINE(static, _Timecounter_Lock, "Timecounter");
+ISR_LOCK_DEFINE(, _Timecounter_Lock, "Timecounter")
+#define _Timecounter_Release(lock_context) \
+  _ISR_lock_Release_and_ISR_enable(&_Timecounter_Lock, lock_context)
 #define hz rtems_clock_get_ticks_per_second()
 #define printf(...)
+#define bcopy(x, y, z) memcpy(y, x, z);
 #define log(...)
 static inline int
 fls(int x)
@@ -143,8 +148,13 @@ static struct timehands th0 = {
 	(uint64_t)-1 / 1000000,
 	0,
 	{1, 0},
+#ifndef __rtems__
 	{0, 0},
 	{0, 0},
+#else /* __rtems__ */
+	{TOD_SECONDS_1970_THROUGH_1988, 0},
+	{TOD_SECONDS_1970_THROUGH_1988, 0},
+#endif /* __rtems__ */
 	1,
 #if defined(RTEMS_SMP)
 	&th1
@@ -161,10 +171,20 @@ static struct timecounter *timecounters = &dummy_timecounter;
 int tc_min_ticktock_freq = 1;
 #endif /* __rtems__ */
 
+#ifndef __rtems__
 volatile time_t time_second = 1;
+#else /* __rtems__ */
+volatile time_t time_second = TOD_SECONDS_1970_THROUGH_1988;
+#endif /* __rtems__ */
 volatile time_t time_uptime = 1;
 
+#ifndef __rtems__
 struct bintime boottimebin;
+#else /* __rtems__ */
+struct bintime boottimebin = {
+  .sec = TOD_SECONDS_1970_THROUGH_1988 - 1
+};
+#endif /* __rtems__ */
 #ifndef __rtems__
 struct timeval boottime;
 static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
@@ -196,6 +216,8 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
 static void tc_windup(void);
 #ifndef __rtems__
 static void cpu_tick_calibrate(int);
+#else /* __rtems__ */
+static void _Timecounter_Windup(ISR_lock_Context *lock_context);
 #endif /* __rtems__ */
 
 void dtrace_getnanotime(struct timespec *tsp);
@@ -1325,12 +1347,12 @@ tc_getfrequency(void)
  * when we booted.
  * XXX: not locked.
  */
-#ifndef __rtems__
 void
+#ifndef __rtems__
 tc_setclock(struct timespec *ts)
 #else /* __rtems__ */
-void
-_Timecounter_Set_clock(const struct timespec *ts)
+_Timecounter_Set_clock(const struct bintime *_bt,
+    ISR_lock_Context *lock_context)
 #endif /* __rtems__ */
 {
 #ifndef __rtems__
@@ -1341,19 +1363,19 @@ _Timecounter_Set_clock(const struct timespec *ts)
 #ifndef __rtems__
 	cpu_tick_calibrate(1);
 	nanotime(&tbef);
-#endif /* __rtems__ */
 	timespec2bintime(ts, &bt);
+#else /* __rtems__ */
+	bt = *_bt;
+#endif /* __rtems__ */
 	binuptime(&bt2);
 	bintime_sub(&bt, &bt2);
 	bintime_add(&bt2, &boottimebin);
 	boottimebin = bt;
 #ifndef __rtems__
 	bintime2timeval(&bt, &boottime);
-#endif /* __rtems__ */
 
 	/* XXX fiddle all the little crinkly bits around the fiords... */
 	tc_windup();
-#ifndef __rtems__
 	nanotime(&taft);
 	if (timestepwarnings) {
 		log(LOG_INFO,
@@ -1363,6 +1385,8 @@ _Timecounter_Set_clock(const struct timespec *ts)
 		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 	}
 	cpu_tick_calibrate(1);
+#else /* __rtems__ */
+	_Timecounter_Windup(lock_context);
 #endif /* __rtems__ */
 }
 
@@ -1373,6 +1397,17 @@ _Timecounter_Set_clock(const struct timespec *ts)
  */
 static void
 tc_windup(void)
+#ifdef __rtems__
+{
+        ISR_lock_Context lock_context;
+
+        _Timecounter_Acquire(&lock_context);
+        _Timecounter_Windup(&lock_context);
+}
+
+static void
+_Timecounter_Windup(ISR_lock_Context *lock_context)
+#endif /* __rtems__ */
 {
 	struct bintime bt;
 	struct timehands *th, *tho;
@@ -1380,11 +1415,6 @@ tc_windup(void)
 	uint32_t delta, ncount, ogen;
 	int i;
 	time_t t;
-#ifdef __rtems__
-	ISR_lock_Context lock_context;
-
-	_ISR_lock_ISR_disable_and_acquire(&_Timecounter_Lock, &lock_context);
-#endif /* __rtems__ */
 
 	/*
 	 * Make the next timehands a copy of the current one, but do not
@@ -1392,10 +1422,16 @@ tc_windup(void)
 	 * the contents, the generation must be zero.
 	 */
 	tho = timehands;
+#if defined(RTEMS_SMP)
 	th = tho->th_next;
+#else
+	th = tho;
+#endif
 	ogen = th->th_generation;
 	tc_setgen(th, 0);
+#if defined(RTEMS_SMP)
 	bcopy(tho, th, offsetof(struct timehands, th_generation));
+#endif
 
 	/*
 	 * Capture a timecounter delta on the current timecounter and if
@@ -1533,12 +1569,14 @@ tc_windup(void)
 	}
 #endif
 
+#if defined(RTEMS_SMP)
 	timehands = th;
+#endif
 #ifndef __rtems__
 	timekeep_push_vdso();
 #endif /* __rtems__ */
 #ifdef __rtems__
-	_ISR_lock_Release_and_ISR_enable(&_Timecounter_Lock, &lock_context);
+	_Timecounter_Release(lock_context);
 #endif /* __rtems__ */
 }
 
@@ -1951,26 +1989,28 @@ tc_ticktock(int cnt)
 	if (count < tc_tick)
 		return;
 	count = 0;
+	tc_windup();
+}
 #else /* __rtems__ */
 void
 _Timecounter_Tick(void)
 {
-#endif /* __rtems__ */
-	tc_windup();
-#ifdef __rtems__
-	_Watchdog_Tick();
-#endif /* __rtems__ */
+	Per_CPU_Control *cpu_self = _Per_CPU_Get();
+
+	if (_Per_CPU_Is_boot_processor(cpu_self)) {
+                tc_windup();
+	}
+
+	_Watchdog_Tick(cpu_self);
 }
-#ifdef __rtems__
+
 void
-_Timecounter_Tick_simple(uint32_t delta, uint32_t offset)
+_Timecounter_Tick_simple(uint32_t delta, uint32_t offset,
+    ISR_lock_Context *lock_context)
 {
 	struct bintime bt;
 	struct timehands *th;
 	uint32_t ogen;
-	ISR_lock_Context lock_context;
-
-	_ISR_lock_ISR_disable_and_acquire(&_Timecounter_Lock, &lock_context);
 
 	th = timehands;
 	ogen = th->th_generation;
@@ -1997,9 +2037,9 @@ _Timecounter_Tick_simple(uint32_t delta, uint32_t offset)
 	time_second = th->th_microtime.tv_sec;
 	time_uptime = th->th_offset.sec;
 
-	_ISR_lock_Release_and_ISR_enable(&_Timecounter_Lock, &lock_context);
+	_Timecounter_Release(lock_context);
 
-	_Watchdog_Tick();
+	_Watchdog_Tick(_Per_CPU_Get_snapshot());
 }
 #endif /* __rtems__ */
 
@@ -2044,17 +2084,10 @@ sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS)
 done:
 	return (0);
 }
-#endif /* __rtems__ */
 
-#ifndef __rtems__
 static void
 inittimecounter(void *dummy)
-#else /* __rtems__ */
-void
-_Timecounter_Initialize(void)
-#endif /* __rtems__ */
 {
-#ifndef __rtems__
 	u_int p;
 	int tick_rate;
 
@@ -2078,7 +2111,6 @@ _Timecounter_Initialize(void)
 	tc_tick_sbt = bttosbt(tc_tick_bt);
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
-#endif /* __rtems__ */
 
 #ifdef FFCLOCK
 	ffclock_init();
@@ -2089,11 +2121,8 @@ _Timecounter_Initialize(void)
 	tc_windup();
 }
 
-#ifndef __rtems__
 SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL);
-#endif /* __rtems__ */
 
-#ifndef __rtems__
 /* Cpu tick handling -------------------------------------------------*/
 
 static int cpu_tick_variable;

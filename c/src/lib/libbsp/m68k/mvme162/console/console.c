@@ -20,9 +20,11 @@
 
 #define M162_INIT
 
-#include <bsp.h>
+#include <rtems/bspIo.h>
+#include <rtems/console.h>
 #include <rtems/libio.h>
 #include <rtems/ringbuf.h>
+#include <bsp.h>
 
 Ring_buffer_t  Console_Buffer[2];
 

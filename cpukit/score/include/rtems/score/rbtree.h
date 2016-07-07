@@ -57,33 +57,6 @@ typedef struct RBTree_Node {
 typedef RB_HEAD(RBTree_Control, RBTree_Node) RBTree_Control;
 
 /**
- * @brief Integer type for compare results.
- *
- * The type is large enough to represent pointers and 32-bit signed integers.
- *
- * @see RBTree_Compare.
- */
-typedef long RBTree_Compare_result;
-
-/**
- * @brief Compares two red-black tree nodes.
- *
- * @param[in] first The first node.
- * @param[in] second The second node.
- *
- * @retval positive The key value of the first node is greater than the one of
- *   the second node.
- * @retval 0 The key value of the first node is equal to the one of the second
- *   node.
- * @retval negative The key value of the first node is less than the one of the
- *   second node.
- */
-typedef RBTree_Compare_result ( *RBTree_Compare )(
-  const RBTree_Node *first,
-  const RBTree_Node *second
-);
-
-/**
  * @brief Initializer for an empty red-black tree with designator @a name.
  */
 #define RBTREE_INITIALIZER_EMPTY( name ) \
@@ -94,50 +67,6 @@ typedef RBTree_Compare_result ( *RBTree_Compare )(
  */
 #define RBTREE_DEFINE_EMPTY( name ) \
   RBTree_Control name = RBTREE_INITIALIZER_EMPTY( name )
-
-/**
- * @brief Tries to find a node for the specified key in the tree.
- *
- * @param[in] the_rbtree The red-black tree control.
- * @param[in] the_node A node specifying the key.
- * @param[in] compare The node compare function.
- * @param[in] is_unique If true, then return the first node with a key equal to
- *   the one of the node specified if it exits, else return the last node if it
- *   exists.
- *
- * @retval node A node corresponding to the key.  If the tree is not unique
- * and contains duplicate keys, the set of duplicate keys acts as FIFO.
- * @retval NULL No node exists in the tree for the key.
- */
-RBTree_Node *_RBTree_Find(
-  const RBTree_Control *the_rbtree,
-  const RBTree_Node    *the_node,
-  RBTree_Compare        compare,
-  bool                  is_unique
-);
-
-/**
- * @brief Inserts the node into the red-black tree.
- *
- * In case the node is already a node of a tree, then this function yields
- * unpredictable results.
- *
- * @param[in] the_rbtree The red-black tree control.
- * @param[in] the_node The node to insert.
- * @param[in] compare The node compare function.
- * @param[in] is_unique If true, then reject nodes with a duplicate key, else
- *   insert nodes in FIFO order in case the key value is equal to existing nodes.
- *
- * @retval NULL Successfully inserted.
- * @retval existing_node This is a unique insert and there exists a node with
- *   an equal key in the tree already.
- */
-RBTree_Node *_RBTree_Insert(
-  RBTree_Control *the_rbtree,
-  RBTree_Node    *the_node,
-  RBTree_Compare  compare,
-  bool            is_unique
-);
 
 /**
  * @brief Rebalances the red-black tree after insertion of the node.
@@ -301,6 +230,16 @@ RTEMS_INLINE_ROUTINE RBTree_Node *_RBTree_Root(
  */
 RTEMS_INLINE_ROUTINE RBTree_Node **_RBTree_Root_reference(
   RBTree_Control *the_rbtree
+)
+{
+  return &RB_ROOT( the_rbtree );
+}
+
+/**
+ * @brief Returns a constant reference to the root pointer of the red-black tree.
+ */
+RTEMS_INLINE_ROUTINE RBTree_Node * const *_RBTree_Root_const_reference(
+  const RBTree_Control *the_rbtree
 )
 {
   return &RB_ROOT( the_rbtree );
@@ -482,6 +421,93 @@ void _RBTree_Replace_node(
   RBTree_Node    *victim,
   RBTree_Node    *replacement
 );
+
+/**
+ * @brief Inserts the node into the red-black tree.
+ *
+ * @param the_rbtree The red-black tree control.
+ * @param the_node The node to insert.
+ * @param key The key of the node to insert.  This key must be equal to the key
+ *   stored in the node to insert.  The separate key parameter is provided for
+ *   two reasons.  Firstly, it allows to share the less operator with
+ *   _RBTree_Find_inline().  Secondly, the compiler may generate better code if
+ *   the key is stored in a local variable.
+ * @param less Must return true if the specified key is less than the key of
+ *   the node, otherwise false.
+ */
+RTEMS_INLINE_ROUTINE void _RBTree_Insert_inline(
+  RBTree_Control *the_rbtree,
+  RBTree_Node    *the_node,
+  const void     *key,
+  bool         ( *less )( const void *, const RBTree_Node * )
+)
+{
+  RBTree_Node **link;
+  RBTree_Node  *parent;
+
+  link = _RBTree_Root_reference( the_rbtree );
+  parent = NULL;
+
+  while ( *link != NULL ) {
+    parent = *link;
+
+    if ( ( *less )( key, parent ) ) {
+      link = _RBTree_Left_reference( parent );
+    } else {
+      link = _RBTree_Right_reference( parent );
+    }
+  }
+
+  _RBTree_Add_child( the_node, parent, link );
+  _RBTree_Insert_color( the_rbtree, the_node );
+}
+
+/**
+ * @brief Finds an object in the red-black tree with the specified key.
+ *
+ * @param the_rbtree The red-black tree control.
+ * @param key The key to look after.
+ * @param equal Must return true if the specified key equals the key of the
+ *   node, otherwise false.
+ * @param less Must return true if the specified key is less than the key of
+ *   the node, otherwise false.
+ * @param map In case a node with the specified key is found, then this
+ *   function is called to map the node to the object returned.  Usually it
+ *   performs some offset operation via RTEMS_CONTAINER_OF() to map the node to
+ *   its containing object.  Thus, the return type is a void pointer and not a
+ *   red-black tree node.
+ *
+ * @retval object An object with the specified key.
+ * @retval NULL No object with the specified key exists in the red-black tree.
+ */
+RTEMS_INLINE_ROUTINE void *_RBTree_Find_inline(
+  const RBTree_Control *the_rbtree,
+  const void           *key,
+  bool               ( *equal )( const void *, const RBTree_Node * ),
+  bool               ( *less )( const void *, const RBTree_Node * ),
+  void              *( *map )( RBTree_Node * )
+)
+{
+  RBTree_Node * const *link;
+  RBTree_Node         *parent;
+
+  link = _RBTree_Root_const_reference( the_rbtree );
+  parent = NULL;
+
+  while ( *link != NULL ) {
+    parent = *link;
+
+    if ( ( *equal )( key, parent ) ) {
+      return ( *map )( parent );
+    } else if ( ( *less )( key, parent ) ) {
+      link = _RBTree_Left_reference( parent );
+    } else {
+      link = _RBTree_Right_reference( parent );
+    }
+  }
+
+  return NULL;
+}
 
 /**@}*/
 

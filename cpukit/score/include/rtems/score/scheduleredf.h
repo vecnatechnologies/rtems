@@ -24,6 +24,8 @@
 #include <rtems/score/schedulerpriority.h>
 #include <rtems/score/rbtree.h>
 
+#include <limits.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,6 +37,13 @@ extern "C" {
  */
 /**@{*/
 
+/*
+ * Actually the EDF scheduler supports a maximum priority of
+ * 0x7fffffffffffffff, but the user API is limited to uint32_t or int for
+ * thread priorities.  Ignore ILP64 targets for now.
+ */
+#define SCHEDULER_EDF_MAXIMUM_PRIORITY INT_MAX
+
 /**
  *  Entry points for the Earliest Deadline First Scheduler.
  */
@@ -45,26 +54,17 @@ extern "C" {
     _Scheduler_EDF_Yield,            /* yield entry point */ \
     _Scheduler_EDF_Block,            /* block entry point */ \
     _Scheduler_EDF_Unblock,          /* unblock entry point */ \
-    _Scheduler_EDF_Change_priority,  /* change priority entry point */ \
+    _Scheduler_EDF_Update_priority,  /* update priority entry point */ \
+    _Scheduler_EDF_Map_priority,     /* map priority entry point */ \
+    _Scheduler_EDF_Unmap_priority,   /* unmap priority entry point */ \
     SCHEDULER_OPERATION_DEFAULT_ASK_FOR_HELP \
     _Scheduler_EDF_Node_initialize,  /* node initialize entry point */ \
     _Scheduler_default_Node_destroy, /* node destroy entry point */ \
-    _Scheduler_EDF_Update_priority,  /* update priority entry point */ \
-    _Scheduler_EDF_Priority_compare, /* compares two priorities */ \
     _Scheduler_EDF_Release_job,      /* new period of task */ \
     _Scheduler_default_Tick,         /* tick entry point */ \
     _Scheduler_default_Start_idle    /* start idle entry point */ \
     SCHEDULER_OPERATION_DEFAULT_GET_SET_AFFINITY \
   }
-
-/**
- * This is just a most significant bit of Priority_Control type. It
- * distinguishes threads which are deadline driven (priority
- * represented by a lower number than @a SCHEDULER_EDF_PRIO_MSB) from those
- * ones who do not have any deadlines and thus are considered background
- * tasks.
- */
-#define SCHEDULER_EDF_PRIO_MSB 0x80000000
 
 typedef struct {
   /**
@@ -77,18 +77,6 @@ typedef struct {
    */
   RBTree_Control Ready;
 } Scheduler_EDF_Context;
-
-/**
- * @typedef Scheduler_EDF_Queue_state
- *
- * This enumeration distiguishes state of a thread with respect to the
- * ready queue.
- */
-typedef enum {
-  SCHEDULER_EDF_QUEUE_STATE_NOT_PRESENTLY,
-  SCHEDULER_EDF_QUEUE_STATE_YES,
-  SCHEDULER_EDF_QUEUE_STATE_NEVER_HAS_BEEN
-} Scheduler_EDF_Queue_state;
 
 /**
  * @brief Scheduler node specialization for EDF schedulers.
@@ -107,10 +95,17 @@ typedef struct {
    * Rbtree node related to this thread.
    */
   RBTree_Node Node;
+
   /**
-   * State of the thread with respect to ready queue.
+   * @brief The thread priority used by this scheduler instance in case no job
+   * is released.
    */
-  Scheduler_EDF_Queue_state queue_state;
+  Priority_Control background_priority;
+
+  /**
+   * @brief The thread priority currently used by this scheduler instance.
+   */
+  Priority_Control current_priority;
 } Scheduler_EDF_Node;
 
 /**
@@ -157,27 +152,15 @@ void _Scheduler_EDF_Schedule(
  *  @brief Initializes an EDF specific scheduler node of @a the_thread.
  *
  *  @param[in] scheduler The scheduler instance.
- *  @param[in] the_thread being initialized.
+ *  @param[in] node being initialized.
+ *  @param[in] the_thread the thread of the node.
+ *  @param[in] priority The thread priority.
  */
 void _Scheduler_EDF_Node_initialize(
   const Scheduler_Control *scheduler,
-  Thread_Control          *the_thread
-);
-
-/**
- *  @brief Updates position in the ready queue of @a the_thread.
- *
- *  This routine updates position in the ready queue of @a the_thread.
- *
- *  @param[in] scheduler The scheduler instance.
- *  @param[in] the_thread will have its scheduler specific information
- *             structure updated.
- *  @param[in] new_priority is the desired new priority.
- */
-void _Scheduler_EDF_Update_priority(
-  const Scheduler_Control *scheduler,
+  Scheduler_Node          *node,
   Thread_Control          *the_thread,
-  Priority_Control         new_priority
+  Priority_Control         priority
 );
 
 /**
@@ -195,11 +178,19 @@ Scheduler_Void_or_thread _Scheduler_EDF_Unblock(
   Thread_Control          *the_thread
 );
 
-Scheduler_Void_or_thread _Scheduler_EDF_Change_priority(
+Scheduler_Void_or_thread _Scheduler_EDF_Update_priority(
   const Scheduler_Control *scheduler,
-  Thread_Control          *the_thread,
-  Priority_Control         new_priority,
-  bool                     prepend_it
+  Thread_Control          *the_thread
+);
+
+Priority_Control _Scheduler_EDF_Map_priority(
+  const Scheduler_Control *scheduler,
+  Priority_Control         priority
+);
+
+Priority_Control _Scheduler_EDF_Unmap_priority(
+  const Scheduler_Control *scheduler,
+  Priority_Control         priority
 );
 
 /**
@@ -224,19 +215,6 @@ Scheduler_Void_or_thread _Scheduler_EDF_Yield(
 );
 
 /**
- *  @brief Explicitly compare absolute dedlines (priorities) of threads.
- *
- * This routine explicitly compares absolute dedlines (priorities) of threads.
- * In case of EDF scheduling time overflow is taken into account.
- *
- * @retval >0 for p1 > p2; 0 for p1 == p2; <0 for p1 < p2.
- */
-int _Scheduler_EDF_Priority_compare (
-  Priority_Control p1,
-  Priority_Control p2
-);
-
-/**
  *  @brief Called when a new job of task is released.
  *
  *  This routine is called when a new job of task is released.
@@ -252,7 +230,7 @@ int _Scheduler_EDF_Priority_compare (
 void _Scheduler_EDF_Release_job (
   const Scheduler_Control *scheduler,
   Thread_Control          *the_thread,
-  uint32_t                 deadline
+  uint64_t                 deadline
 );
 
 #ifdef __cplusplus

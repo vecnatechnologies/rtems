@@ -19,6 +19,7 @@
 #define _RTEMS_SCORE_MPCIIMPL_H
 
 #include <rtems/score/mpci.h>
+#include <rtems/score/status.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,13 +76,13 @@ typedef struct {
  *  The following thread queue is used to maintain a list of tasks
  *  which currently have outstanding remote requests.
  */
-SCORE_EXTERN Thread_queue_Control _MPCI_Remote_blocked_threads;
+extern Thread_queue_Control _MPCI_Remote_blocked_threads;
 
 /**
  *  The following define the internal pointers to the user's
  *  configuration information.
  */
-SCORE_EXTERN MPCI_Control *_MPCI_table;
+extern MPCI_Control *_MPCI_table;
 
 /**
  *  @brief Pointer to MP thread control block.
@@ -90,41 +91,14 @@ SCORE_EXTERN MPCI_Control *_MPCI_table;
  *  thread is executing so that a proxy can be allocated instead of
  *  blocking the multiprocessing receive thread.
  */
-SCORE_EXTERN Thread_Control *_MPCI_Receive_server_tcb;
+extern Thread_Control *_MPCI_Receive_server_tcb;
 
 /**
  *  The following table contains the process packet routines provided
  *  by each object that supports MP operations.
  */
-SCORE_EXTERN MPCI_Packet_processor
-               _MPCI_Packet_processors[MP_PACKET_CLASSES_LAST+1];
-
-/**
- *  @brief Initialize the MPCI handler.
- *
- *  This routine performs the initialization necessary for this handler.
- *
- *  @param[in] timeout_status is the value which should be returned to
- *             blocking threads when they timeout on a remote operation.
- */
-void _MPCI_Handler_initialization(
-  uint32_t   timeout_status
-);
-
-/**
- *  @brief Create the MPCI server thread.
- *
- *  This routine creates the packet receive server used in MP systems.
- */
-void _MPCI_Create_server( void );
-
-/**
- *  @brief Initialize the MPCI driver.
- *
- *  This routine initializes the MPCI driver by
- *  invoking the user provided MPCI initialization callout.
- */
-void _MPCI_Initialization ( void );
+extern MPCI_Packet_processor
+_MPCI_Packet_processors[ MP_PACKET_CLASSES_LAST + 1 ];
 
 /**
  *  This routine registers the MPCI packet processor for the
@@ -189,15 +163,13 @@ void _MPCI_Send_process_packet (
  *             set in addition to the remote operation pending state.  It
  *             may indicate the caller is blocking on a message queue
  *             operation.
- *  @param[in] timeout_code is the timeout code
  *
  *  @retval This method returns the operation status from the remote node.
  */
-uint32_t _MPCI_Send_request_packet (
-  uint32_t           destination,
-  MP_packet_Prefix  *the_packet,
-  States_Control     extra_state,
-  uint32_t           timeout_code
+Status_Control _MPCI_Send_request_packet(
+  uint32_t          destination,
+  MP_packet_Prefix *the_packet,
+  States_Control    extra_state
 );
 
 /**
@@ -247,8 +219,8 @@ Thread_Control *_MPCI_Process_response (
  *
  *  @param[in] ignored is the thread argument.  It is not used.
  */
-Thread _MPCI_Receive_server(
-  uint32_t   ignored
+void _MPCI_Receive_server(
+  Thread_Entry_numeric_type ignored
 );
 
 /**

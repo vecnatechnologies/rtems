@@ -29,6 +29,7 @@
 #include <bsp/raspberrypi.h>
 #include <bsp/linker-symbols.h>
 #include <bsp/mmu.h>
+#include <rtems/bspIo.h>
 
 /*
 ** This sets the main exception vectors
@@ -201,11 +202,15 @@ rtems_status_code bsp_interrupt_vector_disable(rtems_vector_number vector)
 
 void bsp_interrupt_handler_default(rtems_vector_number vector)
 {
-    printk("spurious interrupt: %u\n", vector);
+    printk("spurious interrupt: %lu\n", vector);
 }
 
 rtems_status_code bsp_interrupt_facility_initialize(void)
 {
    raspberrypi_set_exception_handler(ARM_EXCEPTION_IRQ, _ARMV4_Exception_interrupt);
+   BCM2835_REG(BCM2835_IRQ_DISABLE1) = 0xffffffff;
+   BCM2835_REG(BCM2835_IRQ_DISABLE2) = 0xffffffff;
+   BCM2835_REG(BCM2835_IRQ_DISABLE_BASIC) = 0xffffffff;
+   BCM2835_REG(BCM2835_IRQ_FIQ_CTRL) = 0;
    return RTEMS_SUCCESSFUL;
 }

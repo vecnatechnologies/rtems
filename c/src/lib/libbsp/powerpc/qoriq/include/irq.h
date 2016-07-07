@@ -129,12 +129,12 @@ extern "C" {
 #define QORIQ_IRQ_DMA_CHANNEL_3_2 241
 #define QORIQ_IRQ_DMA_CHANNEL_3_3 242
 #define QORIQ_IRQ_DMA_CHANNEL_3_4 243
-#define QORIQ_IRQ_DMA_CHANNEL_3_4 244
-#define QORIQ_IRQ_DMA_CHANNEL_3_5 245
-#define QORIQ_IRQ_DMA_CHANNEL_3_6 246
+#define QORIQ_IRQ_DMA_CHANNEL_3_5 244
+#define QORIQ_IRQ_DMA_CHANNEL_3_6 245
+#define QORIQ_IRQ_DMA_CHANNEL_3_7 246
 #define QORIQ_IRQ_DMA_CHANNEL_3_8 247
 
-#define QORIQ_IRQ_EXT_BASE 128
+#define QORIQ_IRQ_EXT_BASE 256
 
 #else /* QORIQ_CHIP_VARIANT */
 
@@ -375,6 +375,11 @@ rtems_status_code qoriq_pic_set_priority(
 rtems_status_code qoriq_pic_set_affinity(
   rtems_vector_number vector,
   uint32_t processor_index
+);
+
+rtems_status_code qoriq_pic_set_affinities(
+  rtems_vector_number vector,
+  uint32_t processor_affinities
 );
 
 /** @} */

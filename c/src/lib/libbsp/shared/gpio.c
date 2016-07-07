@@ -1341,7 +1341,7 @@ rtems_status_code rtems_gpio_request_pin(
         return RTEMS_UNSATISFIED;
       }
 
-      sc = rtems_bsp_select_specific_io(
+      sc = rtems_gpio_bsp_select_specific_io(
              bank,
              pin,
              bsp_data->io_function,
@@ -1708,10 +1708,8 @@ rtems_status_code rtems_gpio_enable_interrupt(
     return RTEMS_RESOURCE_IN_USE;
   }
 
-  interrupt_state = gpio_pin_state[pin_number].interrupt_state;
-
   /* If an interrupt configuration is already in place for this pin. */
-  if ( interrupt_state != NULL ) {
+  if ( gpio_pin_state[pin_number].interrupt_state != NULL ) {
     RELEASE_LOCK(gpio_bank_state[bank].lock);
 
     return RTEMS_RESOURCE_IN_USE;
@@ -1724,15 +1722,12 @@ rtems_status_code rtems_gpio_enable_interrupt(
     return RTEMS_NO_MEMORY;
   }
 
-  gpio_pin_state[pin_number].interrupt_state->active_interrupt = NONE;
-  gpio_pin_state[pin_number].interrupt_state->debouncing_tick_count = 0;
-  gpio_pin_state[pin_number].interrupt_state->last_isr_tick = 0;
-
-  rtems_chain_initialize_empty(
-    &gpio_pin_state[pin_number].interrupt_state->handler_chain
-  );
-
   interrupt_state = gpio_pin_state[pin_number].interrupt_state;
+  interrupt_state->active_interrupt = NONE;
+  interrupt_state->debouncing_tick_count = 0;
+  interrupt_state->last_isr_tick = 0;
+
+  rtems_chain_initialize_empty( &interrupt_state->handler_chain );
 
   interrupt_state->active_interrupt = interrupt;
   interrupt_state->handler_flag = flag;
@@ -1742,6 +1737,8 @@ rtems_status_code rtems_gpio_enable_interrupt(
   sc = rtems_gpio_interrupt_handler_install(pin_number, handler, arg);
 
   if ( sc != RTEMS_SUCCESSFUL ) {
+    free(interrupt_state);
+    gpio_pin_state[pin_number].interrupt_state = NULL;
     RELEASE_LOCK(gpio_bank_state[bank].lock);
 
     return RTEMS_UNSATISFIED;
@@ -1805,7 +1802,7 @@ rtems_status_code rtems_gpio_enable_interrupt(
     }
   }
 
-  sc = rtems_bsp_enable_interrupt(bank, pin, interrupt);
+  sc = rtems_gpio_bsp_enable_interrupt(bank, pin, interrupt);
 
   if ( sc != RTEMS_SUCCESSFUL ) {
     RELEASE_LOCK(gpio_bank_state[bank].lock);
@@ -1919,7 +1916,7 @@ rtems_status_code rtems_gpio_disable_interrupt(uint32_t pin_number)
     return RTEMS_NOT_CONFIGURED;
   }
 
-  sc = rtems_bsp_disable_interrupt(bank, pin, interrupt_state->active_interrupt);
+  sc = rtems_gpio_bsp_disable_interrupt(bank, pin, interrupt_state->active_interrupt);
 
   if ( sc != RTEMS_SUCCESSFUL ) {
     RELEASE_LOCK(gpio_bank_state[bank].lock);

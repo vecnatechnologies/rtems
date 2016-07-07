@@ -29,7 +29,7 @@ extern "C" {
  */
 /**@{**/
 
-#if defined(__ARM_ARCH_7M__)
+#if defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7EM__)
   #define CPU_MODEL_NAME "ARMv7M"
   #define ARM_MULTILIB_ARCH_V7M
 #elif defined(__ARM_ARCH_6M__)
@@ -42,7 +42,8 @@ extern "C" {
 
 #if defined(__ARM_ARCH_7A__) \
   || defined(__ARM_ARCH_7R__) \
-  || defined(__ARM_ARCH_7M__)
+  || defined(__ARM_ARCH_7M__) \
+  || defined(__ARM_ARCH_7EM__)
   #define ARM_MULTILIB_HAS_WFI
   #define ARM_MULTILIB_HAS_LOAD_STORE_EXCLUSIVE
   #define ARM_MULTILIB_HAS_BARRIER_INSTRUCTIONS
@@ -51,6 +52,10 @@ extern "C" {
 #if defined(__ARM_ARCH_7A__) \
   || defined(__ARM_ARCH_7R__)
   #define ARM_MULTILIB_HAS_THREAD_ID_REGISTER
+#endif
+
+#if defined(__ARM_ARCH_7A__)
+  #define ARM_MULTILIB_CACHE_LINE_MAX_64
 #endif
 
 #if !defined(__SOFTFP__)

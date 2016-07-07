@@ -86,6 +86,10 @@ $(PROJECT_INCLUDE)/bsp/uart-output-char.h: ../../shared/include/uart-output-char
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/uart-output-char.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/uart-output-char.h
 
+$(PROJECT_INCLUDE)/bsp/gpio.h: ../../shared/include/gpio.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/gpio.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/gpio.h
+
 $(PROJECT_INCLUDE)/bsp/linker-symbols.h: ../shared/include/linker-symbols.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/linker-symbols.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/linker-symbols.h
@@ -134,9 +138,29 @@ $(PROJECT_INCLUDE)/bsp/rpi-gpio.h: include/rpi-gpio.h $(PROJECT_INCLUDE)/bsp/$(d
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/rpi-gpio.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/rpi-gpio.h
 
-$(PROJECT_INCLUDE)/libcpu/cache_.h: ../../../libcpu/arm/shared/include/cache_.h $(PROJECT_INCLUDE)/libcpu/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/libcpu/cache_.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/libcpu/cache_.h
+$(PROJECT_INCLUDE)/bsp/i2c.h: include/i2c.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/i2c.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/i2c.h
+
+$(PROJECT_INCLUDE)/bsp/spi.h: include/spi.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/spi.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/spi.h
+
+$(PROJECT_INCLUDE)/bsp/mailbox.h: include/mailbox.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/mailbox.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/mailbox.h
+
+$(PROJECT_INCLUDE)/bsp/vc.h: include/vc.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/vc.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/vc.h
+
+$(PROJECT_INCLUDE)/bsp/rpi-fb.h: include/rpi-fb.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/rpi-fb.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/rpi-fb.h
+
+$(PROJECT_INCLUDE)/bsp/fbcons.h: console/fbcons.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/fbcons.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/fbcons.h
 
 $(PROJECT_INCLUDE)/libcpu/arm-cp15.h: ../../../libcpu/arm/shared/include/arm-cp15.h $(PROJECT_INCLUDE)/libcpu/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/libcpu/arm-cp15.h

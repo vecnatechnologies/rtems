@@ -22,6 +22,7 @@
 #include <rtems/score/corerwlock.h>
 #include <rtems/score/thread.h>
 #include <rtems/score/threadqimpl.h>
+#include <rtems/score/status.h>
 #include <rtems/score/watchdog.h>
 
 #ifdef __cplusplus
@@ -33,35 +34,7 @@ extern "C" {
  */
 /**@{**/
 
-/**
- *  The following type defines the callout which the API provides
- *  to support global/multiprocessor operations on RWLocks.
- */
-typedef void ( *CORE_RWLock_API_mp_support_callout )(
-                 Thread_Control *,
-                 Objects_Id
-             );
-
-/**
- *  Core RWLock handler return statuses.
- */
-typedef enum {
-  /** This status indicates that the operation completed successfully. */
-  CORE_RWLOCK_SUCCESSFUL,
-  /** This status indicates that the thread was blocked waiting for an */
-  CORE_RWLOCK_WAS_DELETED,
-  /** This status indicates that the rwlock was not immediately available. */
-  CORE_RWLOCK_UNAVAILABLE,
-  /** This status indicates that the calling task was willing to block
-   *  but the operation was unable to complete within the time allotted
-   *  because the resource never became available.
-   */
-  CORE_RWLOCK_TIMEOUT
-}   CORE_RWLock_Status;
-
-/** This is the last status value.
- */
-#define CORE_RWLOCK_STATUS_LAST CORE_RWLOCK_TIMEOUT
+#define CORE_RWLOCK_TQ_OPERATIONS &_Thread_queue_Operations_FIFO
 
 /**
  *  This is used to denote that a thread is blocking waiting for
@@ -81,11 +54,9 @@ typedef enum {
  *  This routine initializes the RWLock based on the parameters passed.
  *
  *  @param[in] the_rwlock is the RWLock to initialize
- *  @param[in] the_rwlock_attributes define the behavior of this instance
  */
 void _CORE_RWLock_Initialize(
-  CORE_RWLock_Control       *the_rwlock,
-  CORE_RWLock_Attributes    *the_rwlock_attributes
+  CORE_RWLock_Control *the_rwlock
 );
 
 RTEMS_INLINE_ROUTINE void _CORE_RWLock_Destroy(
@@ -95,29 +66,45 @@ RTEMS_INLINE_ROUTINE void _CORE_RWLock_Destroy(
   _Thread_queue_Destroy( &the_rwlock->Wait_queue );
 }
 
+RTEMS_INLINE_ROUTINE void _CORE_RWLock_Acquire_critical(
+  CORE_RWLock_Control  *the_rwlock,
+  Thread_queue_Context *queue_context
+)
+{
+  _Thread_queue_Acquire_critical(
+    &the_rwlock->Wait_queue,
+    &queue_context->Lock_context
+  );
+}
+
+RTEMS_INLINE_ROUTINE void _CORE_RWLock_Release(
+  CORE_RWLock_Control  *the_rwlock,
+  Thread_queue_Context *queue_context
+)
+{
+  _Thread_queue_Release(
+    &the_rwlock->Wait_queue,
+    &queue_context->Lock_context
+  );
+}
+
 /**
  *  @brief Obtain RWLock for reading.
  *
  *  This routine attempts to obtain the RWLock for read access.
  *
  *  @param[in] the_rwlock is the RWLock to wait for
- *  @param[in] id is the id of the object being waited upon
  *  @param[in] wait is true if the calling thread is willing to wait
  *  @param[in] timeout is the number of ticks the calling thread is willing
  *         to wait if @a wait is true.
- *  @param[in] api_rwlock_mp_support is the routine to invoke if the
- *         thread unblocked is remote
- *
- * @note Status is returned via the thread control block.
  */
 
-void _CORE_RWLock_Obtain_for_reading(
-  CORE_RWLock_Control                 *the_rwlock,
-  Thread_Control                      *executing,
-  Objects_Id                           id,
-  bool                                 wait,
-  Watchdog_Interval                    timeout,
-  CORE_RWLock_API_mp_support_callout   api_rwlock_mp_support
+Status_Control _CORE_RWLock_Seize_for_reading(
+  CORE_RWLock_Control  *the_rwlock,
+  Thread_Control       *executing,
+  bool                  wait,
+  Watchdog_Interval     timeout,
+  Thread_queue_Context *queue_context
 );
 
 /**
@@ -126,22 +113,16 @@ void _CORE_RWLock_Obtain_for_reading(
  *  This routine attempts to obtain the RWLock for write exclusive access.
  *
  *  @param[in] the_rwlock is the RWLock to wait for
- *  @param[in] id is the id of the object being waited upon
  *  @param[in] wait is true if the calling thread is willing to wait
  *  @param[in] timeout is the number of ticks the calling thread is willing
  *         to wait if @a wait is true.
- *  @param[in] api_rwlock_mp_support is the routine to invoke if the
- *         thread unblocked is remote
- *
- * @note Status is returned via the thread control block.
  */
-void _CORE_RWLock_Obtain_for_writing(
-  CORE_RWLock_Control                 *the_rwlock,
-  Thread_Control                      *executing,
-  Objects_Id                           id,
-  bool                                 wait,
-  Watchdog_Interval                    timeout,
-  CORE_RWLock_API_mp_support_callout   api_rwlock_mp_support
+Status_Control _CORE_RWLock_Seize_for_writing(
+  CORE_RWLock_Control  *the_rwlock,
+  Thread_Control       *executing,
+  bool                  wait,
+  Watchdog_Interval     timeout,
+  Thread_queue_Context *queue_context
 );
 
 /**
@@ -154,38 +135,10 @@ void _CORE_RWLock_Obtain_for_writing(
  *
  *  @retval Status is returned to indicate successful or failure.
  */
-CORE_RWLock_Status _CORE_RWLock_Release(
-  CORE_RWLock_Control *the_rwlock,
-  Thread_Control      *executing
+Status_Control _CORE_RWLock_Surrender(
+  CORE_RWLock_Control  *the_rwlock,
+  Thread_queue_Context *queue_context
 );
-
-/**
- *  This routine assists in the deletion of a RWLock by flushing the
- *  associated wait queue.
- *
- *  @param[in] _the_rwlock is the RWLock to flush
- *  @param[in] _remote_extract_callout is the routine to invoke if the
- *         thread unblocked is remote
- *  @param[in] _status is the status to be returned to the unblocked thread
- */
-#define _CORE_RWLock_Flush( _the_rwlock, _remote_extract_callout, _status) \
-  _Thread_queue_Flush( \
-    &((_the_rwlock)->Wait_queue), \
-    (_remote_extract_callout), \
-    (_status) \
-  )
-
-/**
- * This method is used to initialize core rwlock attributes.
- *
- * @param[in] the_attributes pointer to the attributes to initialize.
- */
-RTEMS_INLINE_ROUTINE void _CORE_RWLock_Initialize_attributes(
-  CORE_RWLock_Attributes *the_attributes
-)
-{
-  the_attributes->XXX = 0;
-}
 
 /** @} */
 

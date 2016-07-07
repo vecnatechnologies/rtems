@@ -47,6 +47,7 @@ extern "C" {
 
 #include <rtems.h>
 #include <rtems/rtems/tasksimpl.h>
+#include <rtems/score/schedulerimpl.h>
 
 /**
  * The number of tasks in a trigger group.
@@ -153,9 +154,9 @@ typedef struct rtems_capture_control_s
  */
 typedef struct rtems_capture_record_s
 {
-  uint32_t              events;
   rtems_capture_time_t  time;
   size_t                size;
+  uint32_t              events;
   rtems_id              task_id;
 } rtems_capture_record_t;
 
@@ -737,7 +738,8 @@ rtems_capture_task_control_flags (rtems_tcb* tcb)
 static inline rtems_task_priority
 rtems_capture_task_start_priority (rtems_tcb* tcb)
 {
-  return _RTEMS_tasks_Priority_from_Core(
+  return _RTEMS_Priority_From_core(
+    _Scheduler_Get_own( tcb ),
     tcb->Start.initial_priority
   );
 }

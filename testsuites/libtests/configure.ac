@@ -30,7 +30,11 @@ RTEMS_CHECK_CPUOPTS([RTEMS_NETWORKING])
 RTEMS_CHECK_CPUOPTS([RTEMS_POSIX_API])
 
 AC_PROG_LN_S
-AC_PATH_PROG([PAX],[pax])
+AC_PATH_PROG([PAX],[pax],no)
+
+AS_IF([test "x$PAX" = "xno"],[
+	AC_MSG_ERROR([pax is missing.])
+])
 
 AC_CHECK_HEADERS([complex.h])
 
@@ -44,14 +48,10 @@ AM_CONDITIONAL(HAS_POSIX,test x"${rtems_cv_RTEMS_POSIX_API}" = x"yes")
 # Must match the list in cpukit.
 AC_MSG_CHECKING([whether CPU supports libdl])
 case $RTEMS_CPU in
-  arm | i386 | m32r | m68k | mips | \
-  moxie | powerpc | sparc)
+  arm | i386 | m68k | mips | moxie | powerpc | sparc)
    TEST_LIBDL=yes ;;
   # bfin has an issue to resolve with libdl. See ticket #2252
   bfin)
-   HAVE_LIBDL=no ;;
-  # h8300 has an issue to resolve with libdl. See ticket #2284
-  h8300)
    HAVE_LIBDL=no ;;
   # lm32 has an issue to resolve with libdl. See ticket #2283
   lm32)
@@ -79,6 +79,8 @@ AM_CONDITIONAL(DLTESTS,[test x"$TEST_LIBDL" = x"yes"])
 
 # Explicitly list all Makefiles here
 AC_CONFIG_FILES([Makefile
+networking01/Makefile
+libfdt01/Makefile
 defaultconfig01/Makefile
 pwdgrp02/Makefile
 shell01/Makefile

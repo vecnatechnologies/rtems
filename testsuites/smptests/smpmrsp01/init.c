@@ -63,7 +63,7 @@ typedef struct {
   rtems_id mrsp_ids[MRSP_COUNT];
   rtems_id scheduler_ids[CPU_COUNT];
   rtems_id worker_ids[2 * CPU_COUNT];
-  volatile bool stop_worker[CPU_COUNT];
+  volatile bool stop_worker[2 * CPU_COUNT];
   counter counters[2 * CPU_COUNT];
   uint32_t migration_counters[CPU_COUNT];
   Thread_Control *worker_task;
@@ -204,13 +204,48 @@ static void print_switch_events(test_context *ctx)
     rtems_object_get_name(e->heir_node->Object.id, sizeof(hn), &hn[0]);
 
     printf(
-      "[%" PRIu32 "] %4s -> %4s (prio %3" PRIu32 ", node %4s)\n",
+      "[%" PRIu32 "] %4s -> %4s (prio %3" PRIu64 ", node %4s)\n",
       e->cpu_index,
       &ex[0],
       &hr[0],
       e->heir_priority,
       &hn[0]
     );
+  }
+}
+
+static void create_mrsp_sema(
+  test_context *ctx,
+  rtems_id *id,
+  rtems_task_priority prio
+)
+{
+  uint32_t cpu_count = rtems_get_processor_count();
+  uint32_t index;
+  rtems_status_code sc;
+
+  sc = rtems_semaphore_create(
+    rtems_build_name('M', 'R', 'S', 'P'),
+    1,
+    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
+      | RTEMS_BINARY_SEMAPHORE,
+    prio,
+    id
+  );
+  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+
+  for (index = 1; index < cpu_count; index = ((index + 2) & ~UINT32_C(1))) {
+    rtems_task_priority old_prio;
+
+    old_prio = 1;
+    sc = rtems_semaphore_set_priority(
+      *id,
+      ctx->scheduler_ids[index],
+      prio,
+      &old_prio
+    );
+    rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+    rtems_test_assert(old_prio == 0);
   }
 }
 
@@ -321,15 +356,7 @@ static void test_mrsp_obtain_and_release(test_context *ctx)
 
   /* Create a MrsP semaphore object and lock it */
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('M', 'R', 'S', 'P'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    2,
-    &ctx->mrsp_ids[0]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[0], 2);
 
   assert_prio(RTEMS_SELF, 3);
 
@@ -391,7 +418,7 @@ static void test_mrsp_obtain_and_release(test_context *ctx)
 
   sc = rtems_task_create(
     rtems_build_name('W', 'O', 'R', 'K'),
-    4,
+    255,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_DEFAULT_MODES,
     RTEMS_DEFAULT_ATTRIBUTES,
@@ -399,7 +426,7 @@ static void test_mrsp_obtain_and_release(test_context *ctx)
   );
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_task_set_scheduler(ctx->worker_ids[0], ctx->scheduler_ids[1]);
+  sc = rtems_task_set_scheduler(ctx->worker_ids[0], ctx->scheduler_ids[1], 4);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   sc = rtems_task_start(ctx->worker_ids[0], obtain_and_release_worker, 0);
@@ -548,7 +575,7 @@ static void test_mrsp_obtain_after_migration(test_context *ctx)
 
   sc = rtems_task_create(
     rtems_build_name('W', 'O', 'R', 'K'),
-    3,
+    255,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_DEFAULT_MODES,
     RTEMS_DEFAULT_ATTRIBUTES,
@@ -556,40 +583,14 @@ static void test_mrsp_obtain_after_migration(test_context *ctx)
   );
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_task_set_scheduler(ctx->worker_ids[0], ctx->scheduler_ids[1]);
+  sc = rtems_task_set_scheduler(ctx->worker_ids[0], ctx->scheduler_ids[1], 3);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   /* Create a MrsP semaphore objects */
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('M', 'R', 'S', 'P'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    3,
-    &ctx->mrsp_ids[0]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
-  sc = rtems_semaphore_create(
-    rtems_build_name('M', 'R', 'S', 'P'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    2,
-    &ctx->mrsp_ids[1]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
-  sc = rtems_semaphore_create(
-    rtems_build_name('M', 'R', 'S', 'P'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &ctx->mrsp_ids[2]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[0], 3);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[1], 2);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[2], 1);
 
   prio = 4;
   sc = rtems_semaphore_set_priority(
@@ -687,22 +688,14 @@ static void test_mrsp_obtain_after_migration(test_context *ctx)
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 }
 
-static void test_mrsp_flush_error(void)
+static void test_mrsp_flush_error(test_context *ctx)
 {
   rtems_status_code sc;
   rtems_id id;
 
   puts("test MrsP flush error");
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('M', 'R', 'S', 'P'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &id
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &id, 1);
 
   sc = rtems_semaphore_flush(id);
   rtems_test_assert(sc == RTEMS_NOT_DEFINED);
@@ -729,22 +722,14 @@ static void test_mrsp_initially_locked_error(void)
   rtems_test_assert(sc == RTEMS_INVALID_NUMBER);
 }
 
-static void test_mrsp_nested_obtain_error(void)
+static void test_mrsp_nested_obtain_error(test_context *ctx)
 {
   rtems_status_code sc;
   rtems_id id;
 
   puts("test MrsP nested obtain error");
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('M', 'R', 'S', 'P'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &id
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &id, 1);
 
   sc = rtems_semaphore_obtain(id, RTEMS_WAIT, RTEMS_NO_TIMEOUT);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
@@ -759,7 +744,7 @@ static void test_mrsp_nested_obtain_error(void)
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 }
 
-static void test_mrsp_unlock_order_error(void)
+static void test_mrsp_unlock_order_error(test_context *ctx)
 {
   rtems_status_code sc;
   rtems_id id_a;
@@ -767,25 +752,8 @@ static void test_mrsp_unlock_order_error(void)
 
   puts("test MrsP unlock order error");
 
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'A'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &id_a
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'B'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &id_b
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &id_a, 1);
+  create_mrsp_sema(ctx, &id_b, 1);
 
   sc = rtems_semaphore_obtain(id_a, RTEMS_WAIT, RTEMS_NO_TIMEOUT);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
@@ -842,25 +810,8 @@ static void test_mrsp_deadlock_error(test_context *ctx)
 
   change_prio(RTEMS_SELF, prio);
 
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'A'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    prio,
-    &ctx->mrsp_ids[0]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'B'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    prio,
-    &ctx->mrsp_ids[1]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[0], prio);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[1], prio);
 
   sc = rtems_task_create(
     rtems_build_name('W', 'O', 'R', 'K'),
@@ -900,7 +851,7 @@ static void test_mrsp_deadlock_error(test_context *ctx)
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 }
 
-static void test_mrsp_multiple_obtain(void)
+static void test_mrsp_multiple_obtain(test_context *ctx)
 {
   rtems_status_code sc;
   rtems_id sem_a_id;
@@ -911,35 +862,9 @@ static void test_mrsp_multiple_obtain(void)
 
   change_prio(RTEMS_SELF, 4);
 
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'A'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    3,
-    &sem_a_id
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'B'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    2,
-    &sem_b_id
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'C'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &sem_c_id
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &sem_a_id, 3);
+  create_mrsp_sema(ctx, &sem_b_id, 2);
+  create_mrsp_sema(ctx, &sem_c_id, 1);
 
   assert_prio(RTEMS_SELF, 4);
 
@@ -1227,7 +1152,7 @@ static void start_low_task(test_context *ctx, size_t i)
 
   sc = rtems_task_create(
     rtems_build_name('L', 'O', 'W', '0' + i),
-    5,
+    255,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_DEFAULT_MODES,
     RTEMS_DEFAULT_ATTRIBUTES,
@@ -1235,7 +1160,7 @@ static void start_low_task(test_context *ctx, size_t i)
   );
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_task_set_scheduler(ctx->low_task_id[i], ctx->scheduler_ids[i]);
+  sc = rtems_task_set_scheduler(ctx->low_task_id[i], ctx->scheduler_ids[i], 5);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   sc = rtems_task_start(
@@ -1262,16 +1187,7 @@ static void test_mrsp_various_block_and_unblock(test_context *ctx)
   ctx->high_run[0] = false;
   ctx->high_run[1] = false;
 
-  sc = rtems_semaphore_create(
-    rtems_build_name(' ', ' ', ' ', 'A'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    3,
-    &ctx->mrsp_ids[0]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
-
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[0], 3);
   assert_prio(RTEMS_SELF, 4);
 
   sc = rtems_task_create(
@@ -1286,7 +1202,7 @@ static void test_mrsp_various_block_and_unblock(test_context *ctx)
 
   sc = rtems_task_create(
     rtems_build_name('H', 'I', 'G', '1'),
-    2,
+    255,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_DEFAULT_MODES,
     RTEMS_DEFAULT_ATTRIBUTES,
@@ -1294,12 +1210,12 @@ static void test_mrsp_various_block_and_unblock(test_context *ctx)
   );
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_task_set_scheduler(ctx->high_task_id[1], ctx->scheduler_ids[1]);
+  sc = rtems_task_set_scheduler(ctx->high_task_id[1], ctx->scheduler_ids[1], 2);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   sc = rtems_task_create(
     rtems_build_name('W', 'O', 'R', 'K'),
-    4,
+    255,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_DEFAULT_MODES,
     RTEMS_DEFAULT_ATTRIBUTES,
@@ -1307,7 +1223,7 @@ static void test_mrsp_various_block_and_unblock(test_context *ctx)
   );
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_task_set_scheduler(ctx->worker_ids[0], ctx->scheduler_ids[1]);
+  sc = rtems_task_set_scheduler(ctx->worker_ids[0], ctx->scheduler_ids[1], 4);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   sc = rtems_task_start(ctx->worker_ids[0], ready_unlock_worker, 0);
@@ -1379,15 +1295,7 @@ static void test_mrsp_obtain_and_sleep_and_release(test_context *ctx)
   sc = rtems_task_start(run_task_id, run_task, (rtems_task_argument) &run);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('S', 'E', 'M', 'A'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    1,
-    &sem_id
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &sem_id, 1);
 
   rtems_test_assert(!run);
 
@@ -1448,15 +1356,7 @@ static void test_mrsp_obtain_and_release_with_help(test_context *ctx)
 
   reset_switch_events(ctx);
 
-  sc = rtems_semaphore_create(
-    rtems_build_name('S', 'E', 'M', 'A'),
-    1,
-    RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-      | RTEMS_BINARY_SEMAPHORE,
-    2,
-    &ctx->mrsp_ids[0]
-  );
-  rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+  create_mrsp_sema(ctx, &ctx->mrsp_ids[0], 2);
 
   sc = rtems_semaphore_obtain(ctx->mrsp_ids[0], RTEMS_WAIT, RTEMS_NO_TIMEOUT);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
@@ -1465,7 +1365,7 @@ static void test_mrsp_obtain_and_release_with_help(test_context *ctx)
 
   sc = rtems_task_create(
     rtems_build_name('H', 'E', 'L', 'P'),
-    3,
+    255,
     RTEMS_MINIMUM_STACK_SIZE,
     RTEMS_DEFAULT_MODES,
     RTEMS_DEFAULT_ATTRIBUTES,
@@ -1475,7 +1375,8 @@ static void test_mrsp_obtain_and_release_with_help(test_context *ctx)
 
   sc = rtems_task_set_scheduler(
     help_task_id,
-    ctx->scheduler_ids[1]
+    ctx->scheduler_ids[1],
+    3
   );
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
@@ -1649,7 +1550,7 @@ static void migration_task(rtems_task_argument arg)
   while (true) {
     uint32_t cpu_index = (v >> 5) % cpu_count;
 
-    sc = rtems_task_set_scheduler(RTEMS_SELF, ctx->scheduler_ids[cpu_index]);
+    sc = rtems_task_set_scheduler(RTEMS_SELF, ctx->scheduler_ids[cpu_index], 2);
     rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
     ++ctx->migration_counters[rtems_get_current_processor()];
@@ -1691,15 +1592,7 @@ static void test_mrsp_load(test_context *ctx)
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   for (index = 0; index < MRSP_COUNT; ++index) {
-    sc = rtems_semaphore_create(
-      'A' + index,
-      1,
-      RTEMS_MULTIPROCESSOR_RESOURCE_SHARING
-        | RTEMS_BINARY_SEMAPHORE,
-      3 + index,
-      &ctx->mrsp_ids[index]
-    );
-    rtems_test_assert(sc == RTEMS_SUCCESSFUL);
+    create_mrsp_sema(ctx, &ctx->mrsp_ids[index], 3 + index);
   }
 
   for (index = 0; index < cpu_count; ++index) {
@@ -1708,7 +1601,7 @@ static void test_mrsp_load(test_context *ctx)
 
     sc = rtems_task_create(
       'A' + a,
-      3 + MRSP_COUNT + a,
+      255,
       RTEMS_MINIMUM_STACK_SIZE,
       RTEMS_DEFAULT_MODES,
       RTEMS_DEFAULT_ATTRIBUTES,
@@ -1718,7 +1611,8 @@ static void test_mrsp_load(test_context *ctx)
 
     sc = rtems_task_set_scheduler(
       ctx->worker_ids[a],
-      ctx->scheduler_ids[index]
+      ctx->scheduler_ids[index],
+      3 + MRSP_COUNT + a
     );
     rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
@@ -1731,7 +1625,7 @@ static void test_mrsp_load(test_context *ctx)
 
     sc = rtems_task_create(
       'A' + b,
-      3 + MRSP_COUNT + b,
+      255,
       RTEMS_MINIMUM_STACK_SIZE,
       RTEMS_DEFAULT_MODES,
       RTEMS_DEFAULT_ATTRIBUTES,
@@ -1741,7 +1635,8 @@ static void test_mrsp_load(test_context *ctx)
 
     sc = rtems_task_set_scheduler(
       ctx->worker_ids[b],
-      ctx->scheduler_ids[index]
+      ctx->scheduler_ids[index],
+      3 + MRSP_COUNT + b
     );
     rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
@@ -1851,12 +1746,12 @@ static void Init(rtems_task_argument arg)
     rtems_test_assert(sc == RTEMS_SUCCESSFUL);
   }
 
-  test_mrsp_flush_error();
+  test_mrsp_flush_error(ctx);
   test_mrsp_initially_locked_error();
-  test_mrsp_nested_obtain_error();
-  test_mrsp_unlock_order_error();
+  test_mrsp_nested_obtain_error(ctx);
+  test_mrsp_unlock_order_error(ctx);
   test_mrsp_deadlock_error(ctx);
-  test_mrsp_multiple_obtain();
+  test_mrsp_multiple_obtain(ctx);
 
   if (cpu_count > 1) {
     test_mrsp_various_block_and_unblock(ctx);

@@ -25,6 +25,7 @@
 #include <bsp.h>
 #include <bspopts.h>
 #include <rtems/timecounter.h>
+#include <rtems/score/sparcimpl.h>
 
 #if SIMSPARC_FAST_IDLE==1
 #define CLOCK_DRIVER_USE_FAST_IDLE 1
@@ -51,9 +52,18 @@ static uint32_t leon2_tc_get_timecount( struct timecounter *tc )
   );
 }
 
+static void leon2_tc_at_tick( rtems_timecounter_simple *tc )
+{
+  /* Nothing to do */
+}
+
 static void leon2_tc_tick( void )
 {
-  rtems_timecounter_simple_downcounter_tick( &leon2_tc, leon2_tc_get );
+  rtems_timecounter_simple_downcounter_tick(
+    &leon2_tc,
+    leon2_tc_get,
+    leon2_tc_at_tick
+  );
 }
 
 /*
@@ -61,8 +71,6 @@ static void leon2_tc_tick( void )
  */
 
 #define CLOCK_VECTOR LEON_TRAP_TYPE( LEON_INTERRUPT_TIMER1 )
-
-#define Clock_driver_support_at_tick()
 
 #define Clock_driver_support_install_isr( _new, _old ) \
   do { \
@@ -98,3 +106,5 @@ extern int CLOCK_SPEED;
 #define Clock_driver_timecounter_tick() leon2_tc_tick()
 
 #include "../../../shared/clockdrv_shell.h"
+
+SPARC_COUNTER_DEFINITION;

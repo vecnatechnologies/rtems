@@ -30,11 +30,6 @@ extern "C" {
 #include <rtems/score/types.h>
 #include <rtems/score/i386.h>
 
-#ifndef ASM
-#include <rtems/score/interrupts.h>	/* formerly in libcpu/cpu.h> */
-#include <rtems/score/registers.h>	/* formerly part of libcpu */
-#endif
-
 /* conditional compilation parameters */
 
 #define CPU_INLINE_ENABLE_DISPATCH       TRUE
@@ -100,9 +95,11 @@ extern "C" {
 #endif /* __SSE__ */
 
 #define CPU_STACK_GROWS_UP               FALSE
-#define CPU_STRUCTURE_ALIGNMENT
 
-#define CPU_TIMESTAMP_USE_INT64_INLINE TRUE
+/* FIXME: The Pentium 4 used 128 bytes, it this processor still relevant? */
+#define CPU_CACHE_LINE_BYTES 64
+
+#define CPU_STRUCTURE_ALIGNMENT
 
 /*
  *  Does this port provide a CPU dependent IDLE task implementation?
@@ -115,7 +112,7 @@ extern "C" {
  *  not provide one.
  */
 
-#define CPU_PROVIDES_IDLE_THREAD_BODY    TRUE
+#define CPU_PROVIDES_IDLE_THREAD_BODY    FALSE
 
 /*
  *  Define what is required to specify how the network to host conversion
@@ -126,6 +123,8 @@ extern "C" {
 #define CPU_LITTLE_ENDIAN                        TRUE
 
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 #define I386_CONTEXT_CONTROL_EFLAGS_OFFSET 0
 #define I386_CONTEXT_CONTROL_ESP_OFFSET 4
@@ -325,7 +324,7 @@ typedef enum {
 
 /* variables */
 
-SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context;
+extern Context_Control_fp _CPU_Null_fp_context;
 
 #endif /* ASM */
 
@@ -393,6 +392,7 @@ SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context;
  *     + set a particular level
  */
 
+#if !defined(RTEMS_PARAVIRT)
 #define _CPU_ISR_Disable( _level ) i386_disable_interrupts( _level )
 
 #define _CPU_ISR_Enable( _level )  i386_enable_interrupts( _level )
@@ -404,6 +404,12 @@ SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context;
     if ( _new_level ) __asm__ volatile ( "cli" ); \
     else              __asm__ volatile ( "sti" ); \
   }
+#else
+#define _CPU_ISR_Disable( _level ) _level = i386_disable_interrupts()
+#define _CPU_ISR_Enable( _level ) i386_enable_interrupts( _level )
+#define _CPU_ISR_Flash( _level ) i386_flash_interrupts( _level )
+#define _CPU_ISR_Set_level( _new_level ) i386_set_interrupt_level(_new_level)
+#endif
 
 uint32_t   _CPU_ISR_Get_level( void );
 
@@ -493,7 +499,8 @@ uint32_t   _CPU_ISR_Get_level( void );
 
   void _CPU_SMP_Finalize_initialization( uint32_t cpu_count );
 
-  void _CPU_SMP_Prepare_start_multitasking( void );
+  /* Nothing to do */
+  #define _CPU_SMP_Prepare_start_multitasking() do { } while ( 0 )
 
   uint32_t _CPU_SMP_Get_current_processor( void );
 
@@ -527,15 +534,8 @@ uint32_t   _CPU_ISR_Get_level( void );
  *    + disable interrupts and halt the CPU
  */
 
-#define _CPU_Fatal_halt( _source, _error ) \
-  { \
-    uint32_t _error_lvalue = ( _error ); \
-    __asm__ volatile ( "cli ; \
-                    movl %0,%%eax ; \
-                    hlt" \
-                    : "=r" ((_error_lvalue)) : "0" ((_error_lvalue)) \
-    ); \
-  }
+extern void _CPU_Fatal_halt(uint32_t source, uint32_t error)
+  RTEMS_NO_RETURN;
 
 #endif /* ASM */
 
@@ -549,18 +549,16 @@ uint32_t   _CPU_ISR_Get_level( void );
  */
 
 #define CPU_USE_GENERIC_BITFIELD_CODE FALSE
-#define CPU_USE_GENERIC_BITFIELD_DATA FALSE
 
 #define _CPU_Bitfield_Find_first_bit( _value, _output ) \
   { \
-    register uint16_t   __value_in_register = (_value); \
-    \
-    _output = 0; \
-    \
+    register uint16_t __value_in_register = ( _value ); \
+    uint16_t          __output = 0; \
     __asm__ volatile ( "bsfw    %0,%1 " \
-                    : "=r" (__value_in_register), "=r" (_output) \
-                    : "0"  (__value_in_register), "1"  (_output) \
+                    : "=r" ( __value_in_register ), "=r" ( __output ) \
+                    : "0"  ( __value_in_register ), "1"  ( __output ) \
     ); \
+    ( _output ) = __output; \
   }
 
 /* end of Bitfield handler macros */
@@ -649,7 +647,7 @@ void _CPU_Context_switch(
 
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /*
  *  _CPU_Context_save_fp

@@ -38,10 +38,7 @@ libbsp_a_SOURCES =
 # startup
 libbsp_a_SOURCES += startup/simple_access.c
 libbsp_a_SOURCES += ../../shared/bspclean.c
-libbsp_a_SOURCES += ../../shared/bsplibc.c
 libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
-libbsp_a_SOURCES += ../../shared/bsppost.c
-libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
 libbsp_a_SOURCES += startup/bspstart.c
 libbsp_a_SOURCES += startup/bspreset.c
@@ -71,8 +68,7 @@ libbsp_a_LIBADD += ../../../libcpu/@RTEMS_CPU@/shared/interrupts.rel
 
 # pci
 libbsp_a_SOURCES += pci/pci.c
-libbsp_a_SOURCES += pci/pcifinddevice.c
-libbsp_a_SOURCES += pci/pcilistdevices.c
+libbsp_a_SOURCES += ../../shared/pci/pci_find_device.c
 
 #isr
 libbsp_a_SOURCES += ../../shared/src/irq-generic.c

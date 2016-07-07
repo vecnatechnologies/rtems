@@ -33,17 +33,22 @@
 #include <rtems/score/stack.h>
 #include <rtems/score/states.h>
 #include <rtems/score/threadq.h>
+#include <rtems/score/timestamp.h>
 #include <rtems/score/watchdog.h>
 
 #if defined(RTEMS_SMP)
   #include <rtems/score/cpuset.h>
 #endif
 
+struct _pthread_cleanup_context;
+
 struct Per_CPU_Control;
 
 struct Scheduler_Control;
 
 struct Scheduler_Node;
+
+struct User_extensions_Iterator;
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,22 +86,10 @@ extern "C" {
 #endif
 
 /*
- *  The user can define this at configure time and go back to ticks
- *  resolution.
+ * Only provided for backward compatiblity to not break application
+ * configurations.
  */
-#include <rtems/score/timestamp.h>
-
-typedef Timestamp_Control Thread_CPU_usage_t;
-
-/**
- *  The following defines the "return type" of a thread.
- *
- *  @note  This cannot always be right.  Some APIs have void
- *         tasks/threads, others return pointers, others may
- *         return a numeric value.  Hopefully a pointer is
- *         always at least as big as an uint32_t  . :)
- */
-typedef void *Thread;
+typedef void *Thread RTEMS_DEPRECATED;
 
 /**
  *  @brief Type of the numeric argument of a thread entry function with at
@@ -110,44 +103,52 @@ typedef void *Thread;
 typedef CPU_Uint32ptr Thread_Entry_numeric_type;
 
 /**
- *  The following defines the ways in which the entry point for a
- *  thread can be invoked.  Basically, it can be passed any
- *  combination/permutation of a pointer and an uint32_t   value.
- *
- *  @note For now, we are ignoring the return type.
+ * @brief Data for idle thread entry.
  */
-typedef enum {
-  THREAD_START_NUMERIC,
-  THREAD_START_POINTER,
-  #if defined(FUNCTIONALITY_NOT_CURRENTLY_USED_BY_ANY_API)
-    THREAD_START_BOTH_POINTER_FIRST,
-    THREAD_START_BOTH_NUMERIC_FIRST
-  #endif
-} Thread_Start_types;
+typedef struct {
+  void *( *entry )( uintptr_t argument );
+} Thread_Entry_idle;
 
-/** This type corresponds to a very simple style thread entry point. */
-typedef Thread ( *Thread_Entry )( void );   /* basic type */
-
-/** This type corresponds to a thread entry point which takes a single
- *  unsigned thirty-two bit integer as an argument.
+/**
+ * @brief Data for thread entry with one numeric argument and no return value.
  */
-typedef Thread ( *Thread_Entry_numeric )( Thread_Entry_numeric_type );
+typedef struct {
+  void ( *entry )( Thread_Entry_numeric_type argument );
+  Thread_Entry_numeric_type argument;
+} Thread_Entry_numeric;
 
-/** This type corresponds to a thread entry point which takes a single
- *  untyped pointer as an argument.
+/**
+ * @brief Data for thread entry with one pointer argument and a pointer return
+ * value.
  */
-typedef Thread ( *Thread_Entry_pointer )( void * );
+typedef struct {
+  void *( *entry )( void *argument  );
+  void *argument;
+} Thread_Entry_pointer;
 
-/** This type corresponds to a thread entry point which takes a single
- *  untyped pointer and an unsigned thirty-two bit integer as arguments.
+/**
+ * @brief Thread entry information.
  */
-typedef Thread ( *Thread_Entry_both_pointer_first )( void *, Thread_Entry_numeric_type );
+typedef struct {
+  /**
+   * @brief Thread entry adaptor.
+   *
+   * Calls the corresponding thread entry with the right parameters.
+   *
+   * @param executing The executing thread.
+   */
+  void ( *adaptor )( Thread_Control *executing );
 
-/** This type corresponds to a thread entry point which takes a single
- *  unsigned thirty-two bit integer and an untyped pointer and an
- *  as arguments.
- */
-typedef Thread ( *Thread_Entry_both_numeric_first )( Thread_Entry_numeric_type, void * );
+  /**
+   * @brief Thread entry data used by the adaptor to call the thread entry
+   * function with the right parameters.
+   */
+  union {
+    Thread_Entry_idle Idle;
+    Thread_Entry_numeric Numeric;
+    Thread_Entry_pointer Pointer;
+  } Kinds;
+} Thread_Entry_information;
 
 /**
  *  The following lists the algorithms used to manage the thread cpu budget.
@@ -172,48 +173,13 @@ typedef enum {
  */
 typedef void (*Thread_CPU_budget_algorithm_callout )( Thread_Control * );
 
-#if !defined(RTEMS_SMP)
-/**
- *  @brief Forward reference to the per task variable structure..
- *
- *  Forward reference to the per task variable structure.
- */
-struct rtems_task_variable_tt;
-
-/**
- *  @brief Internal structure used to manager per task variables.
- *
- *  This is the internal structure used to manager per Task Variables.
- */
-typedef struct {
-  /** This field points to the next per task variable for this task. */
-  struct rtems_task_variable_tt  *next;
-  /** This field points to the physical memory location of this per
-   *  task variable.
-   */
-  void                          **ptr;
-  /** This field is to the global value for this per task variable. */
-  void                           *gval;
-  /** This field is to this thread's value for this per task variable. */
-  void                           *tval;
-  /** This field points to the destructor for this per task variable. */
-  void                          (*dtor)(void *);
-} rtems_task_variable_t;
-#endif
-
 /**
  *  The following structure contains the information which defines
  *  the starting state of a thread.
  */
 typedef struct {
-  /** This field is the starting address for the thread. */
-  Thread_Entry                         entry_point;
-  /** This field indicates the how task is invoked. */
-  Thread_Start_types                   prototype;
-  /** This field is the pointer argument passed at thread start. */
-  void                                *pointer_argument;
-  /** This field is the numeric argument passed at thread start. */
-  Thread_Entry_numeric_type            numeric_argument;
+  /** This field contains the thread entry information. */
+  Thread_Entry_information             Entry;
   /*-------------- initial execution modes ----------------- */
   /** This field indicates whether the thread was preemptible when
     * it started.
@@ -298,8 +264,13 @@ typedef struct {
     RBTree_Node RBTree;
   } Node;
 
-  /** This field is the Id of the object this thread is waiting upon. */
-  Objects_Id            id;
+#if defined(RTEMS_MULTIPROCESSING)
+  /*
+   * @brief This field is the identifier of the remote object this thread is
+   * waiting upon.
+   */
+  Objects_Id            remote_id;
+#endif
   /** This field is used to return an integer while when blocked. */
   uint32_t              count;
   /** This field is for a pointer to a user return argument. */
@@ -315,11 +286,6 @@ typedef struct {
    *        treated as an uint32_t.
    */
   uint32_t              return_code;
-
-  /**
-   * @brief Code to set the timeout return code in _Thread_Timeout().
-   */
-  uint32_t timeout_code;
 
   /**
    * @brief The current thread queue.
@@ -354,6 +320,15 @@ typedef struct {
 }   Thread_Wait_information;
 
 /**
+ * @brief Information required to manage a thread timer.
+ */
+typedef struct {
+  ISR_LOCK_MEMBER( Lock )
+  Watchdog_Header *header;
+  Watchdog_Control Watchdog;
+} Thread_Timer_information;
+
+/**
  *  The following defines the control block used to manage
  *  each thread proxy.
  *
@@ -363,9 +338,14 @@ typedef struct {
 typedef struct {
   /** This field is the object management structure for each proxy. */
   Objects_Control          Object;
+
+  /**
+   * @see Thread_Control::Join_queue
+   */
+  Thread_queue_Control     Join_queue;
+
   /** This field is the current execution state of this proxy. */
   States_Control           current_state;
-
   /**
    * @brief This field is the current priority state of this thread.
    *
@@ -381,14 +361,6 @@ typedef struct {
    * _Thread_Change_priority().
    */
   Priority_Control         real_priority;
-
-  /**
-   * @brief Generation of the current priority value.
-   *
-   * It is used in _Thread_Change_priority() to serialize the update of
-   * priority related data structures.
-   */
-  uint32_t                 priority_generation;
 
   /**
    * @brief Hints if a priority restore is necessary once the resource count
@@ -407,14 +379,31 @@ typedef struct {
   /** This field is the blocking information for this proxy. */
   Thread_Wait_information  Wait;
   /** This field is the Watchdog used to manage proxy delays and timeouts. */
-  Watchdog_Control         Timer;
+  Thread_Timer_information Timer;
 #if defined(RTEMS_MULTIPROCESSING)
   /** This field is the received response packet in an MP system. */
   MP_packet_Prefix        *receive_packet;
-#endif
      /****************** end of common block ********************/
-  /** This field is used to manage the set of proxies in the system. */
-  Chain_Node               Active;
+
+  /**
+   * @brief Thread queue callout for _Thread_queue_Enqueue_critical().
+   */
+  Thread_queue_MP_callout  thread_queue_callout;
+
+  /**
+   * @brief This field is used to manage the set of active proxies in the system.
+   */
+  RBTree_Node              Active;
+
+  /**
+   * @brief Provide thread queue heads for this thread proxy.
+   *
+   * The actual size of the thread queue heads depends on the application
+   * configuration.  Since thread proxies are never destroyed we can use the
+   * same storage place for the thread queue heads.
+   */
+  Thread_queue_Heads       Thread_queue_heads[ RTEMS_ZERO_LENGTH_ARRAY ];
+#endif
 }   Thread_Proxy_control;
 
 /**
@@ -442,24 +431,23 @@ typedef struct Thread_Action Thread_Action;
 /**
  * @brief Thread action handler.
  *
- * The thread action handler will be called with interrupts disabled and the
- * thread action lock acquired.  The handler must release the thread action
- * lock with _Thread_Action_release_and_ISR_enable().  So the thread action
- * lock can be used to protect private data fields of the particular action.
+ * The thread action handler will be called with interrupts disabled and a
+ * corresponding lock acquired, e.g. _Thread_State_acquire().  The handler must
+ * release the corresponding lock, e.g. _Thread_State_release().  So, the
+ * corresponding lock may be used to protect private data used by the
+ * particular action.
  *
- * Since the action is passed to the handler private data fields can be added
- * below the common thread action fields.
+ * Since the action is passed to the handler additional data may be accessed
+ * via RTEMS_CONTAINER_OF().
  *
- * @param[in] thread The thread performing the action.
+ * @param[in] the_thread The thread performing the action.
  * @param[in] action The thread action.
- * @param[in] cpu The processor of the thread.
- * @param[in] level The ISR level for _Thread_Action_release_and_ISR_enable().
+ * @param[in] lock_context The lock context to use for the lock release.
  */
 typedef void ( *Thread_Action_handler )(
-  Thread_Control         *thread,
-  Thread_Action          *action,
-  struct Per_CPU_Control *cpu,
-  ISR_Level               level
+  Thread_Control   *the_thread,
+  Thread_Action    *action,
+  ISR_lock_Context *lock_context
 );
 
 /**
@@ -471,18 +459,30 @@ typedef void ( *Thread_Action_handler )(
  *
  * Thread actions are the building block for efficient implementation of
  * - Classic signals delivery,
- * - POSIX signals delivery,
- * - thread restart notification,
- * - thread delete notification,
- * - forced thread migration on SMP configurations, and
- * - the Multiprocessor Resource Sharing Protocol (MrsP).
+ * - POSIX signals delivery, and
+ * - thread life-cycle changes.
  *
- * @see _Thread_Run_post_switch_actions().
+ * @see _Thread_Add_post_switch_action() and _Thread_Run_post_switch_actions().
  */
 struct Thread_Action {
   Chain_Node            Node;
   Thread_Action_handler handler;
 };
+
+/**
+ * @brief Per-thread information for POSIX Keys.
+ */
+typedef struct {
+  /**
+   * @brief Key value pairs registered for this thread.
+   */
+  RBTree_Control Key_value_pairs;
+
+  /**
+   * @brief Lock to protect the tree operations.
+   */
+  ISR_LOCK_MEMBER( Lock )
+} Thread_Keys_information;
 
 /**
  * @brief Control block to manage thread actions.
@@ -499,16 +499,16 @@ typedef struct {
  * The thread life states are orthogonal to the thread states used for
  * synchronization primitives and blocking operations.  They reflect the state
  * changes triggered with thread restart and delete requests.
+ *
+ * The individual state values must be a power of two to allow use of bit
+ * operations to manipulate and evaluate the thread life state.
  */
 typedef enum {
-  THREAD_LIFE_NORMAL = 0x0,
   THREAD_LIFE_PROTECTED = 0x1,
   THREAD_LIFE_RESTARTING = 0x2,
-  THREAD_LIFE_PROTECTED_RESTARTING = 0x3,
   THREAD_LIFE_TERMINATING = 0x4,
-  THREAD_LIFE_PROTECTED_TERMINATING = 0x5,
-  THREAD_LIFE_RESTARTING_TERMINATING = 0x6,
-  THREAD_LIFE_PROTECTED_RESTARTING_TERMINATING = 0x7
+  THREAD_LIFE_CHANGE_DEFERRED = 0x8,
+  THREAD_LIFE_DETACHED = 0x10
 } Thread_Life_state;
 
 /**
@@ -527,13 +527,21 @@ typedef struct {
   Thread_Life_state  state;
 
   /**
-   * @brief The terminator thread of this thread.
-   *
-   * In case the thread is terminated and another thread (the terminator) waits
-   * for the actual termination completion, then this field references the
-   * terminator thread.
+   * @brief The count of pending life change requests.
    */
-  Thread_Control    *terminator;
+  uint32_t pending_life_change_requests;
+
+#if defined(RTEMS_POSIX_API)
+  /**
+   * @brief The thread exit value.
+   *
+   * It is,
+   * - the value passed to pthread_exit(), or
+   * - PTHREAD_CANCELED in case it is cancelled via pthread_cancel(), or
+   * - NULL.
+   */
+  void *exit_value;
+#endif
 } Thread_Life_control;
 
 #if defined(RTEMS_SMP)
@@ -641,6 +649,7 @@ typedef struct  {
  * provide their own lock.
  *
  * The thread lock protects the following thread variables
+ *  - POSIX_API_Control::Attributes,
  *  - Thread_Control::current_priority,
  *  - Thread_Control::Wait::queue, and
  *  - Thread_Control::Wait::operations.
@@ -657,7 +666,19 @@ typedef struct {
    * of the actual RTEMS build configuration, e.g. profiling enabled or
    * disabled.
    */
-  SMP_ticket_lock_Control *current;
+  union {
+    /**
+     * @brief The current thread lock as an atomic unsigned integer pointer value.
+     */
+    Atomic_Uintptr atomic;
+
+    /**
+     * @brief The current thread lock as a normal pointer.
+     *
+     * Only provided for debugging purposes.
+     */
+    SMP_ticket_lock_Control *normal;
+  } current;
 
   /**
    * @brief The default thread lock in case the thread is not blocked on a
@@ -671,15 +692,10 @@ typedef struct {
    *
    * These statistics are used by the executing thread in case it acquires a
    * thread lock.  Thus the statistics are an aggregation of acquire and
-   * release operations of diffent locks.
+   * release operations of different locks.
    */
   SMP_lock_Stats Stats;
 #endif
-
-  /**
-   * @brief Generation number to invalidate stale locks.
-   */
-  Atomic_Uint generation;
 } Thread_Lock_control;
 #endif
 
@@ -692,6 +708,26 @@ typedef struct {
 struct _Thread_Control {
   /** This field is the object management structure for each thread. */
   Objects_Control          Object;
+
+  /**
+   * @brief Thread queue for thread join operations and multi-purpose lock.
+   *
+   * The lock of this thread queue is used for various purposes.  It protects
+   * the following fields
+   *
+   * - RTEMS_API_Control::Signal,
+   * - Thread_Control::budget_algorithm,
+   * - Thread_Control::budget_callout,
+   * - Thread_Control::cpu_time_budget,
+   * - Thread_Control::current_state,
+   * - Thread_Control::Post_switch_actions,
+   * - Thread_Control::Scheduler::control, and
+   * - Thread_Control::Scheduler::own_control.
+   *
+   * @see _Thread_State_acquire().
+   */
+  Thread_queue_Control     Join_queue;
+
   /** This field is the current execution state of this thread. */
   States_Control           current_state;
 
@@ -712,14 +748,6 @@ struct _Thread_Control {
   Priority_Control         real_priority;
 
   /**
-   * @brief Generation of the current priority value.
-   *
-   * It is used in _Thread_Change_priority() to serialize the update of
-   * priority related data structures.
-   */
-  uint32_t                 priority_generation;
-
-  /**
    * @brief Hints if a priority restore is necessary once the resource count
    * changes from one to zero.
    *
@@ -735,7 +763,7 @@ struct _Thread_Control {
   /** This field is the blocking information for this thread. */
   Thread_Wait_information  Wait;
   /** This field is the Watchdog used to manage thread delays and timeouts. */
-  Watchdog_Control         Timer;
+  Thread_Timer_information Timer;
 #if defined(RTEMS_MULTIPROCESSING)
   /** This field is the received response packet in an MP system. */
   MP_packet_Prefix        *receive_packet;
@@ -761,12 +789,6 @@ struct _Thread_Control {
   SMP_lock_Stats Potpourri_stats;
 #endif
 
-#ifdef __RTEMS_STRICT_ORDER_MUTEX__
-  /** This field is the head of queue of priority inheritance mutex
-   *  held by the thread.
-   */
-  Chain_Control            lock_mutex;
-#endif
 #if defined(RTEMS_SMP)
   /**
    * @brief Resource node to build a dependency tree in case this thread owns
@@ -807,7 +829,7 @@ struct _Thread_Control {
   /** This field is the amount of CPU time consumed by this thread
    *  since it was created.
    */
-  Thread_CPU_usage_t                    cpu_time_used;
+  Timestamp_Control                     cpu_time_used;
 
   /** This field contains information about the starting state of
    *  this thread.
@@ -829,19 +851,10 @@ struct _Thread_Control {
   /** This array contains the API extension area pointers. */
   void                                 *API_Extensions[ THREAD_API_LAST + 1 ];
 
-#if !defined(RTEMS_SMP)
-  /** This field points to the set of per task variables. */
-  rtems_task_variable_t                *task_variables;
-#endif
-
   /**
-   * This is the thread key value chain's control, which is used
-   * to track all key value for specific thread, and when thread
-   * exits, we can remove all key value for specific thread by
-   * iterating this chain, or we have to search a whole rbtree,
-   * which is inefficient.
+   * @brief The POSIX Keys information.
    */
-  Chain_Control           Key_Chain;
+  Thread_Keys_information               Keys;
 
   /**
    * @brief Thread life-cycle control.
@@ -851,6 +864,16 @@ struct _Thread_Control {
   Thread_Life_control                   Life;
 
   Thread_Capture_control                Capture;
+
+  /**
+   * @brief LIFO list of POSIX cleanup contexts.
+   */
+  struct _pthread_cleanup_context *last_cleanup_context;
+
+  /**
+   * @brief LIFO list of user extensions iterators.
+   */
+  struct User_extensions_Iterator *last_user_extensions_iterator;
 
   /**
    * @brief Variable length array of user extension pointers.
@@ -907,9 +930,9 @@ typedef struct {
  *
  * The thread control block contains fields that point to application
  * configuration dependent memory areas, like the scheduler information, the
- * API control blocks, the user extension context table, the RTEMS notepads and
- * the Newlib re-entrancy support.  Account for these areas in the
- * configuration and avoid extra workspace allocations for these areas.
+ * API control blocks, the user extension context table, and the Newlib
+ * re-entrancy support.  Account for these areas in the configuration and
+ * avoid extra workspace allocations for these areas.
  *
  * This array is provided via <rtems/confdefs.h>.
  *

@@ -43,14 +43,13 @@ libbsp_a_SOURCES =
 libbsp_a_SOURCES += ../../powerpc/shared/startup/bspstart.c \
  	../../powerpc/shared/startup/bspgetworkarea.c \
  	../../powerpc/shared/showbats.c \
- 	../../powerpc/shared/startup/pretaskinghook.c \
-        ../../shared/bsppredriverhook.c \
+    ../../powerpc/shared/startup/bsppredriverhook.c \
  	../../powerpc/shared/startup/zerobss.c \
     ../../powerpc/shared/startup/pgtbl_setup.c \
     ../../powerpc/shared/startup/pgtbl_activate.c \
 	../../powerpc/shared/startup/ppc_idle.c \
     ../../powerpc/shared/startup/sbrk.c ../../shared/bootcard.c \
-    ../../shared/bspclean.c ../../shared/bsplibc.c ../../shared/bsppost.c \
+    ../../shared/bspclean.c \
     ../../shared/gnatinstallhandler.c \
     startup/bspreset.c
 

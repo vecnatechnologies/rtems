@@ -54,10 +54,7 @@
 #include <bsp/tblsizes.h>
 
 #include <rtems.h>
-#include <rtems/iosupp.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
-#include <libcpu/cpu.h>
+#include <rtems/score/cpu.h>
 #include <rtems/bspIo.h>
 
 #ifdef __cplusplus
@@ -187,8 +184,6 @@ void Calibrate_loop_1ms(void);           /* from 'timer.c'  */
 
 void rtems_irq_mngt_init(void);          /* from 'irq_init.c' */
 
-void bsp_size_memory(void);              /* from 'bspstart.c' */
-
 #if (BSP_IS_EDISON == 0)
   void Clock_driver_install_handler(void);             /* from 'ckinit.c'  */
   void Clock_driver_support_initialize_hardware(void); /* from 'ckinit.c'  */
@@ -200,9 +195,9 @@ void bsp_size_memory(void);              /* from 'bspstart.c' */
    *
    *  @brief Clock Tick Support Package
    */
-   Thread clock_driver_sim_idle_body(uintptr_t);
+   void *clock_driver_sim_idle_body(uintptr_t);
    #define BSP_IDLE_TASK_BODY clock_driver_sim_idle_body
-  /*  
+  /*
    * hack to kill some time. Hopefully hitting a hardware register is slower
    * than an empty loop.
    */
@@ -214,6 +209,9 @@ void bsp_size_memory(void);              /* from 'bspstart.c' */
       } \
     } while ( 0 )
 #endif /* edison */
+
+void *bsp_idle_thread( uintptr_t ignored );
+#define BSP_IDLE_TASK_BODY bsp_idle_thread
 
 void kbd_reset_setup(char *str, int *ints);   /* from 'pc_keyb.c' */
 size_t read_aux(char * buffer, size_t count); /* from 'ps2_mouse.c'  */
@@ -257,6 +255,7 @@ void bsp_ide_cmdline_init(void);
 void init_remote_gdb( void );
 void i386_stub_glue_init(int uart);
 void i386_stub_glue_init_breakin(void);
+int i386_stub_glue_uart(void);
 void breakpoint(void);
 
 #define BSP_MAXIMUM_DEVICES 6

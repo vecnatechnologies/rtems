@@ -17,7 +17,7 @@
 
 typedef struct {
   Chain_Node Node;
-  SMP_Multicast_action_handler handler;
+  SMP_Action_handler handler;
   void *arg;
   cpu_set_t *recipients;
   size_t setsize;
@@ -74,7 +74,7 @@ _SMP_Multicast_actions_try_process( void )
   Per_CPU_Control *cpu_self;
   ISR_Level isr_level;
 
-  _ISR_Disable_without_giant( isr_level );
+  _ISR_Local_disable( isr_level );
 
   cpu_self = _Per_CPU_Get();
 
@@ -88,13 +88,13 @@ _SMP_Multicast_actions_try_process( void )
     }
   }
 
-  _ISR_Enable_without_giant( isr_level );
+  _ISR_Local_enable( isr_level );
 }
 
 void _SMP_Multicast_action(
   const size_t setsize,
   const cpu_set_t *cpus,
-  SMP_Multicast_action_handler handler,
+  SMP_Action_handler handler,
   void *arg
 )
 {

@@ -5,6 +5,7 @@
 #ifndef __BUFFER_TEST_IO_h
 #define __BUFFER_TEST_IO_h
 
+#include <rtems/bspIo.h>
 #include <rtems/test.h>
 
 #ifdef __cplusplus
@@ -17,16 +18,14 @@ extern "C" {
  */
 
 /* #define TESTS_BUFFER_OUTPUT */
-#if defined(__AVR__)
-#define TESTS_USE_PRINTK
-#endif
+/* #define TESTS_USE_PRINTK */
 
 /*
  *  USE PRINTK TO MINIMIZE SIZE
  */
 #if defined(TESTS_USE_PRINTK)
 
-#include <rtems/bspIo.h>
+#include <rtems/print.h>
 
   #undef printf
   #define printf(...) \
@@ -56,9 +55,9 @@ extern "C" {
     do { \
     } while (0)
 
-  #define TEST_BEGIN() rtems_test_begink()
+  #define TEST_BEGIN() printk(TEST_BEGIN_STRING)
 
-  #define TEST_END() rtems_test_endk()
+  #define TEST_END() printk(TEST_END_STRING)
 
 /*
  *  BUFFER TEST OUTPUT
@@ -158,9 +157,9 @@ extern "C" {
       fflush(stdout); \
     } while (0)
 
-  #define TEST_BEGIN() rtems_test_begin()
+  #define TEST_BEGIN() printf(TEST_BEGIN_STRING)
 
-  #define TEST_END() rtems_test_end()
+  #define TEST_END() printf(TEST_END_STRING)
 
 /*
  *  USE IPRINT
@@ -207,11 +206,9 @@ extern "C" {
       fflush(stdout); \
     } while (0)
 
-  #define TEST_BEGIN() \
-    rtems_test_begin_with_plugin((rtems_printk_plugin_t) fiprintf, stderr)
+  #define TEST_BEGIN() fiprintf( stderr, TEST_BEGIN_STRING)
 
-  #define TEST_END() \
-    rtems_test_end_with_plugin((rtems_printk_plugin_t) fiprintf, stderr)
+  #define TEST_END()  fiprintf( stderr, TEST_END_STRING)
 
 #endif
 

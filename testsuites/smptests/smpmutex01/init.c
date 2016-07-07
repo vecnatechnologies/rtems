@@ -81,7 +81,7 @@ static void start_task(
   sc = rtems_scheduler_ident(scheduler, &scheduler_id);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-  sc = rtems_task_set_scheduler(ctx->tasks[id], scheduler_id);
+  sc = rtems_task_set_scheduler(ctx->tasks[id], scheduler_id, prio);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
   sc = rtems_task_start(ctx->tasks[id], entry, id);
@@ -339,8 +339,6 @@ static void Init(rtems_task_argument arg)
 
 #define CONFIGURE_APPLICATION_NEEDS_CLOCK_DRIVER
 #define CONFIGURE_APPLICATION_NEEDS_CONSOLE_DRIVER
-
-#define CONFIGURE_USE_IMFS_AS_BASE_FILESYSTEM
 
 #define CONFIGURE_SMP_APPLICATION
 

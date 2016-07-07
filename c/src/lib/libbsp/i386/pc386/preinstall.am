@@ -53,6 +53,10 @@ $(PROJECT_INCLUDE)/bsp/bootcard.h: ../../shared/include/bootcard.h $(PROJECT_INC
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/bootcard.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/bootcard.h
 
+$(PROJECT_INCLUDE)/bsp/bspimpl.h: include/bspimpl.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/bspimpl.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/bspimpl.h
+
 $(PROJECT_INCLUDE)/bsp/irq.h: ../../i386/shared/irq/irq.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/irq.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/irq.h
@@ -165,10 +169,6 @@ PREINSTALL_FILES += $(PROJECT_INCLUDE)/i386_io.h
 $(PROJECT_INCLUDE)/rtems/console_private.h: ../../shared/console_private.h $(PROJECT_INCLUDE)/rtems/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/console_private.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/console_private.h
-
-$(PROJECT_INCLUDE)/pcibios.h: ../../i386/shared/pci/pcibios.h $(PROJECT_INCLUDE)/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/pcibios.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/pcibios.h
 
 $(PROJECT_INCLUDE)/uart.h: ../../i386/shared/comm/uart.h $(PROJECT_INCLUDE)/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/uart.h

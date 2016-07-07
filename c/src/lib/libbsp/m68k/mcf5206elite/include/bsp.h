@@ -119,10 +119,6 @@
 
 #include <bspopts.h>
 #include <rtems.h>
-#include <rtems/console.h>
-#include <rtems/iosupp.h>
-#include <rtems/clockdrv.h>
-#include <rtems/rtc.h>
 #include <bsp/default-initial-extension.h>
 
 #ifdef __cplusplus

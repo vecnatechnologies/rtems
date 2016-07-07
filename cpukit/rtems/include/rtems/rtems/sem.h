@@ -22,7 +22,7 @@
  */
 
 /*
- * COPYRIGHT (c) 1989-2008.
+ * COPYRIGHT (c) 1989-2008, 2016.
  * On-Line Applications Research Corporation (OAR).
  *
  * The license and distribution terms for this file may be
@@ -65,13 +65,6 @@ typedef struct {
   Objects_Control          Object;
 
   /**
-   *  This is the Classic API attribute provided to the create directive.
-   *  It is translated into behavioral attributes on the SuperCore Semaphore
-   *  or Mutex instance.
-   */
-  rtems_attribute          attribute_set;
-
-  /**
    *  This contains the memory associated with the SuperCore Semaphore or
    *  Mutex instance that provides the primary functionality of each
    *  Classic API Semaphore instance.  The structure used is dependent
@@ -82,21 +75,44 @@ typedef struct {
    */
   union {
     /**
+     * @brief The thread queue present in all other variants.
+     */
+    Thread_queue_Control Wait_queue;
+
+    /**
      *  This is the SuperCore Mutex instance associated with this Classic
      *  API Semaphore instance.
      */
-    CORE_mutex_Control     mutex;
+    CORE_ceiling_mutex_Control Mutex;
 
     /**
      *  This is the SuperCore Semaphore instance associated with this Classic
      *  API Semaphore instance.
      */
-    CORE_semaphore_Control semaphore;
+    CORE_semaphore_Control Semaphore;
 
 #if defined(RTEMS_SMP)
-    MRSP_Control mrsp;
+    MRSP_Control MRSP;
 #endif
   } Core_control;
+
+  /**
+   * @brief The semaphore variant.
+   *
+   * @see Semaphore_Variant.
+   */
+  unsigned int variant : 3;
+
+  /**
+   * @brief The semaphore thread queue discipline.
+   *
+   * @see Semaphore_Discipline.
+   */
+  unsigned int discipline : 1;
+
+#if defined(RTEMS_MULTIPROCESSING)
+  unsigned int is_global : 1;
+#endif
 }   Semaphore_Control;
 
 /**
@@ -107,8 +123,6 @@ typedef struct {
  *  the semaphore is count.  The attribute_set determines if
  *  the semaphore is global or local and the thread queue
  *  discipline.  It returns the id of the created semaphore in ID.
- *
- *  Semaphore Manager
  */
 rtems_status_code rtems_semaphore_create(
   rtems_name           name,
@@ -185,8 +199,6 @@ rtems_status_code rtems_semaphore_obtain(
 
 /**
  *  @brief RTEMS Semaphore Release
- *
- *  Semaphore Manager
  *
  *  This routine implements the rtems_semaphore_release directive.  It
  *  frees a unit to the semaphore associated with ID.  If a task was

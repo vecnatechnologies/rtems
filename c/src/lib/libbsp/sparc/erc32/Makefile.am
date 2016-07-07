@@ -29,11 +29,8 @@ libbsp_a_SOURCES =
 
 # startup
 libbsp_a_SOURCES += ../../shared/bspclean.c
-libbsp_a_SOURCES += ../../shared/bsplibc.c
 libbsp_a_SOURCES += startup/bsppredriver.c
 libbsp_a_SOURCES += ../../sparc/shared/startup/bspgetworkarea.c
-libbsp_a_SOURCES += ../../sparc/shared/bsppretaskinghook.c
-libbsp_a_SOURCES += ../../shared/bsppost.c
 libbsp_a_SOURCES += ../../shared/bspstart.c
 libbsp_a_SOURCES += ../../shared/bootcard.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
@@ -43,7 +40,6 @@ libbsp_a_SOURCES += startup/erc32mec.c
 libbsp_a_SOURCES += startup/boardinit.S
 libbsp_a_SOURCES += startup/bspidle.c
 libbsp_a_SOURCES += startup/bspdelay.c
-libbsp_a_SOURCES += ../../sparc/shared/startup/early_malloc.c
 libbsp_a_SOURCES += ../../sparc/shared/startup/bsp_fatal_exit.c
 libbsp_a_SOURCES += ../../sparc/shared/startup/bsp_fatal_halt.c
 # ISR Handler

@@ -58,6 +58,10 @@ $(PROJECT_INCLUDE)/rtems/io.h: include/rtems/io.h $(PROJECT_INCLUDE)/rtems/$(dir
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/io.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/io.h
 
+$(PROJECT_INCLUDE)/rtems/ioimpl.h: include/rtems/ioimpl.h $(PROJECT_INCLUDE)/rtems/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/ioimpl.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/ioimpl.h
+
 $(PROJECT_INCLUDE)/rtems/mptables.h: include/rtems/mptables.h $(PROJECT_INCLUDE)/rtems/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/mptables.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/mptables.h
@@ -81,10 +85,6 @@ PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/rbtree.h
 $(PROJECT_INCLUDE)/rtems/scheduler.h: include/rtems/scheduler.h $(PROJECT_INCLUDE)/rtems/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/scheduler.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/scheduler.h
-
-$(PROJECT_INCLUDE)/rtems/sptables.h: include/rtems/sptables.h $(PROJECT_INCLUDE)/rtems/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/sptables.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/rtems/sptables.h
 
 $(PROJECT_INCLUDE)/rtems/timecounter.h: include/rtems/timecounter.h $(PROJECT_INCLUDE)/rtems/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/rtems/timecounter.h

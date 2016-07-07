@@ -595,75 +595,6 @@ require the addition of a new configuration parameter to specify the
 number of tasks which enable floating point support.
 
 @c
-@c === CONFIGURE_ENABLE_CLASSIC_API_NOTEPADS ===
-@c
-@subsection Enable Classic API Notepads
-
-@findex CONFIGURE_ENABLE_CLASSIC_API_NOTEPADS
-
-@table @b
-@item CONSTANT:
-@code{CONFIGURE_ENABLE_CLASSIC_API_NOTEPADS}
-
-@item DATA TYPE:
-Boolean feature macro.
-
-@item RANGE:
-Defined or undefined.
-
-@item DEFAULT VALUE:
-This is not defined by default, and Classic API Notepads are not supported.
-
-@end table
-
-@subheading DESCRIPTION:
-@code{CONFIGURE_ENABLE_CLASSIC_API_NOTEPADS} should be defined if the
-user wants to have support for Classic API Notepads in their application.
-
-@subheading NOTES:
-Disabling Classic API Notepads saves the allocation of sixteen (16)
-thirty-two bit integers. This saves sixty-four bytes per task/thread
-plus the allocation overhead. Notepads are rarely used in applications
-and this can save significant memory in a low RAM system. Classic API 
-Notepads are deprecated, and this option is expected to be obsolete in
-the near future.
-
-@c
-@c === CONFIGURE_DISABLE_CLASSIC_API_NOTEPADS ===
-@c
-@subsection Disable Classic API Notepads
-
-@findex CONFIGURE_DISABLE_CLASSIC_API_NOTEPADS
-
-@table @b
-@item CONSTANT:
-@code{CONFIGURE_DISABLE_CLASSIC_API_NOTEPADS}
-
-@item DATA TYPE:
-Boolean feature macro.
-
-@item RANGE:
-Defined or undefined.
-
-@item DEFAULT VALUE:
-This is not defined by default, and Classic API Notepads are not supported.
-
-@end table
-
-@subheading DESCRIPTION:
-@code{CONFIGURE_DISABLE_CLASSIC_API_NOTEPADS} is deprecated. If users
-want to have support for Classic API Notepads, they should use
-@code{CONFIGURE_ENABLE_CLASSIC_API_NOTEPADS}.
-
-@subheading NOTES:
-Disabling Classic API Notepads saves the allocation of sixteen (16)
-thirty-two bit integers. This saves sixty-four bytes per task/thread
-plus the allocation overhead. Notepads are rarely used in applications
-and this can save significant memory in a low RAM system. Classic API 
-Notepads are deprecated, and this option is expected to be obsolete in
-the near future.
-
-@c
 @c === CONFIGURE_MAXIMUM_TIMERS ===
 @c
 @subsection Specify Maximum Classic API Timers
@@ -2747,6 +2678,61 @@ options will be defined as well
 @item @code{CONFIGURE_IMFS_DISABLE_RENAME}, and
 @item @code{CONFIGURE_IMFS_DISABLE_UNMOUNT}.
 @end itemize
+
+@c
+@c === CONFIGURE_IMFS_MEMFILE_BYTES_PER_BLOCK ===
+@c
+@subsection Specify Block Size for IMFS
+
+@findex CONFIGURE_IMFS_MEMFILE_BYTES_PER_BLOCK
+
+@table @b
+@item CONSTANT:
+@code{CONFIGURE_IMFS_MEMFILE_BYTES_PER_BLOCK}
+
+@item DATA TYPE:
+Boolean feature macro.
+
+@item RANGE:
+Valid values for this configuration parameter are a power of two (2)
+between 16 and 512 inclusive.  In other words, valid values are 16,
+32, 64, 128, 256,and 512.
+
+@item DEFAULT VALUE:
+The default IMFS block size is 128 bytes.
+
+@end table
+
+@subheading DESCRIPTION:
+This configuration parameter specifies the block size for in-memory files
+managed by the IMFS. The configured block size has two impacts. The first
+is the average amount of unused memory in the last block of each file. For
+example, when the block size is 512, on average one-half of the last block
+of each file will remain unused and the memory is wasted. In contrast,
+when the block size is 16, the average unused memory per file is only
+8 bytes. However, it requires more allocations for the same size file
+and thus more overhead per block for the dynamic memory management.
+
+Second, the block size has an impact on the maximum size file that can
+be stored in the IMFS. With smaller block size, the maximum file size
+is correspondingly smaller. The following shows the maximum file size
+possible based on the configured block size:
+
+@itemize @bullet
+@item when the block size is 16 bytes, the maximum file size is 1,328
+bytes.
+@item when the block size is 32 bytes, the maximum file size is 18,656
+bytes.
+@item when the block size is 64 bytes, the maximum file size is 279,488
+bytes.
+@item when the block size is 128 bytes, the maximum file size is
+4,329,344 bytes.
+@item when the block size is 256 bytes, the maximum file size is
+68,173,568 bytes.
+@item when the block size is 512 bytes, the maximum file size is
+1,082,195,456 bytes.
+@end itemize
+
 
 @c
 @c === CONFIGURE_IMFS_DISABLE_CHOWN ===

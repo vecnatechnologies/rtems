@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (c) 2010-2015 embedded brains GmbH.  All rights reserved.
+ * Copyright (c) 2010, 2016 embedded brains GmbH.  All rights reserved.
  *
  *  embedded brains GmbH
  *  Dornierstr. 4
@@ -28,9 +28,15 @@
 
 #include <bsp/vectors.h>
 
+#if (QORIQ_INITIAL_MSR & MSR_FP) != 0
+#define INITIALIZE_FPU
+#endif
+
 #define FIRST_TLB 0
 #define SCRATCH_TLB QORIQ_TLB1_ENTRY_COUNT - 1
 #define INITIAL_MSR r14
+#define START_STACK r15
+#define SAVED_LINK_REGISTER r16
 
 	.globl _start
 #ifdef RTEMS_SMP
@@ -44,40 +50,37 @@
 	.section ".bsp_start_text", "ax"
 
 _start:
-	bl	.Linit
+	bl	.Linitearly
 
 #ifdef HAS_UBOOT
 	bl	bsp_uboot_copy_board_info
 #endif /* HAS_UBOOT */
 
-	/* Initial MMU setup */
-	bl	qoriq_tlb1_ts_0_only
-	li	r3, SCRATCH_TLB
-	li	r4, FSL_EIS_MAS1_TS
-	li	r5, FSL_EIS_MAS2_I
-	li	r6, FSL_EIS_MAS3_SR | FSL_EIS_MAS3_SW | FSL_EIS_MAS3_SX
-	li	r7, 0
-	li	r8, 0
-	li	r9, 11
-	bl	qoriq_tlb1_write
+#ifdef U_BOOT_USE_FDT
+	bl	bsp_fdt_copy
+#endif /* U_BOOT_USE_FDT */
 
-	/* MSR initialization */
-	LWI	INITIAL_MSR, QORIQ_INITIAL_MSR
-	ori	r0, INITIAL_MSR, MSR_IS | MSR_DS
-	mtmsr	r0
+	bl	qoriq_l1cache_invalidate
 
-#ifdef QORIQ_INITIAL_BUCSR
-	/* BUCSR initialization */
-	LWI	r0, QORIQ_INITIAL_BUCSR
-	mtspr	FSL_EIS_BUCSR, r0
-	isync
+#ifdef QORIQ_CLUSTER_1_L2CSR0
+	LWI	r3, QORIQ_CLUSTER_1_L2CSR0
+	bl	qoriq_l2cache_flush_invalidate
 #endif
 
-	/* Initialize start stack */
-	LWI	r1, start_stack_end - PPC_MINIMUM_STACK_FRAME_SIZE
-	clrrwi	r1, r1, PPC_STACK_ALIGN_POWER
-	li	r0, 0
-	stw	r0, 0(r1)
+#ifdef QORIQ_CLUSTER_2_L2CSR0
+	LWI	r3, QORIQ_CLUSTER_2_L2CSR0
+	bl	qoriq_l2cache_flush_invalidate
+#endif
+
+#ifdef QORIQ_CLUSTER_3_L2CSR0
+	LWI	r3, QORIQ_CLUSTER_3_L2CSR0
+	bl	qoriq_l2cache_flush_invalidate
+#endif
+
+	/* Get start stack */
+	LWI	START_STACK, start_stack_end
+
+	bl	.Linitmore
 
 	/* Copy fast text */
 	LWI	r3, bsp_section_fast_text_begin
@@ -117,13 +120,7 @@ _start:
 	bdnz	.Lnull_area_setup_loop
 .Lnull_area_setup_done:
 
-	/* Configure MMU */
-	li	r3, FIRST_TLB
-	li	r4, SCRATCH_TLB
-	bl	qoriq_mmu_config
-	mtmsr	INITIAL_MSR
-	li	r3, SCRATCH_TLB
-	bl	qoriq_tlb1_invalidate
+	bl	.Linitmmu
 
 	/* Clear SBSS */
 	LWI	r3, bsp_section_sbss_begin
@@ -149,12 +146,7 @@ _start:
 	b	memcpy
 
 	/* Do not use r3 here, since this could be the U-Boot board info */
-.Linit:
-	/* Reset time base */
-	li	r0, 0
-	mtspr	TBWU, r0
-	mtspr	TBWL, r0
-
+.Linitearly:
 	/* Disable decrementer */
 	mfspr	r0, BOOKE_TCR
 	LWI	r4, BOOKE_TCR_DIE
@@ -167,11 +159,122 @@ _start:
 	mtspr	FSL_EIS_SPEFSCR, r0
 #endif
 
-	/* Set small-data anchors */
-	LA	r2, _SDA2_BASE_
+#ifdef QORIQ_INITIAL_BUCSR
+	/* BUCSR initialization */
+	LWI	r0, QORIQ_INITIAL_BUCSR
+	mtspr	FSL_EIS_BUCSR, r0
+	isync
+#endif
+
+#ifdef QORIQ_INITIAL_HID0
+	/* HID0 initialization */
+	LWI	r0, QORIQ_INITIAL_HID0
+	mtspr	HID0, r0
+#endif
+
+	/* Invalidate TLS anchor */
+	li	r2, 0
+
+	/* Set small-data anchor */
 	LA	r13, _SDA_BASE_
 
 	blr
+
+.Linitmore:
+	mflr	SAVED_LINK_REGISTER
+
+	/* Invalidate all TS1 MMU entries */
+	li	r3, 1
+	bl	qoriq_tlb1_invalidate_all_by_ts
+
+	/* Add TS1 entry for the first 4GiB of RAM */
+	li	r3, SCRATCH_TLB
+	li	r4, FSL_EIS_MAS1_TS
+	li	r5, FSL_EIS_MAS2_I
+	li	r6, FSL_EIS_MAS3_SR | FSL_EIS_MAS3_SW | FSL_EIS_MAS3_SX
+	li	r7, 0
+	li	r8, 0
+	li	r9, 11
+	bl	qoriq_tlb1_write
+
+	/* MSR initialization and use TS1 for address translation */
+	LWI	INITIAL_MSR, QORIQ_INITIAL_MSR
+	ori	r0, INITIAL_MSR, MSR_IS | MSR_DS
+	mtmsr	r0
+	isync
+
+	/* Initialize start stack */
+	subi	r1, START_STACK, PPC_MINIMUM_STACK_FRAME_SIZE
+	clrrwi	r1, r1, PPC_STACK_ALIGN_POWER
+	li	r0, 0
+	stw	r0, 0(r1)
+
+#ifdef INITIALIZE_FPU
+	bl	.Linitfpu
+#endif
+
+	mtlr	SAVED_LINK_REGISTER
+	blr
+
+.Linitmmu:
+	mflr	SAVED_LINK_REGISTER
+
+	/* Configure MMU */
+	li	r3, FIRST_TLB
+	li	r4, SCRATCH_TLB
+	bl	qoriq_mmu_config
+	mtmsr	INITIAL_MSR
+	isync
+	li	r3, SCRATCH_TLB
+	bl	qoriq_tlb1_invalidate
+
+	mtlr	SAVED_LINK_REGISTER
+	blr
+
+#ifdef INITIALIZE_FPU
+	/*
+	 * Write a value to the FPRs to initialize the hidden tag bits.  See
+	 * also "Core Software Initialization Requirements" of the e500mc
+	 * reference manual for example.
+	 */
+.Linitfpu:
+	li	r0, 0
+	stw	r0, 0(r1)
+	stw	r0, 4(r1)
+	lfd	f0, 0(r1)
+	fmr	f1, f0
+	fmr	f2, f0
+	fmr	f3, f0
+	fmr	f4, f0
+	fmr	f5, f0
+	fmr	f6, f0
+	fmr	f7, f0
+	fmr	f8, f0
+	fmr	f9, f0
+	fmr	f10, f0
+	fmr	f11, f0
+	fmr	f12, f0
+	fmr	f13, f0
+	fmr	f14, f0
+	fmr	f15, f0
+	fmr	f16, f0
+	fmr	f17, f0
+	fmr	f18, f0
+	fmr	f19, f0
+	fmr	f20, f0
+	fmr	f21, f0
+	fmr	f22, f0
+	fmr	f23, f0
+	fmr	f24, f0
+	fmr	f25, f0
+	fmr	f26, f0
+	fmr	f27, f0
+	fmr	f28, f0
+	fmr	f29, f0
+	fmr	f30, f0
+	fmr	f31, f0
+	blr
+#endif
 
 #ifdef RTEMS_SMP
 #if QORIQ_THREAD_COUNT > 1
@@ -182,7 +285,7 @@ _start_thread:
 	ori	r0, r0, 1
 	mtspr	BOOKE_PIR, r0
 
-	bl	.Linit
+	bl	.Linitearly
 
 	/* Initialize start stack */
 	GET_SELF_CPU_CONTROL	r3
@@ -192,52 +295,20 @@ _start_thread:
 	li	r0, 0
 	stw	r0, 0(r1)
 
+#ifdef INITIALIZE_FPU
+	bl	.Linitfpu
+#endif
+
 	b	qoriq_start_thread
 #endif
 _start_secondary_processor:
-
-	bl	.Linit
+	bl	.Linitearly
 
 	/* Get start stack */
-	mr	r1, r3
+	mr	START_STACK, r3
 
-	/* Initial MMU setup */
-	bl	qoriq_tlb1_ts_0_only
-	li	r3, SCRATCH_TLB
-	li	r4, FSL_EIS_MAS1_TS
-	li	r5, FSL_EIS_MAS2_I
-	li	r6, FSL_EIS_MAS3_SR | FSL_EIS_MAS3_SW | FSL_EIS_MAS3_SX
-	li	r7, 0
-	li	r8, 0
-	li	r9, 11
-	bl	qoriq_tlb1_write
-
-	/* MSR initialization */
-	LWI	INITIAL_MSR, QORIQ_INITIAL_MSR
-	ori	r0, INITIAL_MSR, MSR_IS | MSR_DS
-	mtmsr	r0
-
-#ifdef QORIQ_INITIAL_BUCSR
-	/* BUCSR initialization */
-	LWI	r0, QORIQ_INITIAL_BUCSR
-	mtspr	FSL_EIS_BUCSR, r0
-	isync
-#endif
-
-	/* Initialize start stack */
-	subi	r1, r1, PPC_MINIMUM_STACK_FRAME_SIZE
-	clrrwi	r1, r1, PPC_STACK_ALIGN_POWER
-	li	r0, 0
-	stw	r0, 0(r1)
-
-	/* Configure MMU */
-	li	r3, FIRST_TLB
-	li	r4, SCRATCH_TLB
-	bl	qoriq_mmu_config
-	mtmsr	INITIAL_MSR
-	li	r3, SCRATCH_TLB
-	bl	qoriq_tlb1_invalidate
-
+	bl	.Linitmore
+	bl	.Linitmmu
 	b	bsp_start_on_secondary_processor
 #endif /* RTEMS_SMP */
 

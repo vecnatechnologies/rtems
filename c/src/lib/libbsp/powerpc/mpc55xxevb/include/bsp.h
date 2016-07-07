@@ -35,8 +35,6 @@
 #ifndef ASM
 
 #include <rtems.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
 
 #include <libcpu/powerpc-utility.h>
 

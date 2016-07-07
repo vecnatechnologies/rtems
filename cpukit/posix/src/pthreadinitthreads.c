@@ -24,16 +24,26 @@
 
 #include <rtems/system.h>
 #include <rtems/config.h>
-#include <rtems/score/apiext.h>
 #include <rtems/score/stack.h>
 #include <rtems/score/thread.h>
 #include <rtems/score/wkspace.h>
-#include <rtems/posix/cancel.h>
 #include <rtems/posix/posixapi.h>
 #include <rtems/posix/pthreadimpl.h>
 #include <rtems/posix/priorityimpl.h>
 #include <rtems/posix/config.h>
 #include <rtems/rtems/config.h>
+
+static void *_POSIX_Global_construction( void *arg )
+{
+  Thread_Control           *executing = _Thread_Get_executing();
+  Thread_Entry_information  entry = executing->Start.Entry;
+
+  entry.Kinds.Pointer.entry = Configuration_POSIX_API
+    .User_initialization_threads_table[ 0 ].thread_entry;
+
+  (void) arg;
+  _Thread_Global_construction( executing, &entry );
+}
 
 void _POSIX_Threads_Initialize_user_threads_body(void)
 {
@@ -74,10 +84,17 @@ void _POSIX_Threads_Initialize_user_threads_body(void)
     _Assert( eno == 0 );
 
     thread_entry = user_threads[ index ].thread_entry;
+    if ( thread_entry == NULL ) {
+      _Terminate(
+        INTERNAL_ERROR_CORE,
+        false,
+        INTERNAL_ERROR_POSIX_INIT_THREAD_ENTRY_IS_NULL
+      );
+    }
 
-    if ( register_global_construction && thread_entry != NULL ) {
+    if ( register_global_construction ) {
       register_global_construction = false;
-      thread_entry = (void *(*)(void *)) _Thread_Global_construction;
+      thread_entry = _POSIX_Global_construction;
     }
 
     eno = pthread_create(

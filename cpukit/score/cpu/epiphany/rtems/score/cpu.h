@@ -70,27 +70,6 @@ extern "C" {
 #define CPU_INLINE_ENABLE_DISPATCH       FALSE
 
 /*
- *  Should the body of the search loops in _Thread_queue_Enqueue_priority
- *  be unrolled one time?  In unrolled each iteration of the loop examines
- *  two "nodes" on the chain being searched.  Otherwise, only one node
- *  is examined per iteration.
- *
- *  If TRUE, then the loops are unrolled.
- *  If FALSE, then the loops are not unrolled.
- *
- *  The primary factor in making this decision is the cost of disabling
- *  and enabling interrupts (_ISR_Flash) versus the cost of rest of the
- *  body of the loop.  On some CPUs, the flash is more expensive than
- *  one iteration of the loop body.  In this case, it might be desirable
- *  to unroll the loop.  It is important to note that on some CPUs, this
- *  code is the longest interrupt disable period in RTEMS.  So it is
- *  necessary to strike a balance when setting this parameter.
- *
- */
-
-#define CPU_UNROLL_ENQUEUE_PRIORITY      TRUE
-
-/*
  *  Does RTEMS manage a dedicated interrupt stack in software?
  *
  *  If TRUE, then a stack is allocated in _ISR_Handler_initialization.
@@ -281,28 +260,10 @@ extern "C" {
 
 #define CPU_STACK_GROWS_UP               FALSE
 
-/*
- *  The following is the variable attribute used to force alignment
- *  of critical RTEMS structures.  On some processors it may make
- *  sense to have these aligned on tighter boundaries than
- *  the minimum requirements of the compiler in order to have as
- *  much of the critical data area as possible in a cache line.
- *
- *  The placement of this macro in the declaration of the variables
- *  is based on the syntactically requirements of the GNU C
- *  "__attribute__" extension.  For example with GNU C, use
- *  the following to force a structures to a 32 byte boundary.
- *
- *      __attribute__ ((aligned (32)))
- *
- *  NOTE:  Currently only the Priority Bit Map table uses this feature.
- *         To benefit from using this, the data must be heavily
- *         used so it will stay in the cache and used frequently enough
- *         in the executive to justify turning this on.
- *
- */
+/* FIXME: Is this the right value? */
+#define CPU_CACHE_LINE_BYTES 64
 
-#define CPU_STRUCTURE_ALIGNMENT __attribute__ ((aligned (64)))
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /*
  *  Define what is required to specify how the network to host conversion
@@ -442,7 +403,6 @@ typedef Context_Control CPU_Interrupt_frame;
  */
 
 #define CPU_CONTEXT_FP_SIZE  0
-SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context;
 
 /*
  *  Amount of extra stack (above minimum stack size) required by
@@ -697,23 +657,8 @@ void _CPU_Context_Initialize(
 #define _CPU_Context_Fp_start( _base, _offset ) \
    ( (void *) _Addresses_Add_offset( (_base), (_offset) ) )
 
-/*
- *  This routine initializes the FP context area passed to it to.
- *  There are a few standard ways in which to initialize the
- *  floating point context.  The code included for this macro assumes
- *  that this is a CPU in which a "initial" FP context was saved into
- *  _CPU_Null_fp_context and it simply copies it to the destination
- *  context passed to it.
- *
- *  Other models include (1) not doing anything, and (2) putting
- *  a "null FP status word" in the correct place in the FP context.
- *
- */
-
 #define _CPU_Context_Initialize_fp( _destination ) \
-  { \
-   *(*(_destination)) = _CPU_Null_fp_context; \
-  }
+  memset( *( _destination ), 0, CPU_CONTEXT_FP_SIZE );
 
 /* end of Context handler macros */
 
@@ -733,110 +678,7 @@ void _CPU_Context_Initialize(
 
 /* end of Fatal Error manager macros */
 
-/* Bitfield handler macros */
-
-/*
- *  This routine sets _output to the bit number of the first bit
- *  set in _value.  _value is of CPU dependent type Priority_Bit_map_control.
- *  This type may be either 16 or 32 bits wide although only the 16
- *  least significant bits will be used.
- *
- *  There are a number of variables in using a "find first bit" type
- *  instruction.
- *
- *    (1) What happens when run on a value of zero?
- *    (2) Bits may be numbered from MSB to LSB or vice-versa.
- *    (3) The numbering may be zero or one based.
- *    (4) The "find first bit" instruction may search from MSB or LSB.
- *
- *  RTEMS guarantees that (1) will never happen so it is not a concern.
- *  (2),(3), (4) are handled by the macros _CPU_Priority_mask() and
- *  _CPU_Priority_bits_index().  These three form a set of routines
- *  which must logically operate together.  Bits in the _value are
- *  set and cleared based on masks built by _CPU_Priority_mask().
- *  The basic major and minor values calculated by _Priority_Major()
- *  and _Priority_Minor() are "massaged" by _CPU_Priority_bits_index()
- *  to properly range between the values returned by the "find first bit"
- *  instruction.  This makes it possible for _Priority_Get_highest() to
- *  calculate the major and directly index into the minor table.
- *  This mapping is necessary to ensure that 0 (a high priority major/minor)
- *  is the first bit found.
- *
- *  This entire "find first bit" and mapping process depends heavily
- *  on the manner in which a priority is broken into a major and minor
- *  components with the major being the 4 MSB of a priority and minor
- *  the 4 LSB.  Thus (0 << 4) + 0 corresponds to priority 0 -- the highest
- *  priority.  And (15 << 4) + 14 corresponds to priority 254 -- the next
- *  to the lowest priority.
- *
- *  If your CPU does not have a "find first bit" instruction, then
- *  there are ways to make do without it.  Here are a handful of ways
- *  to implement this in software:
- *
- *    - a series of 16 bit test instructions
- *    - a "binary search using if's"
- *    - _number = 0
- *      if _value > 0x00ff
- *        _value >>=8
- *        _number = 8;
- *
- *      if _value > 0x0000f
- *        _value >=8
- *        _number += 4
- *
- *      _number += bit_set_table[ _value ]
- *
- *    where bit_set_table[ 16 ] has values which indicate the first
- *      bit set
- *
- */
-
-  /* #define CPU_USE_GENERIC_BITFIELD_CODE FALSE */
 #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
-#define CPU_USE_GENERIC_BITFIELD_DATA TRUE
-
-#if (CPU_USE_GENERIC_BITFIELD_CODE == FALSE)
-
-#define _CPU_Bitfield_Find_first_bit( _value, _output ) \
-  { \
-    (_output) = 0;   /* do something to prevent warnings */ \
-  }
-#endif
-
-/* end of Bitfield handler macros */
-
-/*
- *  This routine builds the mask which corresponds to the bit fields
- *  as searched by _CPU_Bitfield_Find_first_bit().  See the discussion
- *  for that routine.
- *
- */
-
-#if (CPU_USE_GENERIC_BITFIELD_CODE == FALSE)
-
-#define _CPU_Priority_Mask( _bit_number ) \
-    (1 << _bit_number)
-
-#endif
-
-/*
- *  This routine translates the bit numbers returned by
- *  _CPU_Bitfield_Find_first_bit() into something suitable for use as
- *  a major or minor component of a priority.  See the discussion
- *  for that routine.
- *
- */
-
-#if (CPU_USE_GENERIC_BITFIELD_CODE == FALSE)
-
-#define _CPU_Priority_bits_index( _priority ) \
-  (_priority)
-
-#endif
-
-#define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC FALSE
-#define CPU_TIMESTAMP_USE_INT64 TRUE
-#define CPU_TIMESTAMP_USE_INT64_INLINE FALSE
 
 typedef struct {
 /* There is no CPU specific per-CPU state */
@@ -854,8 +696,9 @@ typedef struct {
 #define CPU_EXCEPTION_FRAME_SIZE 260
 #define CPU_PER_CPU_CONTROL_SIZE 0
 
+#define CPU_MAXIMUM_PROCESSORS 32
+
 #ifndef ASM
-typedef uint16_t Priority_bit_map_Word;
 
 typedef struct {
   uint32_t r[62];
@@ -969,7 +812,7 @@ void _CPU_Context_switch(
 
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /*
  *  _CPU_Context_save_fp
@@ -1055,125 +898,6 @@ static inline CPU_Counter_ticks _CPU_Counter_difference(
 {
   return second - first;
 }
-
-#ifdef RTEMS_SMP
-  /**
-   * @brief Performs CPU specific SMP initialization in the context of the boot
-   * processor.
-   *
-   * This function is invoked on the boot processor during system
-   * initialization.  All interrupt stacks are allocated at this point in case
-   * the CPU port allocates the interrupt stacks.  This function is called
-   * before _CPU_SMP_Start_processor() or _CPU_SMP_Finalize_initialization() is
-   * used.
-   *
-   * @return The count of physically or virtually available processors.
-   * Depending on the configuration the application may use not all processors.
-   */
-  uint32_t _CPU_SMP_Initialize( void );
-
-  /**
-   * @brief Starts a processor specified by its index.
-   *
-   * This function is invoked on the boot processor during system
-   * initialization.
-   *
-   * This function will be called after _CPU_SMP_Initialize().
-   *
-   * @param[in] cpu_index The processor index.
-   *
-   * @retval true Successful operation.
-   * @retval false Unable to start this processor.
-   */
-  bool _CPU_SMP_Start_processor( uint32_t cpu_index );
-
-  /**
-   * @brief Performs final steps of CPU specific SMP initialization in the
-   * context of the boot processor.
-   *
-   * This function is invoked on the boot processor during system
-   * initialization.
-   *
-   * This function will be called after all processors requested by the
-   * application have been started.
-   *
-   * @param[in] cpu_count The minimum value of the count of processors
-   * requested by the application configuration and the count of physically or
-   * virtually available processors.
-   */
-  void _CPU_SMP_Finalize_initialization( uint32_t cpu_count );
-
-  /**
-   * @brief Returns the index of the current processor.
-   *
-   * An architecture specific method must be used to obtain the index of the
-   * current processor in the system.  The set of processor indices is the
-   * range of integers starting with zero up to the processor count minus one.
-   */
-   uint32_t _CPU_SMP_Get_current_processor( void );
-
-  /**
-   * @brief Sends an inter-processor interrupt to the specified target
-   * processor.
-   *
-   * This operation is undefined for target processor indices out of range.
-   *
-   * @param[in] target_processor_index The target processor index.
-   */
-  void _CPU_SMP_Send_interrupt( uint32_t target_processor_index );
-
-  /**
-   * @brief Broadcasts a processor event.
-   *
-   * Some architectures provide a low-level synchronization primitive for
-   * processors in a multi-processor environment.  Processors waiting for this
-   * event may go into a low-power state and stop generating system bus
-   * transactions.  This function must ensure that preceding store operations
-   * can be observed by other processors.
-   *
-   * @see _CPU_SMP_Processor_event_receive().
-   */
-  void _CPU_SMP_Processor_event_broadcast( void );
-
-  /**
-   * @brief Receives a processor event.
-   *
-   * This function will wait for the processor event and may wait forever if no
-   * such event arrives.
-   *
-   * @see _CPU_SMP_Processor_event_broadcast().
-   */
-  static inline void _CPU_SMP_Processor_event_receive( void )
-  {
-    __asm__ volatile ( "" : : : "memory" );
-  }
-
-  /**
-   * @brief Gets the is executing indicator of the thread context.
-   *
-   * @param[in] context The context.
-   */
-  static inline bool _CPU_Context_Get_is_executing(
-    const Context_Control *context
-  )
-  {
-    return context->is_executing;
-  }
-
-  /**
-   * @brief Sets the is executing indicator of the thread context.
-   *
-   * @param[in] context The context.
-   * @param[in] is_executing The new value for the is executing indicator.
-   */
-  static inline void _CPU_Context_Set_is_executing(
-    Context_Control *context,
-    bool is_executing
-  )
-  {
-    context->is_executing = is_executing;
-  }
-#endif /* RTEMS_SMP */
 
 #endif /* ASM */
 

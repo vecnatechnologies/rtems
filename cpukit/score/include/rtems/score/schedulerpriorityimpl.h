@@ -48,20 +48,28 @@ RTEMS_INLINE_ROUTINE Scheduler_priority_Node *_Scheduler_priority_Thread_get_nod
   return (Scheduler_priority_Node *) _Scheduler_Thread_get_node( the_thread );
 }
 
+RTEMS_INLINE_ROUTINE Scheduler_priority_Node *_Scheduler_priority_Node_downcast(
+  Scheduler_Node *node
+)
+{
+  return (Scheduler_priority_Node *) node;
+}
+
 /**
  * @brief Ready queue initialization.
  *
  * This routine initializes @a ready_queues for priority-based scheduling.
  */
 RTEMS_INLINE_ROUTINE void _Scheduler_priority_Ready_queue_initialize(
-  Chain_Control *ready_queues
+  Chain_Control    *ready_queues,
+  Priority_Control  maximum_priority
 )
 {
   size_t index;
 
-  /* initialize ready queue structures */
-  for( index=0; index <= PRIORITY_MAXIMUM; index++)
-    _Chain_Initialize_empty( &ready_queues[index] );
+  for ( index = 0 ; index <= (size_t) maximum_priority ; ++index ) {
+    _Chain_Initialize_empty( &ready_queues[ index ] );
+  }
 }
 
 /**
@@ -209,30 +217,14 @@ RTEMS_INLINE_ROUTINE void _Scheduler_priority_Ready_queue_update(
   Chain_Control                  *ready_queues
 )
 {
+  ready_queue->current_priority = (unsigned int) new_priority;
   ready_queue->ready_chain = &ready_queues[ new_priority ];
 
   _Priority_bit_map_Initialize_information(
     bit_map,
     &ready_queue->Priority_map,
-    new_priority
+    (unsigned int) new_priority
   );
-}
-
-/**
- * @brief Priority comparison.
- *
- * This routine implements priority comparison for priority-based
- * scheduling.
- *
- * @return >0 for higher priority, 0 for equal and <0 for lower priority.
- */
-RTEMS_INLINE_ROUTINE int _Scheduler_priority_Priority_compare_body(
-  Priority_Control      p1,
-  Priority_Control      p2
-)
-{
-  /* High priority in priority scheduler is represented by low numbers. */
-  return ( p2 - p1 );
 }
 
 /** @} */

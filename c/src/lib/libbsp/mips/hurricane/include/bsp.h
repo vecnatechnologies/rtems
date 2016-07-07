@@ -20,9 +20,6 @@
 #include <bsp/default-initial-extension.h>
 
 #include <rtems.h>
-#include <rtems/iosupp.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
 #include <libcpu/rm5231.h>
 
 #ifdef __cplusplus

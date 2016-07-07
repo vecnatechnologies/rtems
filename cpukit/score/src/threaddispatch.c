@@ -9,7 +9,7 @@
  *  COPYRIGHT (c) 1989-2009.
  *  On-Line Applications Research Corporation (OAR).
  *
- *  Copyright (c) 2014 embedded brains GmbH.
+ *  Copyright (c) 2014, 2016 embedded brains GmbH.
  *
  *  The license and distribution terms for this file may be
  *  found in the file LICENSE in this distribution or at
@@ -21,7 +21,6 @@
 #endif
 
 #include <rtems/score/threaddispatch.h>
-#include <rtems/score/apiext.h>
 #include <rtems/score/assert.h>
 #include <rtems/score/isr.h>
 #include <rtems/score/threadimpl.h>
@@ -29,6 +28,16 @@
 #include <rtems/score/userextimpl.h>
 #include <rtems/score/wkspace.h>
 #include <rtems/config.h>
+
+#if __RTEMS_ADA__
+void *rtems_ada_self;
+#endif
+
+#if ( CPU_HARDWARE_FP == TRUE ) || ( CPU_SOFTWARE_FP == TRUE )
+Thread_Control *_Thread_Allocated_fp;
+#endif
+
+CHAIN_DEFINE_EMPTY( _User_extensions_Switches_list );
 
 static Thread_Action *_Thread_Get_post_switch_action(
   Thread_Control *executing
@@ -41,23 +50,22 @@ static Thread_Action *_Thread_Get_post_switch_action(
 
 static void _Thread_Run_post_switch_actions( Thread_Control *executing )
 {
-  ISR_Level        level;
-  Per_CPU_Control *cpu_self;
-  Thread_Action   *action;
+  ISR_lock_Context  lock_context;
+  Thread_Action    *action;
 
-  cpu_self = _Thread_Action_ISR_disable_and_acquire( executing, &level );
+  _Thread_State_acquire( executing, &lock_context );
   action = _Thread_Get_post_switch_action( executing );
 
   while ( action != NULL ) {
     _Chain_Set_off_chain( &action->Node );
 
-    ( *action->handler )( executing, action, cpu_self, level );
+    ( *action->handler )( executing, action, &lock_context );
 
-    cpu_self = _Thread_Action_ISR_disable_and_acquire( executing, &level );
+    _Thread_State_acquire( executing, &lock_context );
     action = _Thread_Get_post_switch_action( executing );
   }
 
-  _Thread_Action_release_and_ISR_enable( cpu_self, level );
+  _Thread_State_release( executing, &lock_context );
 }
 
 void _Thread_Do_dispatch( Per_CPU_Control *cpu_self, ISR_Level level )
@@ -96,22 +104,7 @@ void _Thread_Do_dispatch( Per_CPU_Control *cpu_self, ISR_Level level )
      * to this function.
      */
 #if !defined( RTEMS_SMP )
-    _ISR_Enable( level );
-#endif
-
-    _Thread_Update_cpu_time_used(
-      executing,
-      &cpu_self->time_of_last_context_switch
-    );
-
-#if !defined(__DYNAMIC_REENT__)
-    /*
-     * Switch libc's task specific data.
-     */
-    if ( _Thread_libc_reent ) {
-      executing->libc_reent = *_Thread_libc_reent;
-      *_Thread_libc_reent = heir->libc_reent;
-    }
+    _ISR_Local_enable( level );
 #endif
 
     _User_extensions_Thread_switch( executing, heir );
@@ -129,7 +122,7 @@ void _Thread_Do_dispatch( Per_CPU_Control *cpu_self, ISR_Level level )
     _Thread_Debug_set_real_processor( executing, cpu_self );
 
 #if !defined( RTEMS_SMP )
-    _ISR_Disable( level );
+    _ISR_Local_disable( level );
 #endif
   } while (
 #if defined( RTEMS_SMP )
@@ -144,7 +137,7 @@ post_switch:
   cpu_self->thread_dispatch_disable_level = 0;
   _Profiling_Thread_dispatch_enable( cpu_self, 0 );
 
-  _ISR_Enable_without_giant( level );
+  _ISR_Local_enable( level );
 
   _Thread_Run_post_switch_actions( executing );
 }
@@ -154,7 +147,7 @@ void _Thread_Dispatch( void )
   ISR_Level        level;
   Per_CPU_Control *cpu_self;
 
-  _ISR_Disable_without_giant( level );
+  _ISR_Local_disable( level );
 
   cpu_self = _Per_CPU_Get();
 
@@ -163,6 +156,6 @@ void _Thread_Dispatch( void )
     cpu_self->thread_dispatch_disable_level = 1;
     _Thread_Do_dispatch( cpu_self, level );
   } else {
-    _ISR_Enable_without_giant( level );
+    _ISR_Local_enable( level );
   }
 }

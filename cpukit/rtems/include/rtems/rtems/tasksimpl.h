@@ -19,6 +19,7 @@
 
 #include <rtems/rtems/tasks.h>
 #include <rtems/score/objectimpl.h>
+#include <rtems/score/schedulerimpl.h>
 #include <rtems/score/threadimpl.h>
 
 #ifdef __cplusplus
@@ -34,29 +35,10 @@ extern "C" {
  */
 
 /**
- *  @brief Instantiate RTEMS Classic API Tasks Data
- *
- *  This constant is defined to extern most of the time when using
- *  this header file.  However by defining it to nothing, the data
- *  declared in this header file can be instantiated.  This is done
- *  in a single per manager file.
- */
-#ifndef RTEMS_TASKS_EXTERN
-#define RTEMS_TASKS_EXTERN extern
-#endif
-
-/**
  *  The following instantiates the information control block used to
  *  manage this class of objects.
  */
-RTEMS_TASKS_EXTERN Thread_Information _RTEMS_tasks_Information;
-
-/**
- *  @brief RTEMS Task Manager Initialization
- *
- *  This routine initializes all Task Manager related data structures.
- */
-void _RTEMS_tasks_Manager_initialization(void);
+extern Thread_Information _RTEMS_tasks_Information;
 
 /**
  *  @brief RTEMS User Task Initialization
@@ -65,21 +47,6 @@ void _RTEMS_tasks_Manager_initialization(void);
  *  initialization threads.
  */
 void _RTEMS_tasks_Initialize_user_tasks( void );
-
-#if !defined(RTEMS_SMP)
-/**
- *  @brief RTEMS Tasks Invoke Task Variable Destructor
- *
- *  @deprecated Task variables are deprecated.
- *
- *  This routine invokes the optional user provided destructor on the
- *  task variable and frees the memory for the task variable.
- */
-void _RTEMS_Tasks_Invoke_task_variable_dtor(
-  Thread_Control        *the_thread,
-  rtems_task_variable_t *tvp
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
-#endif
 
 RTEMS_INLINE_ROUTINE Thread_Control *_RTEMS_tasks_Allocate(void)
 {
@@ -108,41 +75,46 @@ RTEMS_INLINE_ROUTINE void _RTEMS_tasks_Free (
 }
 
 /**
- *  @brief Converts an RTEMS API priority into a core priority.
+ * @brief Converts the RTEMS API priority to the corresponding SuperCore
+ * priority and validates it.
  *
- *  This function converts an RTEMS API priority into a core priority.
+ * The RTEMS API system priority is accepted as valid.
+ *
+ * @param[in] scheduler The scheduler instance.
+ * @param[in] priority The RTEMS API priority to convert and validate.
+ * @param[out] valid Indicates if the RTEMS API priority is valid and a
+ *   corresponding SuperCore priority in the specified scheduler instance
+ *   exists.
+ *
+ * @return The corresponding SuperCore priority.
  */
-RTEMS_INLINE_ROUTINE Priority_Control _RTEMS_tasks_Priority_to_Core(
-  rtems_task_priority   priority
+RTEMS_INLINE_ROUTINE Priority_Control _RTEMS_Priority_To_core(
+  const Scheduler_Control *scheduler,
+  rtems_task_priority      priority,
+  bool                    *valid
 )
 {
-  return (Priority_Control) priority;
+  *valid = ( priority <= scheduler->maximum_priority );
+
+  return _Scheduler_Map_priority( scheduler, (Priority_Control) priority );
 }
 
 /**
- *  @brief Converts a core priority into an RTEMS API priority.
+ * @brief Converts the SuperCore priority to the corresponding RTEMS API
+ * priority.
  *
- *  This function converts a core priority into an RTEMS API priority.
+ * @param[in] scheduler The scheduler instance.
+ * @param[in] priority The SuperCore priority to convert.
+ *
+ * @return The corresponding RTEMS API priority.
  */
-RTEMS_INLINE_ROUTINE rtems_task_priority _RTEMS_tasks_Priority_from_Core (
-  Priority_Control priority
+RTEMS_INLINE_ROUTINE rtems_task_priority _RTEMS_Priority_From_core(
+  const Scheduler_Control *scheduler,
+  Priority_Control         priority
 )
 {
-  return (rtems_task_priority) priority;
-}
-
-/**
- *  @brief Checks whether the priority is a valid user task.
- *
- *  This function returns TRUE if the_priority is a valid user task priority
- *  and FALSE otherwise.
- */
-RTEMS_INLINE_ROUTINE bool _RTEMS_tasks_Priority_is_valid (
-  rtems_task_priority the_priority
-)
-{
-  return (  ( the_priority >= RTEMS_MINIMUM_PRIORITY ) &&
-            ( the_priority <= RTEMS_MAXIMUM_PRIORITY ) );
+  return (rtems_task_priority)
+    _Scheduler_Unmap_priority( scheduler, priority );
 }
 
 /**@}*/

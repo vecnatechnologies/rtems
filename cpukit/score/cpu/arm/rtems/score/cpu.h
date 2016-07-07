@@ -82,6 +82,7 @@
 #define ARM_PSR_M_IRQ 0x12
 #define ARM_PSR_M_SVC 0x13
 #define ARM_PSR_M_ABT 0x17
+#define ARM_PSR_M_HYP 0x1a
 #define ARM_PSR_M_UND 0x1b
 #define ARM_PSR_M_SYS 0x1f
 
@@ -144,10 +145,13 @@
 
 #define CPU_STACK_GROWS_UP FALSE
 
-/* XXX Why 32? */
-#define CPU_STRUCTURE_ALIGNMENT __attribute__ ((aligned (32)))
+#if defined(ARM_MULTILIB_CACHE_LINE_MAX_64)
+  #define CPU_CACHE_LINE_BYTES 32
+#else
+  #define CPU_CACHE_LINE_BYTES 64
+#endif
 
-#define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC TRUE
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /*
  * The interrupt mask disables only normal interrupts (IRQ).
@@ -200,9 +204,9 @@
 
 #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
 
-#define CPU_USE_GENERIC_BITFIELD_DATA TRUE
-
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 /** @} */
 
@@ -489,11 +493,11 @@ void _CPU_ISR_install_vector(
 void _CPU_Context_switch( Context_Control *run, Context_Control *heir );
 
 void _CPU_Context_restore( Context_Control *new_context )
-  RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+  RTEMS_NO_RETURN;
 
 #if defined(ARM_MULTILIB_ARCH_V7M)
   void _ARMV7M_Start_multitasking( Context_Control *heir )
-    RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+    RTEMS_NO_RETURN;
   #define _CPU_Start_multitasking _ARMV7M_Start_multitasking
 #endif
 

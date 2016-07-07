@@ -1,3 +1,11 @@
+/**
+ * @file
+ *
+ * @ingroup m68k_mcf52235
+ *
+ * @brief Global BSP definitions
+ */
+
 /*
  *  mcf52235 BSP header file
  */
@@ -8,10 +16,6 @@
 #include <bspopts.h>
 #include <bsp/default-initial-extension.h>
 #include <rtems.h>
-#include <rtems/iosupp.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
-#include <rtems/iosupp.h>
 #include <rtems/bspIo.h>
 
 /***************************************************************************/
@@ -73,3 +77,11 @@ void Init52235(void);
 #endif
 
 #endif
+
+/**
+ * @defgroup m68k_mcf52235 MCF52235 Support
+ *
+ * @ingroup bsp_m68k
+ *
+ * @brief MCF52235 Support Package
+ */

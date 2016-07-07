@@ -32,8 +32,6 @@
 #ifndef ASM
 
 #include <rtems.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
 #include <bsp/default-initial-extension.h>
 
 #define BSP_OSCILATOR_CLOCK 8000000

@@ -20,7 +20,6 @@
 #define _RTEMS_SCORE_PRIORITYBITMAPIMPL_H
 
 #include <rtems/score/prioritybitmap.h>
-#include <rtems/score/priority.h>
 
 #include <string.h>
 
@@ -33,142 +32,103 @@ extern "C" {
  */
 /**@{**/
 
-#if ( CPU_USE_GENERIC_BITFIELD_DATA == TRUE )
-
 /**
  *  This table is used by the generic bitfield routines to perform
  *  a highly optimized bit scan without the use of special CPU
  *  instructions.
  */
-extern const unsigned char __log2table[256];
-
-#endif
+extern const unsigned char _Bitfield_Leading_zeros[256];
 
 /**
- *  @brief Gets the @a _bit_number of the first bit set in the specified value.
+ * @brief Returns the bit number of the first bit set in the specified value.
  *
- *  This routine returns the @a _bit_number of the first bit set
- *  in the specified value.  The correspondence between @a _bit_number
- *  and actual bit position is processor dependent.  The search for
- *  the first bit set may run from most to least significant bit
- *  or vice-versa.
+ * The correspondence between the bit number and actual bit position is CPU
+ * architecture dependent.  The search for the first bit set may run from most
+ * to least significant bit or vice-versa.
  *
- *  @param[in] _value is the value to bit scan.
- *  @param[in] _bit_number is the position of the first bit set.
+ * @param value The value to bit scan.
  *
- *  @note This routine is used when the executing thread is removed
- *  from the ready state and, as a result, its performance has a
- *  significant impact on the performance of the executive as a whole.
+ * @return The bit number of the first bit set.
  *
- *  @note This routine must be a macro because if a CPU specific version
- *  is used it will most likely use inline assembly.
+ * @see _Priority_Bits_index() and _Priority_Mask().
  */
+RTEMS_INLINE_ROUTINE unsigned int _Bitfield_Find_first_bit(
+  unsigned int value
+)
+{
+  unsigned int bit_number;
+
 #if ( CPU_USE_GENERIC_BITFIELD_CODE == FALSE )
-#define _Bitfield_Find_first_bit( _value, _bit_number ) \
-        _CPU_Bitfield_Find_first_bit( _value, _bit_number )
+  _CPU_Bitfield_Find_first_bit( value, bit_number );
+#elif defined(__GNUC__)
+  bit_number = (unsigned int) __builtin_clz( value )
+    - __SIZEOF_INT__ * __CHAR_BIT__ + 16;
 #else
-#define _Bitfield_Find_first_bit( _value, _bit_number ) \
-  { \
-    register uint32_t   __value = (uint32_t) (_value); \
-    register const unsigned char *__p = __log2table; \
-    \
-    if ( __value < 0x100 ) \
-      (_bit_number) = (Priority_bit_map_Word)( __p[ __value ] + 8 );  \
-    else \
-      (_bit_number) = (Priority_bit_map_Word)( __p[ __value >> 8 ] ); \
+  if ( value < 0x100 ) {
+    bit_number = _Bitfield_Leading_zeros[ value ] + 8;
+  } else { \
+    bit_number = _Bitfield_Leading_zeros[ value >> 8 ];
   }
 #endif
 
-#if ( CPU_USE_GENERIC_BITFIELD_CODE == FALSE )
-/**
- *  This method returns the priority bit mask for the specified major
- *  or minor bit number.
- *
- *  @param[in] _bit_number is the bit number for which we need a mask
- *
- *  @retval the priority bit mask
- *
- *  @note This may simply be a pass through to a CPU dependent implementation.
- */
-#define _Priority_Mask( _bit_number ) \
-  _CPU_Priority_Mask( _bit_number )
-#endif
+  return bit_number;
+}
 
-#if ( CPU_USE_GENERIC_BITFIELD_CODE == FALSE )
 /**
- *  This method returns the bit index position for the specified priority.
+ * @brief Returns the priority bit mask for the specified major or minor bit
+ * number.
  *
- *  @param[in] _priority is the priority for which we need the index.
+ * @param bit_number The bit number for which we need a mask.
  *
- *  @retval This method returns the array index into the priority bit map.
- *
- *  @note This may simply be a pass through to a CPU dependent implementation.
+ * @return The priority bit mask.
  */
-#define _Priority_Bits_index( _priority ) \
-  _CPU_Priority_bits_index( _priority )
+RTEMS_INLINE_ROUTINE Priority_bit_map_Word _Priority_Mask(
+  unsigned int bit_number
+)
+{
+#if ( CPU_USE_GENERIC_BITFIELD_CODE == FALSE )
+  return _CPU_Priority_Mask( bit_number );
+#else
+  return (Priority_bit_map_Word) ( 0x8000u >> bit_number );
 #endif
+}
+
+/**
+ * @brief Returns the bit index position for the specified major or minor bit
+ * number.
+ *
+ * @param bit_number The bit number for which we need an index.
+ *
+ * @return The corresponding array index into the priority bit map.
+ */
+RTEMS_INLINE_ROUTINE unsigned int _Priority_Bits_index(
+  unsigned int bit_number
+)
+{
+#if ( CPU_USE_GENERIC_BITFIELD_CODE == FALSE )
+  return _CPU_Priority_bits_index( bit_number );
+#else
+  return bit_number;
+#endif
+}
 
 /**
  * This function returns the major portion of the_priority.
  */
 
-RTEMS_INLINE_ROUTINE Priority_bit_map_Word   _Priority_Major (
-  Priority_Control the_priority
-)
+RTEMS_INLINE_ROUTINE unsigned int _Priority_Major( unsigned int the_priority )
 {
-  return (Priority_bit_map_Word)( the_priority / 16 );
+  return the_priority / 16;
 }
 
 /**
  * This function returns the minor portion of the_priority.
  */
 
-RTEMS_INLINE_ROUTINE Priority_bit_map_Word   _Priority_Minor (
-  Priority_Control the_priority
-)
+RTEMS_INLINE_ROUTINE unsigned int _Priority_Minor( unsigned int the_priority )
 {
-  return (Priority_bit_map_Word)( the_priority % 16 );
+  return the_priority % 16;
 }
-
-#if ( CPU_USE_GENERIC_BITFIELD_CODE == TRUE )
-
-/**
- * This function returns the mask associated with the major or minor
- * number passed to it.
- */
-
-RTEMS_INLINE_ROUTINE Priority_bit_map_Word   _Priority_Mask (
-  uint32_t   bit_number
-)
-{
-  return (Priority_bit_map_Word)(0x8000u >> bit_number);
-}
-
-/**
- * This function returns the mask bit inverted.
- */
-
-RTEMS_INLINE_ROUTINE Priority_bit_map_Word   _Priority_Mask_invert (
-  uint32_t   mask
-)
-{
-  return (Priority_bit_map_Word)(~mask);
-}
-
-/**
- * This function translates the bit numbers returned by the bit scan
- * of a priority bit field into something suitable for use as
- * a major or minor component of a priority.
- */
-
-RTEMS_INLINE_ROUTINE uint32_t   _Priority_Bits_index (
-  uint32_t   bit_number
-)
-{
-  return bit_number;
-}
-
-#endif
 
 RTEMS_INLINE_ROUTINE void _Priority_bit_map_Initialize(
   Priority_bit_map_Control *bit_map
@@ -200,21 +160,15 @@ RTEMS_INLINE_ROUTINE void _Priority_bit_map_Remove (
     bit_map->major_bit_map &= bit_map_info->block_major;
 }
 
-RTEMS_INLINE_ROUTINE Priority_Control _Priority_bit_map_Get_highest(
+RTEMS_INLINE_ROUTINE unsigned int _Priority_bit_map_Get_highest(
   const Priority_bit_map_Control *bit_map
 )
 {
-  Priority_bit_map_Word minor;
-  Priority_bit_map_Word major;
+  unsigned int minor;
+  unsigned int major;
 
-  /* Avoid problems with some inline ASM statements */
-  Priority_bit_map_Word tmp;
-
-  tmp = bit_map->major_bit_map;
-  _Bitfield_Find_first_bit( tmp, major );
-
-  tmp = bit_map->bit_map[ major ];
-  _Bitfield_Find_first_bit( tmp, minor );
+  major = _Bitfield_Find_first_bit( bit_map->major_bit_map );
+  minor = _Bitfield_Find_first_bit( bit_map->bit_map[ major ] );
 
   return (_Priority_Bits_index( major ) << 4) +
           _Priority_Bits_index( minor );
@@ -230,11 +184,11 @@ RTEMS_INLINE_ROUTINE bool _Priority_bit_map_Is_empty(
 RTEMS_INLINE_ROUTINE void _Priority_bit_map_Initialize_information(
   Priority_bit_map_Control     *bit_map,
   Priority_bit_map_Information *bit_map_info,
-  Priority_Control              new_priority
+  unsigned int                  new_priority
 )
 {
-  Priority_bit_map_Word major;
-  Priority_bit_map_Word minor;
+  unsigned int major;
+  unsigned int minor;
   Priority_bit_map_Word mask;
 
   major = _Priority_Major( new_priority );
@@ -244,13 +198,11 @@ RTEMS_INLINE_ROUTINE void _Priority_bit_map_Initialize_information(
 
   mask = _Priority_Mask( major );
   bit_map_info->ready_major = mask;
-  /* Add _Priority_Mask_invert to non-generic bitfield then change this code. */
-  bit_map_info->block_major = (Priority_bit_map_Word)(~((uint32_t)mask));
+  bit_map_info->block_major = (Priority_bit_map_Word) ~mask;
 
   mask = _Priority_Mask( minor );
   bit_map_info->ready_minor = mask;
-  /* Add _Priority_Mask_invert to non-generic bitfield then change this code. */
-  bit_map_info->block_minor = (Priority_bit_map_Word)(~((uint32_t)mask));
+  bit_map_info->block_minor = (Priority_bit_map_Word) ~mask;
 }
 
 /** @} */

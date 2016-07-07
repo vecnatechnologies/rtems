@@ -44,37 +44,29 @@ void _Scheduler_simple_SMP_Initialize( const Scheduler_Control *scheduler )
 
 void _Scheduler_simple_SMP_Node_initialize(
   const Scheduler_Control *scheduler,
-  Thread_Control          *the_thread
+  Scheduler_Node          *node,
+  Thread_Control          *the_thread,
+  Priority_Control         priority
 )
 {
-  Scheduler_SMP_Node *node = _Scheduler_SMP_Thread_get_own_node( the_thread );
+  Scheduler_SMP_Node *the_node;
 
-  _Scheduler_SMP_Node_initialize( node, the_thread );
+  the_node = _Scheduler_SMP_Node_downcast( node );
+  _Scheduler_SMP_Node_initialize( the_node, the_thread, priority );
 }
 
 static void _Scheduler_simple_SMP_Do_update(
   Scheduler_Context *context,
-  Scheduler_Node    *node_to_update,
+  Scheduler_Node    *node,
   Priority_Control   new_priority
 )
 {
-  Scheduler_SMP_Node *node = _Scheduler_SMP_Node_downcast( node_to_update );
+  Scheduler_SMP_Node *the_node;
 
   (void) context;
 
-  _Scheduler_SMP_Node_update_priority( node, new_priority );
-}
-
-void _Scheduler_simple_SMP_Update_priority(
-  const Scheduler_Control *scheduler,
-  Thread_Control          *thread,
-  Priority_Control         new_priority
-)
-{
-  Scheduler_Context *context = _Scheduler_Get_context( scheduler );
-  Scheduler_Node *node = _Scheduler_Thread_get_node( thread );
-
-  _Scheduler_simple_SMP_Do_update( context, node, new_priority );
+  the_node = _Scheduler_SMP_Node_downcast( node );
+  _Scheduler_SMP_Node_update_priority( the_node, new_priority );
 }
 
 static Scheduler_Node *_Scheduler_simple_SMP_Get_highest_ready(
@@ -295,24 +287,21 @@ Thread_Control *_Scheduler_simple_SMP_Unblock(
   return _Scheduler_SMP_Unblock(
     context,
     thread,
+    _Scheduler_simple_SMP_Do_update,
     _Scheduler_simple_SMP_Enqueue_fifo
   );
 }
 
-Thread_Control *_Scheduler_simple_SMP_Change_priority(
+Thread_Control *_Scheduler_simple_SMP_Update_priority(
   const Scheduler_Control *scheduler,
-  Thread_Control          *thread,
-  Priority_Control         new_priority,
-  bool                     prepend_it
+  Thread_Control          *thread
 )
 {
   Scheduler_Context *context = _Scheduler_Get_context( scheduler );
 
-  return _Scheduler_SMP_Change_priority(
+  return _Scheduler_SMP_Update_priority(
     context,
     thread,
-    new_priority,
-    prepend_it,
     _Scheduler_simple_SMP_Extract_from_ready,
     _Scheduler_simple_SMP_Do_update,
     _Scheduler_simple_SMP_Enqueue_fifo,

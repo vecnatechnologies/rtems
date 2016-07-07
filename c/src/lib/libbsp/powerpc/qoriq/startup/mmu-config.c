@@ -63,6 +63,13 @@ typedef struct {
 	.mas3 = FSL_EIS_MAS3_SR | FSL_EIS_MAS3_SW \
 }
 
+#define ENTRY_IO(b, s) { \
+	.begin = (uint32_t) b, \
+	.size = (uint32_t) s, \
+	.mas2 = FSL_EIS_MAS2_I | FSL_EIS_MAS2_G, \
+	.mas3 = FSL_EIS_MAS3_SR | FSL_EIS_MAS3_SW \
+}
+
 #define ENTRY_DEV(b, s) { \
 	.begin = (uint32_t) b, \
 	.size = (uint32_t) s, \
@@ -71,8 +78,27 @@ typedef struct {
 	.mas7 = QORIQ_MMU_DEVICE_MAS7 \
 }
 
+/*
+ * MMU entry for BMan and QMan software portals.
+ *
+ * The M bit must be set if stashing is used, see 3.3.8.6 DQRR Entry Stashing
+ * and 3.3.8 Software Portals in T4240DPAARM.
+ *
+ * The G bit must be set, otherwise ECC errors in the QMan software portals
+ * will occur.  No documentation reference for this is available.
+ */
+#define ENTRY_DEV_CACHED(b, s) { \
+	.begin = (uint32_t) b, \
+	.size = (uint32_t) s, \
+	.mas2 = FSL_EIS_MAS2_M | FSL_EIS_MAS2_G, \
+	.mas3 = FSL_EIS_MAS3_SR | FSL_EIS_MAS3_SW, \
+	.mas7 = QORIQ_MMU_DEVICE_MAS7 \
+}
+
 static const entry DATA config [] = {
-	#if defined(QORIQ_INTERCOM_AREA_BEGIN) && defined(QORIQ_INTERCOM_AREA_SIZE)
+	#if defined(RTEMS_MULTIPROCESSING) && \
+	    defined(QORIQ_INTERCOM_AREA_BEGIN) && \
+	    defined(QORIQ_INTERCOM_AREA_SIZE)
 		{
 			.begin = QORIQ_INTERCOM_AREA_BEGIN,
 			.size = QORIQ_INTERCOM_AREA_SIZE,
@@ -95,6 +121,16 @@ static const entry DATA config [] = {
 	ENTRY_RW(bsp_section_rwextra_begin, bsp_section_rwextra_size),
 	ENTRY_RW(bsp_section_work_begin, bsp_section_work_size),
 	ENTRY_RW(bsp_section_stack_begin, bsp_section_stack_size),
+	ENTRY_IO(bsp_section_nocache_begin, bsp_section_nocache_size),
+	ENTRY_IO(bsp_section_nocachenoload_begin, bsp_section_nocachenoload_size),
+#if QORIQ_CHIP_IS_T_VARIANT(QORIQ_CHIP_VARIANT)
+	/* BMan Portals */
+	ENTRY_DEV_CACHED(&qoriq_bman_portal[0][0], sizeof(qoriq_bman_portal[0])),
+	ENTRY_DEV(&qoriq_bman_portal[1][0], sizeof(qoriq_bman_portal[1])),
+	/* QMan Portals */
+	ENTRY_DEV_CACHED(&qoriq_qman_portal[0][0], sizeof(qoriq_qman_portal[0])),
+	ENTRY_DEV(&qoriq_qman_portal[1][0], sizeof(qoriq_qman_portal[1])),
+#endif
 	ENTRY_DEV(&qoriq, sizeof(qoriq))
 };
 

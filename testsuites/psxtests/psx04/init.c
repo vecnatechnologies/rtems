@@ -281,7 +281,12 @@ void *POSIX_Init(
   puts( "Init: Wait 4 seconds for alarm" );
   remaining = sleep( 4 );
   printf( "Init: %d seconds left in sleep\n", remaining );
-  rtems_test_assert( remaining == 2 );
+
+  /*
+   * sleep() uses nanosleep() internally which discards the nanoseconds part,
+   * e.g. 1.99s -> 1s
+   */
+  rtems_test_assert( remaining == 1 || remaining == 2 );
 
   /* test SIG_SETMASK case and returning oset of pthread_sigmask */
 
@@ -543,15 +548,11 @@ void *POSIX_Init(
   puts( "Init: pthread_sigmask - EINVAL (timout->nsec invalid to large)" );
 
   status = pthread_kill( Init_id, 999 );
-  if ( status != -1 )
-    printf( "status = %d\n", status );
-  rtems_test_assert( errno == EINVAL );
+  rtems_test_assert( status == EINVAL );
   puts( "Init: pthread_kill - EINVAL (sig invalid)" );
 
   status = pthread_kill( Init_id, 0 );
-  if ( status != -1 )
-    printf( "status = %d\n", status );
-  rtems_test_assert( errno == EINVAL );
+  rtems_test_assert( status == EINVAL );
   puts( "Init: pthread_kill - EINVAL (signal = 0)" );
 
   act.sa_handler = SIG_IGN;

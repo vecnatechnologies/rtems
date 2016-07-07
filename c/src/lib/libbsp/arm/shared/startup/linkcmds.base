@@ -7,10 +7,10 @@
  */
 
 /*
- * Copyright (c) 2008-2014 embedded brains GmbH.  All rights reserved.
+ * Copyright (c) 2008, 2016 embedded brains GmbH.  All rights reserved.
  *
  *  embedded brains GmbH
- *  Obere Lagerstr. 30
+ *  Dornierstr. 4
  *  82178 Puchheim
  *  Germany
  *  <rtems@embedded-brains.de>
@@ -53,10 +53,13 @@ bsp_stack_svc_size = ALIGN (bsp_stack_svc_size, bsp_stack_align);
 bsp_stack_und_size = DEFINED (bsp_stack_und_size) ? bsp_stack_und_size : 0;
 bsp_stack_und_size = ALIGN (bsp_stack_und_size, bsp_stack_align);
 
+bsp_stack_hyp_size = DEFINED (bsp_stack_hyp_size) ? bsp_stack_hyp_size : 0;
+bsp_stack_hyp_size = ALIGN (bsp_stack_hyp_size, bsp_stack_align);
+
 bsp_stack_main_size = DEFINED (bsp_stack_main_size) ? bsp_stack_main_size : 0;
 bsp_stack_main_size = ALIGN (bsp_stack_main_size, bsp_stack_align);
 
-bsp_stack_all_size = bsp_stack_abt_size + bsp_stack_fiq_size + bsp_stack_irq_size + bsp_stack_svc_size + bsp_stack_und_size + bsp_stack_main_size;
+bsp_stack_all_size = bsp_stack_abt_size + bsp_stack_fiq_size + bsp_stack_irq_size + bsp_stack_svc_size + bsp_stack_und_size + bsp_stack_hyp_size + bsp_stack_main_size;
 
 bsp_processor_count = DEFINED (bsp_processor_count) ? bsp_processor_count : 1;
 
@@ -312,6 +315,10 @@ SECTIONS {
 		. = . + bsp_stack_und_size;
 		bsp_stack_und_end = .;
 
+		bsp_stack_hyp_begin = .;
+		. = . + bsp_stack_hyp_size;
+		bsp_stack_hyp_end = .;
+
 		bsp_stack_abt_begin = .;
 		. = . + bsp_stack_abt_size;
 		bsp_stack_abt_end = .;
@@ -399,16 +406,23 @@ SECTIONS {
 
 	.nocache : ALIGN_WITH_INPUT {
 		bsp_section_nocache_begin = .;
-		*(SORT(.bsp_nocache*))
-		bsp_nocache_heap_begin = .;
-		. += ORIGIN (REGION_NOCACHE) + LENGTH (REGION_NOCACHE) - ABSOLUTE (.);
-		bsp_nocache_heap_end = .;
+		*(SORT_BY_ALIGNMENT (SORT_BY_NAME (.bsp_nocache*)))
 		bsp_section_nocache_end = .;
 	} > REGION_NOCACHE AT > REGION_NOCACHE_LOAD
-	bsp_nocache_heap_size = bsp_nocache_heap_end - bsp_nocache_heap_begin;
 	bsp_section_nocache_size = bsp_section_nocache_end - bsp_section_nocache_begin;
 	bsp_section_nocache_load_begin = LOADADDR (.nocache);
 	bsp_section_nocache_load_end = bsp_section_nocache_load_begin + bsp_section_nocache_size;
+
+	.nocachenoload (NOLOAD) : ALIGN_WITH_INPUT {
+		bsp_section_nocachenoload_begin = .;
+		*(SORT_BY_ALIGNMENT (SORT_BY_NAME (.bsp_noload_nocache*)))
+		bsp_section_nocacheheap_begin = .;
+		. += ORIGIN (REGION_NOCACHE) + LENGTH (REGION_NOCACHE) - ABSOLUTE (.);
+		bsp_section_nocacheheap_end = .;
+		bsp_section_nocachenoload_end = .;
+	} > REGION_NOCACHE AT > REGION_NOCACHE
+	bsp_section_nocacheheap_size = bsp_section_nocacheheap_end - bsp_section_nocacheheap_begin;
+	bsp_section_nocachenoload_size = bsp_section_nocachenoload_end - bsp_section_nocachenoload_begin;
 
 	/* FIXME */
 	RamBase = ORIGIN (REGION_WORK);

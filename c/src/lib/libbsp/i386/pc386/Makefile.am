@@ -25,6 +25,7 @@ noinst_PROGRAMS =
 
 SUBDIRS = . tools
 
+nodist_include_bsp_HEADERS += include/bspimpl.h
 include_bsp_HEADERS  = ../../i386/shared/irq/irq.h
 include_bsp_HEADERS += ../../i386/shared/irq/irq_asm.h
 include_bsp_HEADERS += ../../i386/shared/comm/tty_drv.h
@@ -130,6 +131,8 @@ libbsp_a_SOURCES += console/conscfg.c
 libbsp_a_SOURCES += console/printk_support.c
 libbsp_a_SOURCES += console/exar17d15x.c
 libbsp_a_SOURCES += console/rtd316.c
+libbsp_a_SOURCES += console/uart_bus_pci.c
+libbsp_a_SOURCES += console/gdb_select.c
 
 # gdb
 libbsp_a_SOURCES += ../../i386/shared/comm/i386-stub.c
@@ -139,18 +142,18 @@ libbsp_a_SOURCES += ../../i386/shared/comm/gdb_glue.c
 # gnat
 libbsp_a_SOURCES += ../../shared/gnatinstallhandler.c
 
-include_HEADERS += ../../i386/shared/pci/pcibios.h
 # pci
-libbsp_a_SOURCES += ../../i386/shared/pci/pcibios.c \
-    ../../i386/shared/pci/pcibios.h
+libbsp_a_SOURCES += ../../i386/shared/pci/pcibios.c
+libbsp_a_SOURCES += ../../i386/shared/pci/pci_io.c
+libbsp_a_SOURCES += ../../shared/pci/pci_bus_count.c
+libbsp_a_SOURCES += ../../shared/pci/pci_find_device.c
 
 include_HEADERS += ../../i386/shared/comm/uart.h
 # startup
-libbsp_a_SOURCES += ../../shared/bsplibc.c
-libbsp_a_SOURCES += ../../shared/bsppost.c
 libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
+libbsp_a_SOURCES += startup/bsp_fatal_halt.c
 libbsp_a_SOURCES += startup/bspgetworkarea.c
-libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
+libbsp_a_SOURCES += startup/bspidle.S
 libbsp_a_SOURCES += startup/bspstart.c
 libbsp_a_SOURCES += startup/bspcmdline.c
 libbsp_a_SOURCES += ../../shared/bspclean.c
@@ -158,6 +161,7 @@ libbsp_a_SOURCES += startup/bspreset.c
 libbsp_a_SOURCES += ../../i386/shared/irq/idt.c
 libbsp_a_SOURCES += ../../i386/shared/irq/irq.c
 libbsp_a_SOURCES += ../../i386/shared/irq/irq_init.c
+libbsp_a_SOURCES += ../../i386/shared/irq/elcr.c
 libbsp_a_SOURCES += ../../shared/bootcard.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
 libbsp_a_SOURCES += startup/ldsegs.S
@@ -179,8 +183,8 @@ libbsp_a_SOURCES += ide/idecfg.c
 endif
 
 if HAS_SMP
-libbsp_a_SOURCES += ../../i386/shared/smp/getcpuid.c 
-libbsp_a_SOURCES += ../../i386/shared/smp/smp-imps.c 
+libbsp_a_SOURCES += ../../i386/shared/smp/getcpuid.c
+libbsp_a_SOURCES += ../../i386/shared/smp/smp-imps.c
 
 project_lib_DATA += appstart.$(OBJEXT)
 appcpustart.$(OBJEXT): start/start16.S
@@ -200,6 +204,7 @@ noinst_PROGRAMS += ne2000.rel
 ne2000_rel_SOURCES = ne2000/ne2000.c
 ne2000_rel_CPPFLAGS = $(AM_CPPFLAGS) $(ne2000_CPPFLAGS)
 ne2000_rel_LDFLAGS = $(RTEMS_RELLDFLAGS)
+ne2000_rel_LDFLAGS += -Wl,--undefined=rtems_ne_driver_attach
 endif
 
 if HAS_NETWORKING
@@ -213,6 +218,7 @@ wd8003_rel_SOURCES = wd8003/wd8003.c
 wd8003_rel_SOURCES += include/wd80x3.h
 wd8003_rel_CPPFLAGS = $(AM_CPPFLAGS) $(wd8003_CPPFLAGS)
 wd8003_rel_LDFLAGS = $(RTEMS_RELLDFLAGS)
+wd8003_rel_LDFLAGS += -Wl,--undefined=rtems_wd_driver_attach
 endif
 
 if HAS_NETWORKING
@@ -224,6 +230,8 @@ noinst_PROGRAMS += 3c509.rel
 3c509_rel_SOURCES += 3c509/elink.h
 3c509_rel_CPPFLAGS = $(AM_CPPFLAGS) $(3c509_CPPFLAGS)
 3c509_rel_LDFLAGS = $(RTEMS_RELLDFLAGS)
+3c509_rel_LDFLAGS += -Wl,--undefined=rtems_3c509_driver_attach
+3c509_rel_LDFLAGS += -Wl,--undefined=ep_board
 endif
 
 libbsp_a_LIBADD = ../../../libcpu/@RTEMS_CPU@/cache.rel

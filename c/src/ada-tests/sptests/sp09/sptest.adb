@@ -148,7 +148,6 @@ package body SPTEST is
 
    procedure SCREEN_1
    is
-      NOTEPAD_VALUE     : RTEMS.UNSIGNED32 := 0;
       SELF_ID           : RTEMS.ID;
       PREVIOUS_PRIORITY : RTEMS.TASKS.PRIORITY;
       STATUS            : RTEMS.STATUS_CODES;
@@ -161,38 +160,6 @@ package body SPTEST is
          "TASK_DELETE WITH ILLEGAL ID"
       );
       TEXT_IO.PUT_LINE( "TA1 - task_delete - INVALID_ID" );
-
-      begin
-        RTEMS.TASKS.GET_NOTE( RTEMS.SELF, 
-                             RTEMS.NOTEPAD_INDEX'LAST + 10, 
-                             NOTEPAD_VALUE, 
-                             STATUS 
-        );
-        TEST_SUPPORT.FATAL_DIRECTIVE_STATUS(
-           STATUS,
-           RTEMS.INVALID_NUMBER,
-           "TASK_GET_NOTE WITH ILLEGAL NOTEPAD"
-        );
-        TEXT_IO.PUT_LINE( "TA1 - task_get_note - INVALID_NUMBER" );
-      exception
-         when others =>
-            TEXT_IO.PUT_LINE(
-               "TA1 - task_get_note - INVALID_NUMBER -- constraint error"
-            );
-      end;
-
-      RTEMS.TASKS.GET_NOTE( 
-         100, 
-         RTEMS.NOTEPAD_INDEX'LAST, 
-         NOTEPAD_VALUE, 
-         STATUS 
-      );
-      TEST_SUPPORT.FATAL_DIRECTIVE_STATUS(
-         STATUS,
-         RTEMS.INVALID_ID,
-         "TASK_GET_NOTE WITH ILLEGAL ID"
-      );
-      TEXT_IO.PUT_LINE( "TA1 - task_get_note - INVALID_ID" );
 
       RTEMS.TASKS.IDENT(
          RTEMS.SELF,
@@ -295,38 +262,6 @@ package body SPTEST is
       );
       TEXT_IO.PUT_LINE( "TA1 - task_set_priority - INVALID_ID" );
 
-      begin
-         RTEMS.TASKS.SET_NOTE( RTEMS.SELF, 
-                              RTEMS.NOTEPAD_INDEX'LAST + 10, 
-                              NOTEPAD_VALUE, 
-                              STATUS 
-         );
-         TEST_SUPPORT.FATAL_DIRECTIVE_STATUS(
-            STATUS,
-            RTEMS.INVALID_NUMBER,
-            "TASK_SET_NOTE WITH ILLEGAL NOTEPAD"
-         );
-         TEXT_IO.PUT_LINE( "TA1 - task_set_note - INVALID_NUMBER" );
-      exception
-         when others =>
-            TEXT_IO.PUT_LINE(
-               "TA1 - task_set_note - INVALID_NUMBER -- constraint error"
-            );
-      end;
-
-      RTEMS.TASKS.SET_NOTE( 
-         100, 
-         RTEMS.NOTEPAD_INDEX'LAST, 
-         NOTEPAD_VALUE, 
-         STATUS 
-      );
-      TEST_SUPPORT.FATAL_DIRECTIVE_STATUS(
-         STATUS,
-         RTEMS.INVALID_ID,
-         "TASK_SET_NOTE WITH ILLEGAL ID"
-      );
-      TEXT_IO.PUT_LINE( "TA1 - task_set_note - INVALID_ID" );
-
       RTEMS.TASKS.START( 100, SPTEST.TASK_1'ACCESS, 0, STATUS );
       TEST_SUPPORT.FATAL_DIRECTIVE_STATUS(
          STATUS,
@@ -365,8 +300,7 @@ package body SPTEST is
 
 -- errors before clock is set
 
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-     
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
       if RTEMS.IS_STATUS_SUCCESSFUL( STATUS ) then
          TEXT_IO.PUT_LINE(
             "TA1 - clock_get - NOT_DEFINED -- DID THE BSP SET THE TIME OF DAY?"
@@ -526,8 +460,8 @@ package body SPTEST is
       );
       TEXT_IO.PUT_LINE( " - INVALID_CLOCK" );
 
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET SUCCESSFUL" );
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
+      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET_TOD" );
       TEST_SUPPORT.PRINT_TIME( "TA1 - current time - ", TIME, "" );
       TEXT_IO.NEW_LINE;
 
@@ -2617,8 +2551,8 @@ package body SPTEST is
       TEXT_IO.NEW_LINE;
       RTEMS.TASKS.WAKE_AFTER( TEST_SUPPORT.TICKS_PER_SECOND, STATUS );
       TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "TASK_WAKE_AFTER" );
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET SUCCESSFUL" );
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
+      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET_TOD" );
       TEST_SUPPORT.PRINT_TIME(
          "TA1 - clock_get - ",
          TIME,
@@ -2637,8 +2571,8 @@ package body SPTEST is
       TEXT_IO.NEW_LINE;
       RTEMS.TASKS.WAKE_AFTER( TEST_SUPPORT.TICKS_PER_SECOND, STATUS );
       TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "TASK_WAKE_AFTER" );
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET SUCCESSFUL" );
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
+      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET_TOD" );
       TEST_SUPPORT.PRINT_TIME(
          "TA1 - clock_get - ",
          TIME,
@@ -2657,8 +2591,8 @@ package body SPTEST is
       TEXT_IO.NEW_LINE;
       RTEMS.TASKS.WAKE_AFTER( TEST_SUPPORT.TICKS_PER_SECOND, STATUS );
       TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "TASK_WAKE_AFTER" );
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET SUCCESSFUL" );
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
+      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET_TOD" );
       TEST_SUPPORT.PRINT_TIME(
          "TA1 - clock_get - ",
          TIME,
@@ -2677,8 +2611,8 @@ package body SPTEST is
       TEXT_IO.NEW_LINE;
       RTEMS.TASKS.WAKE_AFTER( TEST_SUPPORT.TICKS_PER_SECOND, STATUS );
       TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "TASK_WAKE_AFTER" );
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET SUCCESSFUL" );
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
+      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET_TOD" );
       TEST_SUPPORT.PRINT_TIME(
          "TA1 - clock_get - ",
          TIME,
@@ -2697,8 +2631,8 @@ package body SPTEST is
       TEXT_IO.NEW_LINE;
       RTEMS.TASKS.WAKE_AFTER( TEST_SUPPORT.TICKS_PER_SECOND, STATUS );
       TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "TASK_WAKE_AFTER" );
-      RTEMS.CLOCK.GET( RTEMS.CLOCK.GET_TOD, TIME'ADDRESS, STATUS );
-      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET SUCCESSFUL" );
+      RTEMS.CLOCK.GET_TOD( TIME, STATUS );
+      TEST_SUPPORT.DIRECTIVE_FAILED( STATUS, "CLOCK_GET_TOD" );
       TEST_SUPPORT.PRINT_TIME(
          "TA1 - clock_get - ",
          TIME,

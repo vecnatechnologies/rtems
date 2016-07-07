@@ -21,12 +21,15 @@
 
 #include <rtems/system.h>
 #include <rtems/config.h>
+#include <rtems/sysinit.h>
 #include <rtems/posix/spinlockimpl.h>
+
+Objects_Information _POSIX_Spinlock_Information;
 
 /**
  *  @brief _POSIX_Spinlock_Manager_initialization
  */
-void _POSIX_Spinlock_Manager_initialization(void)
+static void _POSIX_Spinlock_Manager_initialization(void)
 {
   _Objects_Initialize_information(
     &_POSIX_Spinlock_Information,    /* object information table */
@@ -36,11 +39,13 @@ void _POSIX_Spinlock_Manager_initialization(void)
                                      /* maximum objects of this class */
     sizeof( POSIX_Spinlock_Control ),/* size of this object's control block */
     true,                            /* true if the name is a string */
-    _POSIX_PATH_MAX                  /* maximum length of each object's name */
-#if defined(RTEMS_MULTIPROCESSING)
-    ,
-    false,                           /* true if this is a global object class */
+    _POSIX_PATH_MAX,                 /* maximum length of each object's name */
     NULL                             /* Proxy extraction support callout */
-#endif
   );
 }
+
+RTEMS_SYSINIT_ITEM(
+  _POSIX_Spinlock_Manager_initialization,
+  RTEMS_SYSINIT_POSIX_SPINLOCK,
+  RTEMS_SYSINIT_ORDER_MIDDLE
+);

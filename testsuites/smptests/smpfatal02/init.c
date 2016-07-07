@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 embedded brains GmbH.  All rights reserved.
+ * Copyright (c) 2014, 2016 embedded brains GmbH.  All rights reserved.
  *
  *  embedded brains GmbH
  *  Dornierstr. 4
@@ -16,8 +16,10 @@
   #include "config.h"
 #endif
 
+#define TESTS_USE_PRINTK
+#include "tmacros.h"
+
 #include <rtems.h>
-#include <rtems/test.h>
 #include <rtems/score/percpu.h>
 #include <rtems/score/smpimpl.h>
 #include <rtems/score/smpbarrier.h>
@@ -45,33 +47,29 @@ static void fatal_extension(
 )
 {
   SMP_barrier_State barrier_state = SMP_BARRIER_STATE_INITIALIZER;
+  uint32_t self = rtems_get_current_processor();
 
-  if (
-    source == RTEMS_FATAL_SOURCE_APPLICATION
-      || source == RTEMS_FATAL_SOURCE_SMP
-  ) {
-    uint32_t self = rtems_get_current_processor();
+  assert(!is_internal);
 
-    assert(!is_internal);
+  if ( source == RTEMS_FATAL_SOURCE_APPLICATION ) {
+    uint32_t cpu;
 
-    if (self == main_cpu) {
-      uint32_t cpu;
+    assert(self == main_cpu);
+    assert(code == 0xdeadbeef);
 
-      assert(source == RTEMS_FATAL_SOURCE_APPLICATION);
-      assert(code == 0xdeadbeef);
+    _SMP_Request_shutdown();
 
-      for (cpu = 0; cpu < MAX_CPUS; ++cpu) {
-        const Per_CPU_Control *per_cpu = _Per_CPU_Get_by_index( cpu );
-        Per_CPU_State state = per_cpu->state;
+    for (cpu = 0; cpu < MAX_CPUS; ++cpu) {
+      const Per_CPU_Control *per_cpu = _Per_CPU_Get_by_index( cpu );
+      Per_CPU_State state = per_cpu->state;
 
-        assert(state == PER_CPU_STATE_SHUTDOWN);
-      }
-
-      rtems_test_endk();
-    } else {
-      assert(source == RTEMS_FATAL_SOURCE_SMP);
-      assert(code == SMP_FATAL_SHUTDOWN);
+      assert(state == PER_CPU_STATE_SHUTDOWN);
     }
+
+    TEST_END();
+  } else if ( source == RTEMS_FATAL_SOURCE_SMP ) {
+    assert(self != main_cpu);
+    assert(code == SMP_FATAL_SHUTDOWN);
   }
 
   _SMP_barrier_Wait(&barrier, &barrier_state, rtems_get_processor_count());
@@ -87,7 +85,7 @@ static rtems_status_code test_driver_init(
   uint32_t cpu_count = rtems_get_processor_count();
   uint32_t cpu;
 
-  rtems_test_begink();
+  TEST_BEGIN();
 
   assert(rtems_configuration_get_maximum_processors() == MAX_CPUS);
 
@@ -112,7 +110,7 @@ static rtems_status_code test_driver_init(
   if (cpu_count > 1) {
     rtems_fatal(RTEMS_FATAL_SOURCE_APPLICATION, 0xdeadbeef);
   } else {
-    rtems_test_endk();
+    TEST_END();
     exit(0);
   }
 

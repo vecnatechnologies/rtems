@@ -52,9 +52,9 @@
  */
 
 #define _POSIX_signals_Is_interested( _api, _mask ) \
-  ( ~(_api)->signals_blocked & (_mask) )
+  ( (_api)->signals_unblocked & (_mask) )
 
-int killinfo(
+int _POSIX_signals_Send(
   pid_t               pid,
   int                 sig,
   const union sigval *value
@@ -75,6 +75,8 @@ int killinfo(
   siginfo_t                   *siginfo;
   POSIX_signals_Siginfo_node  *psiginfo;
   Thread_queue_Heads          *heads;
+  Thread_queue_Context         queue_context;
+  Per_CPU_Control             *cpu_self;
 
   /*
    *  Only supported for the "calling process" (i.e. this node).
@@ -119,13 +121,14 @@ int killinfo(
     siginfo->si_value = *value;
   }
 
-  _Thread_Disable_dispatch();
+  /* FIXME: https://devel.rtems.org/ticket/2690 */
+  cpu_self = _Thread_Dispatch_disable();
 
   /*
    *  Is the currently executing thread interested?  If so then it will
    *  get it an execute it as soon as the dispatcher executes.
    */
-  the_thread = _Thread_Executing;
+  the_thread = _Per_CPU_Get_executing( cpu_self );
 
   api = the_thread->API_Extensions[ THREAD_API_POSIX ];
   if ( _POSIX_signals_Is_interested( api, mask ) ) {
@@ -153,7 +156,7 @@ int killinfo(
 
       #if defined(DEBUG_SIGNAL_PROCESSING)
         printk( "Waiting Thread=%p option=0x%08x mask=0x%08x blocked=0x%08x\n",
-          the_thread, the_thread->Wait.option, mask, api->signals_blocked);
+          the_thread, the_thread->Wait.option, mask, ~api->signals_unblocked);
       #endif
 
       /*
@@ -166,7 +169,7 @@ int killinfo(
        * Is this thread is blocked waiting for another signal but has
        * not blocked this one?
        */
-      if (~api->signals_blocked & mask)
+      if (api->signals_unblocked & mask)
         goto process_it;
     }
   }
@@ -187,7 +190,7 @@ int killinfo(
    *    + rtems internal threads do not receive signals.
    */
   interested = NULL;
-  interested_priority = PRIORITY_MAXIMUM + 1;
+  interested_priority = UINT64_MAX;
 
   for (the_api = OBJECTS_CLASSIC_API; the_api <= OBJECTS_APIS_LAST; the_api++) {
 
@@ -198,16 +201,8 @@ int killinfo(
       continue;
 
     the_info = _Objects_Information_table[ the_api ][ 1 ];
-
-    #if defined(RTEMS_DEBUG)
-      /*
-       *  This cannot happen in the current (as of June 2009) implementation
-       *  of initialization but at some point, the object information
-       *  structure for a particular manager may not be installed.
-       */
-      if ( !the_info )
-        continue;
-    #endif
+    if ( !the_info )
+      continue;
 
     maximum = the_info->maximum;
     object_table = the_info->local_table;
@@ -327,7 +322,7 @@ process_it:
    *  blocked waiting for the signal.
    */
   if ( _POSIX_signals_Unblock_thread( the_thread, sig, siginfo ) ) {
-    _Thread_Enable_dispatch();
+    _Thread_Dispatch_enable( cpu_self );
     return 0;
   }
 
@@ -339,21 +334,29 @@ post_process_signal:
    */
   _POSIX_signals_Set_process_signals( mask );
 
+  _Thread_queue_Context_initialize( &queue_context );
+  _POSIX_signals_Acquire( &queue_context );
+
   if ( _POSIX_signals_Vectors[ sig ].sa_flags == SA_SIGINFO ) {
 
     psiginfo = (POSIX_signals_Siginfo_node *)
-               _Chain_Get( &_POSIX_signals_Inactive_siginfo );
+      _Chain_Get_unprotected( &_POSIX_signals_Inactive_siginfo );
     if ( !psiginfo ) {
-      _Thread_Enable_dispatch();
+      _POSIX_signals_Release( &queue_context );
+      _Thread_Dispatch_enable( cpu_self );
       rtems_set_errno_and_return_minus_one( EAGAIN );
     }
 
     psiginfo->Info = *siginfo;
 
-    _Chain_Append( &_POSIX_signals_Siginfo[ sig ], &psiginfo->Node );
+    _Chain_Append_unprotected(
+      &_POSIX_signals_Siginfo[ sig ],
+      &psiginfo->Node
+    );
   }
 
+  _POSIX_signals_Release( &queue_context );
   DEBUG_STEP("\n");
-  _Thread_Enable_dispatch();
+  _Thread_Dispatch_enable( cpu_self );
   return 0;
 }

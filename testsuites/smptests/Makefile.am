@@ -14,9 +14,9 @@ SUBDIRS += smpatomic01
 SUBDIRS += smpcache01
 SUBDIRS += smpcapture01
 SUBDIRS += smpcapture02
+SUBDIRS += smpclock01
 SUBDIRS += smpfatal01
 SUBDIRS += smpfatal02
-SUBDIRS += smpfatal03
 SUBDIRS += smpfatal04
 SUBDIRS += smpfatal05
 SUBDIRS += smpfatal08
@@ -37,6 +37,7 @@ SUBDIRS += smpscheduler02
 SUBDIRS += smpscheduler03
 SUBDIRS += smpschedsem01
 SUBDIRS += smpsignal01
+SUBDIRS += smpstrongapa01
 SUBDIRS += smpswitchextension01
 SUBDIRS += smpthreadlife01
 SUBDIRS += smpunsupported01
@@ -44,6 +45,7 @@ SUBDIRS += smpwakeafter01
 if HAS_POSIX
 SUBDIRS += smppsxaffinity01
 SUBDIRS += smppsxaffinity02
+SUBDIRS += smppsxmutex01
 SUBDIRS += smppsxsignal01
 endif
 endif

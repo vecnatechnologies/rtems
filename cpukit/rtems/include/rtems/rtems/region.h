@@ -59,12 +59,9 @@ extern "C" {
 typedef struct {
   Objects_Control       Object;
   Thread_queue_Control  Wait_queue;            /* waiting threads        */
-  void                 *starting_address;      /* physical start addr    */
-  uintptr_t             length;                /* physical length(bytes) */
-  uintptr_t             page_size;             /* in bytes               */
+  const Thread_queue_Operations *wait_operations;
   uintptr_t             maximum_segment_size;  /* in bytes               */
   rtems_attribute       attribute_set;
-  uint32_t              number_of_used_blocks; /* blocks allocated       */
   Heap_Control          Memory;
 }  Region_Control;
 

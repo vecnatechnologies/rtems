@@ -311,97 +311,24 @@ extern "C" {
 #define CPU_STACK_GROWS_UP               TRUE
 
 /**
+ * The maximum cache line size in bytes.
+ *
+ * The actual processor may use no cache or a smaller cache line size.
+ */
+#define CPU_CACHE_LINE_BYTES 32
+
+/**
  * The following is the variable attribute used to force alignment
  * of critical RTEMS structures.  On some processors it may make
  * sense to have these aligned on tighter boundaries than
  * the minimum requirements of the compiler in order to have as
  * much of the critical data area as possible in a cache line.
  *
- * The placement of this macro in the declaration of the variables
- * is based on the syntactically requirements of the GNU C
- * "__attribute__" extension.  For example with GNU C, use
- * the following to force a structures to a 32 byte boundary.
- *
- *     __attribute__ ((aligned (32)))
- *
- * NOTE: Currently only the Priority Bit Map table uses this feature.
- *       To benefit from using this, the data must be heavily
- *       used so it will stay in the cache and used frequently enough
- *       in the executive to justify turning this on.
- *
  * Port Specific Information:
  *
  * XXX document implementation including references if appropriate
  */
-#define CPU_STRUCTURE_ALIGNMENT
-
-/**
- * @defgroup CPUTimestamp Processor Dependent Timestamp Support
- *
- * This group assists in issues related to timestamp implementation.
- *
- * The port must choose exactly one of the following defines:
- * - #define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC TRUE
- * - #define CPU_TIMESTAMP_USE_INT64 TRUE
- * - #define CPU_TIMESTAMP_USE_INT64_INLINE TRUE
- *
- * Performance of int64_t versus struct timespec
- * =============================================
- *
- * On PowerPC/psim, inlined int64_t saves ~50 instructions on each
- *   _Thread_Dispatch operation which results in a context switch.
- *   This works out to be about 10% faster dispatches and 7.5% faster
- *   blocking semaphore obtains.  The following numbers are in instructions
- *   and from tm02 and tm26.
- *
- *                        timespec  int64  inlined int64
- *   dispatch:              446      446      400
- *   blocking sem obtain:   627      626      581
- *
- * On SPARC/sis, inlined int64_t shows the same percentage gains.
- *   The following numbers are in microseconds and from tm02 and tm26.
- *
- *                        timespec  int64  inlined int64
- *   dispatch:               59       61       53
- *   blocking sem obtain:    98      100       92
- *
- * Inlining appears to have a tendency to increase the size of
- *   some executables.
- * Not inlining reduces the execution improvement but does not seem to
- *   be an improvement on the PowerPC and SPARC. The struct timespec
- *   and the executables with int64 not inlined are about the same size.
- * 
- */
-/**@{**/
-
-/**
- * Selects the timestamp implementation using struct timespec.
- *
- * Port Specific Information:
- *
- * XXX document implementation including references if appropriate
- */
-#define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC TRUE
-
-/**
- * Selects the timestamp implementation using int64_t and no inlined methods.
- *
- * Port Specific Information:
- *
- * XXX document implementation including references if appropriate
- */
-#define CPU_TIMESTAMP_USE_INT64 TRUE
-
-/**
- * Selects the timestamp implementation using int64_t and inlined methods.
- *
- * Port Specific Information:
- *
- * XXX document implementation including references if appropriate
- */
-#define CPU_TIMESTAMP_USE_INT64_INLINE TRUE
-
-/** @} */
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /**
  * @defgroup CPUEndian Processor Dependent Endianness Support
@@ -463,6 +390,12 @@ extern "C" {
  * structure offsets.
  */
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+/**
+ * @brief Maximum number of processors of all systems supported by this CPU
+ * port.
+ */
+#define CPU_MAXIMUM_PROCESSORS 32
 
 /*
  *  Processor defined structures required for cpukit/score.
@@ -559,34 +492,41 @@ typedef struct {
      *
      * This field must be updated during a context switch.  The context switch
      * to the heir must wait until the heir context indicates that it is no
-     * longer executing on a processor.  The context switch must also check if
-     * a thread dispatch is necessary to honor updates of the heir thread for
-     * this processor.  This indicator must be updated using an atomic test and
-     * set operation to ensure that at most one processor uses the heir
-     * context at the same time.
+     * longer executing on a processor.  This indicator must be updated using
+     * an atomic test and set operation to ensure that at most one processor
+     * uses the heir context at the same time.  The context switch must also
+     * check for a potential new heir thread for this processor in case the
+     * heir context is not immediately available.  Update the executing thread
+     * for this processor only if necessary to avoid a cache line
+     * monopolization.
      *
      * @code
      * void _CPU_Context_switch(
-     *   Context_Control *executing,
-     *   Context_Control *heir
+     *   Context_Control *executing_context,
+     *   Context_Control *heir_context
      * )
      * {
-     *   save( executing );
+     *   save( executing_context );
      *
-     *   executing->is_executing = false;
+     *   executing_context->is_executing = false;
      *   memory_barrier();
      *
-     *   if ( test_and_set( &heir->is_executing ) ) {
+     *   if ( test_and_set( &heir_context->is_executing ) ) {
      *     do {
      *       Per_CPU_Control *cpu_self = _Per_CPU_Get_snapshot();
+     *       Thread_Control *executing = cpu_self->executing;
+     *       Thread_Control *heir = cpu_self->heir;
      *
-     *       if ( cpu_self->dispatch_necessary ) {
-     *         heir = _Thread_Get_heir_and_make_it_executing( cpu_self );
+     *       if ( heir != executing ) {
+     *         cpu_self->executing = heir;
+     *         heir_context = (Context_Control *)
+     *           ((uintptr_t) heir + (uintptr_t) executing_context
+     *             - (uintptr_t) executing)
      *       }
-     *     } while ( test_and_set( &heir->is_executing ) );
+     *     } while ( test_and_set( &heir_context->is_executing ) );
      *   }
      *
-     *   restore( heir );
+     *   restore( heir_context );
      * }
      * @endcode
      */
@@ -643,7 +583,7 @@ typedef struct {
  *
  * XXX document implementation including references if appropriate
  */
-SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context;
+extern Context_Control_fp _CPU_Null_fp_context;
 
 /** @} */
 
@@ -1072,16 +1012,6 @@ uint32_t   _CPU_ISR_Get_level( void );
 #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
 
 /**
- * This definition is set to TRUE if the port uses the data tables provided
- * by the generic bitfield manipulation implementation.
- * This can occur when actually using the generic bitfield manipulation
- * implementation or when implementing the same algorithm in assembly
- * language for improved performance.  It is unlikely that a port will use
- * the data if it has a bitfield scan instruction.
- */
-#define CPU_USE_GENERIC_BITFIELD_DATA TRUE
-
-/**
  * This routine sets @a _output to the bit number of the first bit
  * set in @a _value.  @a _value is of CPU dependent type
  * @a Priority_bit_map_Word.  This type may be either 16 or 32 bits
@@ -1303,7 +1233,7 @@ void _CPU_Context_switch(
  */
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /**
  * @ingroup CPUContext

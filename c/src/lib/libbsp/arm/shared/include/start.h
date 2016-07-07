@@ -45,6 +45,15 @@ extern "C" {
 
 #define BSP_START_DATA_SECTION __attribute__((section(".bsp_start_data")))
 
+/*
+* Many ARM boot loaders pass arguments to loaded OS kernel
+*/
+#ifdef BSP_START_HOOKS_WITH_LOADER_ARGS
+#define BSP_START_HOOKS_LOADER_ARGS int saved_psr, int saved_machid, int saved_dtb_adr
+#else
+#define BSP_START_HOOKS_LOADER_ARGS void
+#endif
+
 /**
 * @brief System start entry.
 */
@@ -57,7 +66,7 @@ void _start(void);
 * stack pointers are initialized but before the copying of the exception
 * vectors.
 */
-void bsp_start_hook_0(void);
+void bsp_start_hook_0(BSP_START_HOOKS_LOADER_ARGS);
 
 /**
 * @brief Start entry hook 1.
@@ -65,7 +74,7 @@ void bsp_start_hook_0(void);
 * This hook will be called from the start entry code after copying of the
 * exception vectors but before the call to boot_card().
 */
-void bsp_start_hook_1(void);
+void bsp_start_hook_1(BSP_START_HOOKS_LOADER_ARGS);
 
 /**
  * @brief Similar to standard memcpy().
@@ -117,6 +126,45 @@ BSP_START_TEXT_SECTION static inline void bsp_start_copy_sections(void)
   bsp_start_memcpy(
     (int *) bsp_section_fast_data_begin,
     (const int *) bsp_section_fast_data_load_begin,
+    (size_t) bsp_section_fast_data_size
+  );
+}
+
+BSP_START_TEXT_SECTION static inline void
+bsp_start_memcpy_libc(void *dest, const void *src, size_t n)
+{
+  if (dest != src) {
+    memcpy(dest, src, n);
+  }
+}
+
+/**
+ * @brief Copies the .data, .fast_text and .fast_data sections from the load to
+ * the runtime area using the C library memcpy().
+ *
+ * Works only in case the .start, .text and .rodata sections reside in one
+ * memory region.
+ */
+BSP_START_TEXT_SECTION static inline void bsp_start_copy_sections_compact(void)
+{
+  /* Copy .data section */
+  bsp_start_memcpy_libc(
+    bsp_section_data_begin,
+    bsp_section_data_load_begin,
+    (size_t) bsp_section_data_size
+  );
+
+  /* Copy .fast_text section */
+  bsp_start_memcpy_libc(
+    bsp_section_fast_text_begin,
+    bsp_section_fast_text_load_begin,
+    (size_t) bsp_section_fast_text_size
+  );
+
+  /* Copy .fast_data section */
+  bsp_start_memcpy_libc(
+    bsp_section_fast_data_begin,
+    bsp_section_fast_data_load_begin,
     (size_t) bsp_section_fast_data_size
   );
 }

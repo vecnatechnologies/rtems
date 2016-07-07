@@ -14,9 +14,11 @@
 /*
  *  Some of the fatal error cases require the ability to peek inside RTEMS
  */
+
+#define TESTS_USE_PRINTK
+#include "tmacros.h"
+
 #include <rtems.h>
-#include <rtems/test.h>
-#include <tmacros.h>
 
 /* functions */
 
@@ -42,9 +44,9 @@ void force_error(void);
 /* need some prototypes for test cases */
 
 rtems_device_driver consume_semaphores_initialize(
-  rtems_device_major_number major __attribute__((unused)),
-  rtems_device_minor_number minor __attribute__((unused)),
-  void *pargp __attribute__((unused))
+  rtems_device_major_number major RTEMS_UNUSED,
+  rtems_device_minor_number minor RTEMS_UNUSED,
+  void *pargp RTEMS_UNUSED
 );
 
 #define CONSUME_SEMAPHORE_DRIVERS \

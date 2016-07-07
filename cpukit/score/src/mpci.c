@@ -21,29 +21,76 @@
 #include <rtems/score/mpciimpl.h>
 #include <rtems/score/coresemimpl.h>
 #include <rtems/score/interr.h>
+#include <rtems/score/objectmp.h>
 #include <rtems/score/stackimpl.h>
 #include <rtems/score/sysstate.h>
 #include <rtems/score/schedulerimpl.h>
 #include <rtems/score/threadimpl.h>
 #include <rtems/score/threadqimpl.h>
 #include <rtems/config.h>
+#include <rtems/sysinit.h>
 
 RTEMS_STATIC_ASSERT(
   sizeof(MPCI_Internal_packet) <= MP_PACKET_MINIMUM_PACKET_SIZE,
   MPCI_Internal_packet
 );
 
+#define MPCI_SEMAPHORE_TQ_OPERATIONS &_Thread_queue_Operations_FIFO
+
+bool _System_state_Is_multiprocessing;
+
+rtems_multiprocessing_table *_Configuration_MP_table;
+
+const rtems_multiprocessing_table
+ _Initialization_Default_multiprocessing_table = {
+  1,                        /* local node number */
+  1,                        /* maximum number nodes in system */
+  0,                        /* maximum number global objects */
+  0,                        /* maximum number proxies */
+  STACK_MINIMUM_SIZE,       /* MPCI receive server stack size */
+  NULL                      /* pointer to MPCI address table */
+};
+
 /**
  *  This is the core semaphore which the MPCI Receive Server blocks on.
  */
 CORE_semaphore_Control _MPCI_Semaphore;
 
-void _MPCI_Handler_initialization(
-  uint32_t   timeout_status
-)
+Thread_queue_Control _MPCI_Remote_blocked_threads =
+  THREAD_QUEUE_INITIALIZER( "MPCI Remote Blocked Threads" );
+
+MPCI_Control *_MPCI_table;
+
+Thread_Control *_MPCI_Receive_server_tcb;
+
+MPCI_Packet_processor _MPCI_Packet_processors[ MP_PACKET_CLASSES_LAST + 1 ];
+
+static void _MPCI_Handler_early_initialization( void )
 {
-  CORE_semaphore_Attributes   attributes;
+  /*
+   *  Initialize the system state based on whether this is an MP system.
+   *  In an MP configuration, internally we view single processor
+   *  systems as a very restricted multiprocessor system.
+   */
+  _Configuration_MP_table = rtems_configuration_get_user_multiprocessing_table();
+
+  if ( _Configuration_MP_table == NULL ) {
+    _Configuration_MP_table = RTEMS_DECONST(
+      rtems_multiprocessing_table *,
+      &_Initialization_Default_multiprocessing_table
+    );
+  } else {
+    _System_state_Is_multiprocessing = true;
+  }
+
+  _Objects_MP_Handler_early_initialization();
+}
+
+static void _MPCI_Handler_initialization( void )
+{
   MPCI_Control               *users_mpci_table;
+
+  _Objects_MP_Handler_initialization();
 
   users_mpci_table = _Configuration_MP_table->User_mpci_table;
 
@@ -72,23 +119,24 @@ void _MPCI_Handler_initialization(
    *  Create the counting semaphore used by the MPCI Receive Server.
    */
 
-  attributes.discipline = CORE_SEMAPHORE_DISCIPLINES_FIFO;
-
   _CORE_semaphore_Initialize(
     &_MPCI_Semaphore,
-    &attributes,              /* the_semaphore_attributes */
     0                         /* initial_value */
-  );
-
-  _Thread_queue_Initialize(
-    &_MPCI_Remote_blocked_threads,
-    THREAD_QUEUE_DISCIPLINE_FIFO
   );
 }
 
-void _MPCI_Create_server( void )
+static void _MPCI_Create_server( void )
 {
-  Objects_Name name;
+  Thread_Entry_information entry = {
+    .adaptor = _Thread_Entry_adaptor_numeric,
+    .Kinds = {
+      .Numeric = {
+        .entry = _MPCI_Receive_server
+      }
+    }
+  };
+  ISR_lock_Context lock_context;
+  Objects_Name     name;
 
 
   if ( !_System_state_Is_multiprocessing )
@@ -118,17 +166,11 @@ void _MPCI_Create_server( void )
     name
   );
 
-  _Thread_Start(
-    _MPCI_Receive_server_tcb,
-    THREAD_START_NUMERIC,
-    (void *) _MPCI_Receive_server,
-    NULL,
-    0,
-    NULL
-  );
+  _ISR_lock_ISR_disable( &lock_context );
+  _Thread_Start( _MPCI_Receive_server_tcb, &entry, &lock_context );
 }
 
-void _MPCI_Initialization ( void )
+static void _MPCI_Initialization( void )
 {
   (*_MPCI_table->initialization)();
 }
@@ -184,25 +226,25 @@ void _MPCI_Send_process_packet (
   (*_MPCI_table->send_packet)( destination, the_packet );
 }
 
-uint32_t   _MPCI_Send_request_packet (
-  uint32_t            destination,
-  MP_packet_Prefix   *the_packet,
-  States_Control      extra_state,
-  uint32_t            timeout_code
+Status_Control _MPCI_Send_request_packet(
+  uint32_t          destination,
+  MP_packet_Prefix *the_packet,
+  States_Control    extra_state
 )
 {
-  Thread_Control *executing = _Thread_Executing;
+  Per_CPU_Control *cpu_self;
+  Thread_Control  *executing;
 
-  the_packet->source_tid      = executing->Object.id;
-  the_packet->source_priority = executing->current_priority;
-  the_packet->to_convert =
-     ( the_packet->to_convert - sizeof(MP_packet_Prefix) ) / sizeof(uint32_t);
+  cpu_self = _Thread_Dispatch_disable();
 
-  executing->Wait.id = the_packet->id;
+    executing = _Per_CPU_Get_executing( cpu_self );
 
-  executing->Wait.queue = &_MPCI_Remote_blocked_threads;
+    the_packet->source_tid      = executing->Object.id;
+    the_packet->source_priority = executing->current_priority;
+    the_packet->to_convert =
+       ( the_packet->to_convert - sizeof(MP_packet_Prefix) ) / sizeof(uint32_t);
 
-  _Thread_Disable_dispatch();
+    executing->Wait.remote_id = the_packet->id;
 
     (*_MPCI_table->send_packet)( destination, the_packet );
 
@@ -215,15 +257,16 @@ uint32_t   _MPCI_Send_request_packet (
 
     _Thread_queue_Enqueue(
       &_MPCI_Remote_blocked_threads,
+      &_Thread_queue_Operations_FIFO,
       executing,
       STATES_WAITING_FOR_RPC_REPLY | extra_state,
       the_packet->timeout,
-      timeout_code
+      2
     );
 
-  _Thread_Enable_dispatch();
+  _Thread_Dispatch_enable( cpu_self );
 
-  return executing->Wait.return_code;
+  return _Thread_Wait_get_status( executing );
 }
 
 void _MPCI_Send_response_packet (
@@ -249,24 +292,22 @@ Thread_Control *_MPCI_Process_response (
   MP_packet_Prefix  *the_packet
 )
 {
-  Thread_Control    *the_thread;
-  Objects_Locations  location;
+  ISR_lock_Context  lock_context;
+  Thread_Control   *the_thread;
 
-  the_thread = _Thread_Get( the_packet->id, &location );
-  switch ( location ) {
-    case OBJECTS_ERROR:
-#if defined(RTEMS_MULTIPROCESSING)
-    case OBJECTS_REMOTE:
-#endif
-      the_thread = NULL;          /* IMPOSSIBLE */
-      break;
-    case OBJECTS_LOCAL:
-      _Thread_queue_Extract( the_thread );
-      the_thread->Wait.return_code = the_packet->return_code;
-      _Objects_Put_without_thread_dispatch( &the_thread->Object );
-    break;
-  }
+  the_thread = _Thread_Get( the_packet->id, &lock_context );
+  _Assert( the_thread != NULL );
 
+  /*
+   * FIXME: This is broken on SMP, see https://devel.rtems.org/ticket/2703.
+   *
+   * Should use _Thread_queue_Extract_critical() instead with a handler
+   * function provided by the caller of _MPCI_Process_response().  Similar to
+   * the filter function in _Thread_queue_Flush_critical().
+   */
+  _ISR_lock_ISR_enable( &lock_context );
+  _Thread_queue_Extract( the_thread );
+  the_thread->Wait.return_code = the_packet->return_code;
   return the_thread;
 }
 
@@ -275,33 +316,36 @@ Thread_Control *_MPCI_Process_response (
  *
  */
 
-Thread _MPCI_Receive_server(
-  uint32_t   ignored
+void _MPCI_Receive_server(
+  Thread_Entry_numeric_type ignored
 )
 {
 
-  MP_packet_Prefix         *the_packet;
-  MPCI_Packet_processor     the_function;
-  Thread_Control           *executing;
-  ISR_lock_Context          lock_context;
+  MP_packet_Prefix      *the_packet;
+  MPCI_Packet_processor  the_function;
+  Thread_Control        *executing;
+  Thread_queue_Context   queue_context;
 
   executing = _Thread_Get_executing();
+  _Thread_queue_Context_initialize( &queue_context );
 
   for ( ; ; ) {
 
     executing->receive_packet = NULL;
 
-    _ISR_lock_ISR_disable( &lock_context );
+    _ISR_lock_ISR_disable( &queue_context.Lock_context );
     _CORE_semaphore_Seize(
       &_MPCI_Semaphore,
+      MPCI_SEMAPHORE_TQ_OPERATIONS,
       executing,
-      0,
       true,
       WATCHDOG_NO_TIMEOUT,
-      &lock_context
+      &queue_context
     );
 
     for ( ; ; ) {
+      executing->receive_packet = NULL;
+
       the_packet = _MPCI_Receive_packet();
 
       if ( !the_packet )
@@ -321,19 +365,22 @@ Thread _MPCI_Receive_server(
           INTERNAL_ERROR_BAD_PACKET
         );
 
-        (*the_function)( the_packet );
+       (*the_function)( the_packet );
     }
   }
-
-  return 0;   /* unreached - only to remove warnings */
 }
 
 void _MPCI_Announce ( void )
 {
-  ISR_lock_Context lock_context;
+  Thread_queue_Context queue_context;
 
-  _ISR_lock_ISR_disable( &lock_context );
-  (void) _CORE_semaphore_Surrender( &_MPCI_Semaphore, 0, 0, &lock_context );
+  _ISR_lock_ISR_disable( &queue_context.Lock_context );
+  (void) _CORE_semaphore_Surrender(
+    &_MPCI_Semaphore,
+    MPCI_SEMAPHORE_TQ_OPERATIONS,
+    UINT32_MAX,
+    &queue_context
+  );
 }
 
 void _MPCI_Internal_packets_Send_process_packet (
@@ -431,5 +478,37 @@ MPCI_Internal_packet *_MPCI_Internal_packets_Get_packet ( void )
 {
   return ( (MPCI_Internal_packet *) _MPCI_Get_packet() );
 }
+
+static void _MPCI_Finalize( void )
+{
+  if ( _System_state_Is_multiprocessing ) {
+    _MPCI_Initialization();
+    _MPCI_Internal_packets_Send_process_packet( MPCI_PACKETS_SYSTEM_VERIFY );
+  }
+}
+
+RTEMS_SYSINIT_ITEM(
+  _MPCI_Handler_early_initialization,
+  RTEMS_SYSINIT_MP_EARLY,
+  RTEMS_SYSINIT_ORDER_MIDDLE
+);
+
+RTEMS_SYSINIT_ITEM(
+  _MPCI_Handler_initialization,
+  RTEMS_SYSINIT_MP,
+  RTEMS_SYSINIT_ORDER_MIDDLE
+);
+
+RTEMS_SYSINIT_ITEM(
+  _MPCI_Create_server,
+  RTEMS_SYSINIT_MP_SERVER,
+  RTEMS_SYSINIT_ORDER_MIDDLE
+);
+
+RTEMS_SYSINIT_ITEM(
+  _MPCI_Finalize,
+  RTEMS_SYSINIT_MP_FINALIZE,
+  RTEMS_SYSINIT_ORDER_MIDDLE
+);
 
 /* end of file */

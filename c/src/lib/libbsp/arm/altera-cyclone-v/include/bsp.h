@@ -22,8 +22,6 @@
 #ifndef ASM
 
 #include <rtems.h>
-#include <rtems/console.h>
-#include <rtems/clockdrv.h>
 
 #include <bsp/default-initial-extension.h>
 
@@ -42,21 +40,6 @@ extern "C" {
 #define BSP_ARM_L2C_310_BASE 0xfffef000
 
 #define BSP_ARM_L2C_310_ID 0x410000c9
-
-/* Forward declaration */
-struct rtems_bsdnet_ifconfig;
-
-/** @brief Network interface attach detach
- *
- * Attaches a network interface tp the network stack.
- * NOTE: Detaching is not supported!
- */
-int altera_cyclone_v_network_if_attach_detach(
-  struct rtems_bsdnet_ifconfig *config,
-  int                           attaching );
-
-#define RTEMS_BSP_NETWORK_DRIVER_ATTACH altera_cyclone_v_network_if_attach_detach
-#define RTEMS_BSP_NETWORK_DRIVER_NAME "eth0"
 
 #ifdef __cplusplus
 }

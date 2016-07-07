@@ -22,8 +22,7 @@
 #include <rtems/posix/semaphore.h>
 #include <rtems/posix/posixapi.h>
 #include <rtems/score/coresemimpl.h>
-
-#include <errno.h>
+#include <rtems/seterr.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,20 +32,9 @@ extern "C" {
  *  This defines the information control block used to manage
  *  this class of objects.
  */
-POSIX_EXTERN Objects_Information  _POSIX_Semaphore_Information;
+extern Objects_Information _POSIX_Semaphore_Information;
 
-/**
- *  This defines the mapping from Score status codes to POSIX return codes.
- */
-extern const int
-  _POSIX_Semaphore_Return_codes[CORE_SEMAPHORE_STATUS_LAST + 1];
-
-/**
- *  @brief POSIX Semaphore Manager Initialization
- *
- *  This routine performs the initialization necessary for this manager.
- */
-void _POSIX_Semaphore_Manager_initialization(void);
+#define POSIX_SEMAPHORE_TQ_OPERATIONS &_Thread_queue_Operations_FIFO
 
 RTEMS_INLINE_ROUTINE POSIX_Semaphore_Control *
   _POSIX_Semaphore_Allocate_unprotected( void )
@@ -65,42 +53,19 @@ RTEMS_INLINE_ROUTINE void _POSIX_Semaphore_Free (
   POSIX_Semaphore_Control *the_semaphore
 )
 {
-  _CORE_semaphore_Destroy( &the_semaphore->Semaphore );
   _Objects_Free( &_POSIX_Semaphore_Information, &the_semaphore->Object );
 }
 
-/**
- *  @brief POSIX Semaphore Get
- *
- *  This function maps semaphore IDs to semaphore control blocks.
- *  If ID corresponds to a local semaphore, then it returns
- *  the_semaphore control pointer which maps to ID and location
- *  is set to OBJECTS_LOCAL.  if the semaphore ID is global and
- *  resides on a remote node, then location is set to OBJECTS_REMOTE,
- *  and the_semaphore is undefined.  Otherwise, location is set
- *  to OBJECTS_ERROR and the_semaphore is undefined.
- */
-RTEMS_INLINE_ROUTINE POSIX_Semaphore_Control *_POSIX_Semaphore_Get (
-  sem_t             *id,
-  Objects_Locations *location
+RTEMS_INLINE_ROUTINE POSIX_Semaphore_Control *_POSIX_Semaphore_Get(
+  const sem_t          *id,
+  Thread_queue_Context *queue_context
 )
 {
-  return (POSIX_Semaphore_Control *)
-    _Objects_Get( &_POSIX_Semaphore_Information, (Objects_Id)*id, location );
-}
-
-RTEMS_INLINE_ROUTINE POSIX_Semaphore_Control *
-_POSIX_Semaphore_Get_interrupt_disable(
-  sem_t             *id,
-  Objects_Locations *location,
-  ISR_lock_Context  *lock_context
-)
-{
-  return (POSIX_Semaphore_Control *) _Objects_Get_isr_disable(
-    &_POSIX_Semaphore_Information,
-    (Objects_Id)*id,
-    location,
-    lock_context
+  _Thread_queue_Context_initialize( queue_context );
+  return (POSIX_Semaphore_Control *) _Objects_Get(
+    (Objects_Id) *id,
+    &queue_context->Lock_context,
+    &_POSIX_Semaphore_Information
   );
 }
 
@@ -124,7 +89,8 @@ int _POSIX_Semaphore_Create_support(
  * This routine supports the sem_close and sem_unlink routines.
  */
 void _POSIX_Semaphore_Delete(
-  POSIX_Semaphore_Control *the_semaphore
+  POSIX_Semaphore_Control *the_semaphore,
+  Thread_queue_Context    *queue_context
 );
 
 /**
@@ -138,27 +104,6 @@ int _POSIX_Semaphore_Wait_support(
   bool                 blocking,
   Watchdog_Interval    timeout
 );
-
-/**
- *  @brief POSIX Semaphore Translate Score to POSIX Return Codes
- *
- *  A support routine which converts core semaphore status codes into the
- *  appropriate POSIX status values.
- */
-RTEMS_INLINE_ROUTINE int
-_POSIX_Semaphore_Translate_core_semaphore_return_code(
-  CORE_semaphore_Status  the_semaphore_status
-)
-{
-  /*
-   *  Internal consistency check for bad status from SuperCore
-   */
-  #if defined(RTEMS_DEBUG)
-    if ( the_semaphore_status > CORE_SEMAPHORE_STATUS_LAST )
-      return EINVAL;
-  #endif
-  return _POSIX_Semaphore_Return_codes[the_semaphore_status];
-}
  
 /**
  *  @brief POSIX Semaphore Namespace Remove
@@ -170,17 +115,19 @@ RTEMS_INLINE_ROUTINE void _POSIX_Semaphore_Namespace_remove (
   _Objects_Namespace_remove( 
     &_POSIX_Semaphore_Information, &the_semaphore->Object );
 }
- 
-/**
- * @see _POSIX_Name_to_id().
- */
-RTEMS_INLINE_ROUTINE int _POSIX_Semaphore_Name_to_id(
-  const char *name,
-  Objects_Id *id,
-  size_t     *len
+
+RTEMS_INLINE_ROUTINE POSIX_Semaphore_Control *_POSIX_Semaphore_Get_by_name(
+  const char                *name,
+  size_t                    *name_length_p,
+  Objects_Get_by_name_error *error
 )
 {
-  return _POSIX_Name_to_id( &_POSIX_Semaphore_Information, name, id, len );
+  return (POSIX_Semaphore_Control *) _Objects_Get_by_name(
+    &_POSIX_Semaphore_Information,
+    name,
+    name_length_p,
+    error
+  );
 }
 
 #ifdef __cplusplus

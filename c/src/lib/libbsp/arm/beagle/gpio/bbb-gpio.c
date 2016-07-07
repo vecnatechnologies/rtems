@@ -255,7 +255,7 @@ rtems_status_code rtems_gpio_bsp_select_output(
   return bbb_select_pin_function(bank, pin, BBB_DIGITAL_OUT);
 }
 
-rtems_status_code rtems_bsp_select_specific_io(
+rtems_status_code rtems_gpio_bsp_select_specific_io(
   uint32_t bank,
   uint32_t pin,
   uint32_t function,
@@ -269,7 +269,7 @@ rtems_status_code rtems_gpio_bsp_set_resistor_mode(
   uint32_t pin,
   rtems_gpio_pull_mode mode
 ) {
-  /* TODO: Add support for setting up resistor moode */
+  /* TODO: Add support for setting up resistor mode */
   return RTEMS_NOT_DEFINED;
 }
 
@@ -299,7 +299,7 @@ uint32_t rtems_gpio_bsp_interrupt_line(rtems_vector_number vector)
   return event_status;
 }
 
-rtems_status_code rtems_bsp_enable_interrupt(
+rtems_status_code rtems_gpio_bsp_enable_interrupt(
   uint32_t bank,
   uint32_t pin,
   rtems_gpio_interrupt interrupt
@@ -354,13 +354,13 @@ rtems_status_code rtems_bsp_enable_interrupt(
   return RTEMS_SUCCESSFUL;
 }
 
-rtems_status_code rtems_bsp_disable_interrupt(
+rtems_status_code rtems_gpio_bsp_disable_interrupt(
   uint32_t bank,
   uint32_t pin,
   rtems_gpio_interrupt interrupt
 ) {
   /* Clear IRQ generation for the specific pin */
-  mmio_set(bbb_reg(bank, AM335X_GPIO_IRQSTATUS_CLR_0), BIT(pin));
+  mmio_write(bbb_reg(bank, AM335X_GPIO_IRQSTATUS_CLR_0), BIT(pin));
 
   switch ( interrupt ) {
     case FALLING_EDGE:
@@ -501,7 +501,7 @@ rtems_status_code rtems_gpio_bsp_select_output(
   return RTEMS_NOT_DEFINED;
 }
 
-rtems_status_code rtems_bsp_select_specific_io(
+rtems_status_code rtems_gpio_bsp_select_specific_io(
   uint32_t bank,
   uint32_t pin,
   uint32_t function,
@@ -528,7 +528,7 @@ uint32_t rtems_gpio_bsp_interrupt_line(rtems_vector_number vector)
   return -1;
 }
 
-rtems_status_code rtems_bsp_enable_interrupt(
+rtems_status_code rtems_gpio_bsp_enable_interrupt(
   uint32_t bank,
   uint32_t pin,
   rtems_gpio_interrupt interrupt
@@ -536,7 +536,7 @@ rtems_status_code rtems_bsp_enable_interrupt(
   return RTEMS_NOT_DEFINED;
 }
 
-rtems_status_code rtems_bsp_disable_interrupt(
+rtems_status_code rtems_gpio_bsp_disable_interrupt(
   uint32_t bank,
   uint32_t pin,
   rtems_gpio_interrupt interrupt

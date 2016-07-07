@@ -61,7 +61,7 @@ extern "C" {
     /* normal build is newlib. */
 
     void __assert_func(const char *, int, const char *, const char *)
-      RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+      RTEMS_NO_RETURN;
 
     #define _Assert( _e ) \
        ( ( _e ) ? \
@@ -95,21 +95,10 @@ extern "C" {
  * @brief Returns true if thread dispatching is allowed.
  *
  * Thread dispatching can be repressed via _Thread_Disable_dispatch() or
- * _ISR_Disable().
+ * _ISR_Local_disable().
  */
 #if defined( RTEMS_DEBUG )
   bool _Debug_Is_thread_dispatching_allowed( void );
-#endif
-
-/**
- * @brief Returns true if the current thread of execution owns the giant lock.
- */
-#if defined( RTEMS_DEBUG )
-  #if defined( RTEMS_SMP )
-    bool _Debug_Is_owner_of_giant( void );
-  #else
-    #define _Debug_Is_owner_of_giant() (true)
-  #endif
 #endif
 
 /**
@@ -118,15 +107,6 @@ extern "C" {
  */
 #if defined( RTEMS_DEBUG )
   bool _Debug_Is_owner_of_allocator( void );
-#endif
-
-/**
- * @brief Asserts that this point is not reached during run-time.
- */
-#if RTEMS_SCHEDSIM
-#define _Assert_Not_reached()
-#else
-#define _Assert_Not_reached() _Assert( 0 )
 #endif
 
 #ifdef __cplusplus

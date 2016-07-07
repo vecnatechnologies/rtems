@@ -6,6 +6,7 @@ include $(top_srcdir)/automake/multilib.am
 # librtemscpu
 SUBDIRS = . score rtems sapi posix
 SUBDIRS += dev
+SUBDIRS += dtc/libfdt
 SUBDIRS += libcrypt
 SUBDIRS += libcsupport libblock libfs
 SUBDIRS += libdrvmgr
@@ -16,6 +17,7 @@ SUBDIRS += libmisc
 SUBDIRS += libmd
 SUBDIRS += libgnat
 SUBDIRS += libdl
+SUBDIRS += libstdthreads
 SUBDIRS += wrapup
 
 SUBDIRS += zlib
@@ -95,6 +97,8 @@ include_rtems_rtl_HEADERS += libdl/rap.h libdl/rap-shell.h
 endif
 
 include_rtems_HEADERS += include/rtems/bspIo.h
+include_rtems_HEADERS += include/rtems/print.h
+include_rtems_HEADERS += include/rtems/printer.h
 include_rtems_HEADERS += include/rtems/userenv.h
 include_rtems_HEADERS += include/rtems/fs.h
 if !LIBPCI
@@ -103,8 +107,14 @@ endif
 include_rtems_HEADERS += include/rtems/concat.h
 include_rtems_HEADERS += include/rtems/status-checks.h
 
-include_rtems_HEADERS += include/rtems/btimer.h
 include_rtems_HEADERS += include/rtems/endian.h
+
+include_rtems_HEADERS += include/rtems/btimer.h
+include_rtems_HEADERS += include/rtems/console.h
+include_rtems_HEADERS += include/rtems/clockdrv.h
+include_rtems_HEADERS += include/rtems/framebuffer.h
+include_rtems_HEADERS += include/rtems/rtc.h
+include_rtems_HEADERS += include/rtems/watchdogdrv.h
 
 ## should be conditional and only installed for PowerPC, x86, and ARM
 include_rtems_HEADERS += include/rtems/irq.h

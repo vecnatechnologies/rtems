@@ -10,18 +10,19 @@
 #ifndef _RTEMS_RTEMS_BSDNET_INTERNAL_H
 #define _RTEMS_RTEMS_BSDNET_INTERNAL_H
 
+#include <sys/_types.h>
 #include <rtems.h>
 #include <rtems/fs.h>
-#include <rtems/bsd.h>
+#include <rtems/score/timecounter.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef	unsigned int		vm_offset_t;
-typedef	long long		vm_ooffset_t;
-typedef	unsigned int		vm_pindex_t;
-typedef	unsigned int		vm_size_t;
+typedef	__uintptr_t		vm_offset_t;
+typedef	__intptr_t		vm_ooffset_t;
+typedef	__uintptr_t		vm_pindex_t;
+typedef	__uintptr_t		vm_size_t;
 
 #define _BSD_OFF_T_	int32_t
 #define _BSD_PID_T_	rtems_id
@@ -30,6 +31,7 @@ typedef	unsigned int		vm_size_t;
 /* make sure we get the network versions of these */
 #include <machine/types.h>
 #include <machine/param.h>
+#include <machine/endian.h>
 #include <sys/cdefs.h>
 
 #include <sys/time.h>
@@ -62,7 +64,7 @@ void *memset(void *s, int c, size_t n);
 #define panic	rtems_panic
 #define suser(a,b)	0
 
-#define microtime(tv) rtems_bsd_microtime(tv)
+#define	microtime(_tvp) _Timecounter_Microtime(_tvp)
 
 #define hz rtems_bsdnet_ticks_per_second
 #define tick rtems_bsdnet_microseconds_per_tick
@@ -104,7 +106,30 @@ typedef	int		boolean_t;
 #define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
 #endif
 
-#include <rtems/endian.h>
+#ifndef _BYTEORDER_PROTOTYPED
+#define	_BYTEORDER_PROTOTYPED
+__BEGIN_DECLS
+__uint32_t	 htonl(__uint32_t);
+__uint16_t	 htons(__uint16_t);
+__uint32_t	 ntohl(__uint32_t);
+__uint16_t	 ntohs(__uint16_t);
+__END_DECLS
+#endif
+
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif /* !_BYTEORDER_FUNC_DEFINED */
+
+#define NTOHS(x) (x) = ntohs(x)
+#define HTONS(x) (x) = htons(x)
+#define NTOHL(x) (x) = ntohl(x)
+#define HTONL(x) (x) = htonl(x)
+
+in_addr_t	 inet_addr(const char *);
 
 typedef quad_t          rlim_t;         /* resource limit */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
@@ -222,6 +247,14 @@ int ioctl (int, ioctl_command_t, ...);
 #endif
 
 struct socket *rtems_bsdnet_fdToSocket(int fd);
+
+void sysctl_register_all(void *);
+
+void rtems_set_udp_buffer_sizes(u_long, u_long);
+
+void rtems_set_tcp_buffer_sizes(u_long, u_long);
+
+void rtems_set_sb_efficiency(u_long);
 
 #ifdef __cplusplus
 }

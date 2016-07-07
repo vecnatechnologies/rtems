@@ -101,30 +101,9 @@ extern "C" {
 
 #define CPU_STACK_GROWS_UP               FALSE
 
-/*
- *  The following is the variable attribute used to force alignment
- *  of critical RTEMS structures.  On some processors it may make
- *  sense to have these aligned on tighter boundaries than
- *  the minimum requirements of the compiler in order to have as
- *  much of the critical data area as possible in a cache line.
- *
- *  The placement of this macro in the declaration of the variables
- *  is based on the syntactically requirements of the GNU C
- *  "__attribute__" extension.  For example with GNU C, use
- *  the following to force a structures to a 32 byte boundary.
- *
- *      __attribute__ ((aligned (32)))
- *
- *  NOTE:  Currently only the Priority Bit Map table uses this feature.
- *         To benefit from using this, the data must be heavily
- *         used so it will stay in the cache and used frequently enough
- *         in the executive to justify turning this on.
- */
+#define CPU_CACHE_LINE_BYTES PPC_STRUCTURE_ALIGNMENT
 
-#define CPU_STRUCTURE_ALIGNMENT \
-  __attribute__ ((aligned (PPC_STRUCTURE_ALIGNMENT)))
-
-#define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC TRUE
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /*
  *  Define what is required to specify how the network to host conversion
@@ -193,6 +172,8 @@ extern "C" {
 #define CPU_IDLE_TASK_IS_FP      FALSE
 
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 /*
  *  Processor defined structures required for cpukit/score.
@@ -939,6 +920,8 @@ void _CPU_Context_Initialize(
 #ifndef ASM
 /* Bitfield handler macros */
 
+#define CPU_USE_GENERIC_BITFIELD_CODE FALSE
+
 /*
  *  This routine sets _output to the bit number of the first bit
  *  set in _value.  _value is of CPU dependent type Priority_bit_map_Word.
@@ -998,6 +981,7 @@ void _CPU_Context_Initialize(
   { \
     __asm__ volatile ("cntlzw %0, %1" : "=r" ((_output)), "=r" ((_value)) : \
 		  "1" ((_value))); \
+    (_output) = (_output) - 16; \
   }
 
 /* end of Bitfield handler macros */
@@ -1009,7 +993,7 @@ void _CPU_Context_Initialize(
  */
 
 #define _CPU_Priority_Mask( _bit_number ) \
-  ( 0x80000000 >> (_bit_number) )
+  ( 0x8000u >> (_bit_number) )
 
 /*
  *  This routine translates the bit numbers returned by
@@ -1070,7 +1054,7 @@ void _CPU_Context_switch(
 
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /*
  *  _CPU_Context_save_fp

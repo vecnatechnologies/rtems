@@ -64,7 +64,7 @@ typedef enum {
 #define SYSTEM_STATE_CODES_LAST SYSTEM_STATE_TERMINATED
 
 #if defined(RTEMS_MULTIPROCESSING)
-SCORE_EXTERN bool _System_state_Is_multiprocessing;
+extern bool _System_state_Is_multiprocessing;
 #endif
 
 extern System_state_Codes _System_state_Current;
@@ -74,20 +74,6 @@ RTEMS_INLINE_ROUTINE void _System_state_Set (
 )
 {
   _System_state_Current = state;
-}
-
-RTEMS_INLINE_ROUTINE void _System_state_Handler_initialization (
-#if defined(RTEMS_MULTIPROCESSING)
-  bool  is_multiprocessing
-#else
-  bool  is_multiprocessing __attribute__((unused))
-#endif
-)
-{
-  _System_state_Set( SYSTEM_STATE_BEFORE_INITIALIZATION );
-#if defined(RTEMS_MULTIPROCESSING)
-    _System_state_Is_multiprocessing = is_multiprocessing;
-#endif
 }
 
 RTEMS_INLINE_ROUTINE System_state_Codes _System_state_Get ( void )

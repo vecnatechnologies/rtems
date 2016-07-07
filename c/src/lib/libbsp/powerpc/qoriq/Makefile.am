@@ -22,6 +22,7 @@ include_bsp_HEADERS = include/irq.h \
 	../../shared/include/irq-generic.h \
 	../../shared/include/irq-info.h \
 	../../shared/include/bootcard.h \
+	../../shared/include/fdt.h \
 	../../shared/include/u-boot.h \
 	../../shared/include/utility.h \
 	../shared/include/u-boot-board-info.h \
@@ -55,14 +56,13 @@ noinst_LIBRARIES += libbsp.a
 libbsp_a_SOURCES =
 
 # Startup
-libbsp_a_SOURCES += ../../shared/bsplibc.c \
-	../../shared/bsppost.c \
+libbsp_a_SOURCES += \
 	../../shared/bootcard.c \
-	../../shared/bsppretaskinghook.c \
 	../../shared/sbrk.c \
 	../../shared/gnatinstallhandler.c \
 	../../shared/bspclean.c \
 	../../shared/bspgetworkarea.c \
+	../../shared/src/bsp-fdt.c \
 	../../shared/src/bsp-uboot-board-info.c \
 	../shared/src/ppc-exc-handler-table.c \
 	../shared/src/tictac.c \
@@ -70,12 +70,17 @@ libbsp_a_SOURCES += ../../shared/bsplibc.c \
 	../shared/startup/bspidle.c \
 	../shared/uboot_getenv.c \
 	../shared/uboot_dump_bdinfo.c \
+	startup/l1cache.S \
+	startup/l2cache.S \
 	startup/mmu.c \
 	startup/mmu-tlb1.S \
 	startup/mmu-config.c \
+	startup/portal.c \
+	startup/restart.S \
 	startup/bsppredriverhook.c \
 	startup/bspstart.c \
-	startup/bspreset.c
+	startup/bspreset.c \
+	startup/bsprestart.c
 
 # Clock
 libbsp_a_SOURCES += clock/clock-config.c \

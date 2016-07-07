@@ -25,21 +25,16 @@
 #include <sys/callout.h>
 #include <sys/proc.h>
 #include <sys/ioctl.h>
+#include <sys/systm.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <vm/vm.h>
-#include <arpa/inet.h>
 
 #include <net/netisr.h>
 #include <net/route.h>
 
 #include "loop.h"
-
-/*
- * Sysctl init all.
- */
-void sysctl_register_all(void *arg);
 
 /*
  * Memory allocation
@@ -122,7 +117,7 @@ rtems_bsdnet_semaphore_release_recursive(void)
 
 	nest_count =
 		the_networkSemaphore ?
-		the_networkSemaphore->Core_control.mutex.nest_count : 0;
+		the_networkSemaphore->Core_control.Mutex.Recursive.nest_level + 1 : 0;
 	for (i = 0; i < nest_count; ++i) {
 		rtems_bsdnet_semaphore_release();
 	}
@@ -265,13 +260,6 @@ bsd_init (void)
 }
 
 /*
- * RTEMS Specific Helper Routines
- */
-extern void rtems_set_udp_buffer_sizes( u_long, u_long );
-extern void rtems_set_tcp_buffer_sizes( u_long, u_long );
-extern void rtems_set_sb_efficiency( u_long );
-
-/*
  * Initialize and start network operations
  */
 static int
@@ -284,7 +272,16 @@ rtems_bsdnet_initialize (void)
 	 */
 	if (rtems_bsdnet_config.network_task_priority == 0)
 		networkDaemonPriority = 100;
+#ifdef RTEMS_MULTIPROCESSING
+	/*
+	 * Allow network tasks to run with priority 0 (PRIORITY_PSEUDO_ISR) using
+	 * UINT32_MAX for the network task priority in the network configuration.
+	 * This enables MPCI via a TCP/IP network.
+	 */
+	else if (rtems_bsdnet_config.network_task_priority != UINT32_MAX)
+#else
 	else
+#endif
 		networkDaemonPriority = rtems_bsdnet_config.network_task_priority;
 
 	/*
@@ -332,11 +329,8 @@ rtems_bsdnet_initialize (void)
 		return -1;
 	}
 #ifdef RTEMS_FAST_MUTEX
-	{
-	Objects_Locations location;
-	the_networkSemaphore = _Semaphore_Get( networkSemaphore, &location );
-	_Thread_Enable_dispatch();
-	}
+	the_networkSemaphore = (Semaphore_Control *)
+		_Objects_Get_no_protection(networkSemaphore, &_Semaphore_Information);
 #endif
 
 	/*
@@ -376,23 +370,22 @@ void
 rtems_bsdnet_semaphore_obtain (void)
 {
 #ifdef RTEMS_FAST_MUTEX
-	ISR_lock_Context lock_context;
-	Thread_Control *executing;
-	_ISR_lock_ISR_disable(&lock_context);
+	Thread_queue_Context queue_context;
+	Status_Control status;
 	if (!the_networkSemaphore)
 		rtems_panic ("rtems-net: network sema obtain: network not initialised\n");
-	executing = _Thread_Executing;
-	_CORE_mutex_Seize (
-		&the_networkSemaphore->Core_control.mutex,
-		executing,
-		networkSemaphore,
-		1,		/* wait */
-		0,		/* forever */
-		&lock_context
-		);
-	if (executing->Wait.return_code)
-		rtems_panic ("rtems-net: can't obtain network sema: %d\n",
-                 executing->Wait.return_code);
+	_Thread_queue_Context_initialize(&queue_context);
+	_ISR_lock_ISR_disable(&queue_context.Lock_context);
+	status = _CORE_recursive_mutex_Seize (
+		&the_networkSemaphore->Core_control.Mutex.Recursive,
+		_Thread_Executing,
+		true,			/* wait */
+		WATCHDOG_NO_TIMEOUT,	/* forever */
+		_CORE_recursive_mutex_Seize_nested,
+		&queue_context
+	);
+	if (status != STATUS_SUCCESSFUL)
+		rtems_panic ("rtems-net: can't obtain network sema: %d\n", status);
 #else
 	rtems_status_code sc;
 
@@ -410,19 +403,19 @@ void
 rtems_bsdnet_semaphore_release (void)
 {
 #ifdef RTEMS_FAST_MUTEX
-        ISR_lock_Context lock_context;
-	CORE_mutex_Status status;
+	Thread_queue_Context queue_context;
+	Status_Control status;
 
 	if (!the_networkSemaphore)
 		rtems_panic ("rtems-net: network sema obtain: network not initialised\n");
-        _ISR_lock_ISR_disable(&lock_context);
-	status = _CORE_mutex_Surrender (
-		&the_networkSemaphore->Core_control.mutex,
-		networkSemaphore,
-		NULL,
-                &lock_context
-		);
-	if (status != CORE_MUTEX_STATUS_SUCCESSFUL)
+	_Thread_queue_Context_initialize(&queue_context);
+	_ISR_lock_ISR_disable(&queue_context.Lock_context);
+	status = _CORE_recursive_mutex_Surrender(
+		&the_networkSemaphore->Core_control.Mutex.Recursive,
+		_Thread_Executing,
+		&queue_context
+	);
+	if (status != STATUS_SUCCESSFUL)
 		rtems_panic ("rtems-net: can't release network sema: %i\n");
 #else
 	rtems_status_code sc;
@@ -694,6 +687,9 @@ rtems_bsdnet_newproc (char *name, int stacksize, void(*entry)(void *), void *arg
 		networkDaemonPriority,
 		stacksize,
 		RTEMS_PREEMPT|RTEMS_NO_TIMESLICE|RTEMS_NO_ASR|RTEMS_INTERRUPT_LEVEL(0),
+#ifdef RTEMS_MULTIPROCESSING
+		RTEMS_SYSTEM_TASK |
+#endif
 		RTEMS_NO_FLOATING_POINT|RTEMS_LOCAL,
 		&tid);
 	if (sc != RTEMS_SUCCESSFUL)
@@ -832,8 +828,13 @@ rtems_bsdnet_log (int priority, const char *fmt, ...)
 /*
  * IP header checksum routine for processors which don't have an inline version
  */
+
+struct ip;
+
+u_int in_cksum_hdr(const struct ip *);
+
 u_int
-in_cksum_hdr (const void *ip)
+in_cksum_hdr (const struct ip *ip)
 {
 	uint32_t   sum;
 	const uint16_t   *sp;

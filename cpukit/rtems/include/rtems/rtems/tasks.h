@@ -21,8 +21,6 @@
  * - resume a task
  * - set a task's priority
  * - change the current task's mode
- * - get a task notepad entry
- * - set a task notepad entry
  * - wake up after interval
  * - wake up when specified
  */
@@ -40,6 +38,7 @@
 #define _RTEMS_RTEMS_TASKS_H
 
 #include <rtems/score/object.h>
+#include <rtems/score/scheduler.h>
 #include <rtems/score/thread.h>
 #include <rtems/rtems/types.h>
 #include <rtems/rtems/event.h>
@@ -76,7 +75,7 @@ extern "C" {
 /**
  *  Define the type for an RTEMS API task priority.
  */
-typedef Priority_Control rtems_task_priority;
+typedef uint32_t rtems_task_priority;
 
 /**
  *  This is the constant used with the rtems_task_set_priority
@@ -109,46 +108,6 @@ typedef Priority_Control rtems_task_priority;
  *  caller wants to obtain the current priority.
  */
 #define RTEMS_CURRENT_PRIORITY      PRIORITY_MINIMUM
-
-/** This is used to indicate the lowest numbered notepad */
-#define RTEMS_NOTEPAD_FIRST 0
-/** This is used to indicate the notepad location 0. */
-#define RTEMS_NOTEPAD_0    0
-/** This is used to indicate the notepad location 1. */
-#define RTEMS_NOTEPAD_1    1
-/** This is used to indicate the notepad location 2. */
-#define RTEMS_NOTEPAD_2    2
-/** This is used to indicate the notepad location 3. */
-#define RTEMS_NOTEPAD_3    3
-/** This is used to indicate the notepad location 4. */
-#define RTEMS_NOTEPAD_4    4
-/** This is used to indicate the notepad location 5. */
-#define RTEMS_NOTEPAD_5    5
-/** This is used to indicate the notepad location 6. */
-#define RTEMS_NOTEPAD_6    6
-/** This is used to indicate the notepad location 7. */
-#define RTEMS_NOTEPAD_7    7
-/** This is used to indicate the notepad location 8. */
-#define RTEMS_NOTEPAD_8    8
-/** This is used to indicate the notepad location 9. */
-#define RTEMS_NOTEPAD_9    9
-/** This is used to indicate the notepad location 10. */
-#define RTEMS_NOTEPAD_10   10
-/** This is used to indicate the notepad location 11. */
-#define RTEMS_NOTEPAD_11   11
-/** This is used to indicate the notepad location 12. */
-#define RTEMS_NOTEPAD_12   12
-/** This is used to indicate the notepad location 13. */
-#define RTEMS_NOTEPAD_13   13
-/** This is used to indicate the notepad location 14. */
-#define RTEMS_NOTEPAD_14   14
-/** This is used to indicate the notepad location 15. */
-#define RTEMS_NOTEPAD_15   15
-/** This is used to indicate the highest numbered notepad. */
-#define RTEMS_NOTEPAD_LAST RTEMS_NOTEPAD_15
-
-/** This is used to indicate the number of notepads available. */
-#define RTEMS_NUMBER_NOTEPADS  (RTEMS_NOTEPAD_LAST+1)
 
 /**
  *  External API name for Thread_Control
@@ -267,50 +226,6 @@ rtems_status_code rtems_task_ident(
 rtems_status_code rtems_task_delete(
   rtems_id   id
 );
-
-/**
- * @brief RTEMS Get Task Node
- *
- * @deprecated Notepads are deprecated and will be removed.
- *
- * This routine implements the rtems_task_get_note directive. The
- * value of the indicated notepad for the task associated with ID
- * is returned in note.
- *
- * @param[in] id is the thread id
- * @param[in] notepad is the notepad number
- * @param[out] note is the pointer to note
- *
- * @retval RTEMS_SUCCESSFUL if successful or error code if unsuccessful
- */
-rtems_status_code rtems_task_get_note(
-  rtems_id    id,
-  uint32_t    notepad,
-  uint32_t   *note
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
-
-/**
- * @brief RTEMS Set Task Note
- *
- * @deprecated Notepads are deprecated and will be removed.
- *
- * This routine implements the rtems_task_set_note directive. The
- * value of the indicated notepad for the task associated with ID
- * is returned in note.
- *
- * @param[in] id is the thread id
- * @param[in] notepad is the notepad number
- * @param[in] note is the note value
- *
- * @return This method returns RTEMS_SUCCESSFUL if there was not an
- *         error. Otherwise, a status code is returned indicating the
- *         source of the error.
- */
-rtems_status_code rtems_task_set_note(
-  rtems_id   id,
-  uint32_t   notepad,
-  uint32_t   note
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
 
 /**
  * @brief RTEMS Task Mode
@@ -458,52 +373,6 @@ rtems_status_code rtems_task_is_suspended(
   rtems_id   id
 );
 
-#if !defined(RTEMS_SMP)
-/**
- *  @brief RTEMS Add Task Variable
- *
- *  @deprecated Task variables are deprecated.
- *
- *  This directive adds a per task variable.
- *
- *  @note This service is not available in SMP configurations.
- */
-rtems_status_code rtems_task_variable_add(
-  rtems_id  tid,
-  void    **ptr,
-  void    (*dtor)(void *)
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
-
-/**
- *  @brief Get a per-task variable
- *
- *  @deprecated Task variables are deprecated.
- *
- *  This directive gets the value of a task variable.
- *
- *  @note This service is not available in SMP configurations.
- */
-rtems_status_code rtems_task_variable_get(
-  rtems_id tid,
-  void **ptr,
-  void **result
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
-
-/**
- *  @brief RTEMS Delete Task Variable
- *
- *  @deprecated Task variables are deprecated.
- *
- *  This directive removes a per task variable.
- *
- *  @note This service is not available in SMP configurations.
- */
-rtems_status_code rtems_task_variable_delete(
-  rtems_id  tid,
-  void    **ptr
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
-#endif
-
 #if defined(__RTEMS_HAVE_SYS_CPUSET_H__)
 /**
  * @brief Gets the processor affinity set of a task.
@@ -579,23 +448,32 @@ rtems_status_code rtems_task_get_scheduler(
 );
 
 /**
- * @brief Sets the scheduler of a task.
+ * @brief Sets the scheduler instance of a task.
  *
- * The scheduler of a task is initialized to the scheduler of the task that
- * created it.
+ * Initially, the scheduler instance of a task is set to the scheduler instance
+ * of the task that created it.  This directive allows to move a task from its
+ * current scheduler instance to another specified by the scheduler identifier.
  *
  * @param[in] task_id Identifier of the task.  Use @ref RTEMS_SELF to select
- * the executing task.
- * @param[in] scheduler_id Identifier of the scheduler.
+ *   the executing task.
+ * @param[in] scheduler_id Identifier of the scheduler instance.
+ * @param[in] priority The task priority with respect to the new scheduler
+ *   instance.  The real and initial priority of the task is set to this value.
+ *   The initial priority is used by rtems_task_restart() for example.
  *
  * @retval RTEMS_SUCCESSFUL Successful operation.
+ * @retval RTEMS_ILLEGAL_ON_REMOTE_OBJECT Directive is illegal on remote tasks.
  * @retval RTEMS_INVALID_ID Invalid task or scheduler identifier.
+ * @retval RTEMS_INVALID_PRIORITY Invalid priority.
+ * @retval RTEMS_RESOURCE_IN_USE The task owns resources which deny a scheduler
+ *   change.
  *
  * @see rtems_scheduler_ident().
  */
 rtems_status_code rtems_task_set_scheduler(
-  rtems_id task_id,
-  rtems_id scheduler_id
+  rtems_id            task_id,
+  rtems_id            scheduler_id,
+  rtems_task_priority priority
 );
 
 /**
@@ -654,9 +532,6 @@ rtems_status_code rtems_scheduler_get_processor_set(
  *  This is the API specific information required by each thread for
  *  the RTEMS API to function correctly.
  *
- *  @note Notepads must be the last entry in the structure and memory
- *        will be taken away from this structure when allocated if
- *        notespads are disabled by the application configuration.
  */
 typedef struct {
   /** This field contains the event control for this task. */
@@ -670,25 +545,7 @@ typedef struct {
    * @brief Signal post-switch action in case signals are pending.
    */
   Thread_Action            Signal_action;
-
-  /**
-   *  This field contains the notepads for this task.
-   * 
-   *  @deprecated Notepads are deprecated and will be removed.
-   *
-   *  @note MUST BE LAST ENTRY.
-   */
-  uint32_t Notepads[ RTEMS_ZERO_LENGTH_ARRAY ] RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
 }  RTEMS_API_Control;
-
-/**
- *  When the user configures a set of Classic API initialization tasks,
- *  This variable will point to the method used to initialize them.
- *
- *  @note It is instantiated and initialized by confdefs.h based upon
- *        application requirements.
- */
-extern void (*_RTEMS_tasks_Initialize_user_tasks_p)(void);
 
 /**
  *  @brief _RTEMS_tasks_Initialize_user_tasks_body

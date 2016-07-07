@@ -252,28 +252,10 @@ extern "C" {
 
 #define CPU_STACK_GROWS_UP               FALSE
 
-/*
- *  The following is the variable attribute used to force alignment
- *  of critical RTEMS structures.  On some processors it may make
- *  sense to have these aligned on tighter boundaries than
- *  the minimum requirements of the compiler in order to have as
- *  much of the critical data area as possible in a cache line.
- *
- *  The placement of this macro in the declaration of the variables
- *  is based on the syntactically requirements of the GNU C
- *  "__attribute__" extension.  For example with GNU C, use
- *  the following to force a structures to a 32 byte boundary.
- *
- *      __attribute__ ((aligned (32)))
- *
- *  NOTE:  Currently only the Priority Bit Map table uses this feature.
- *         To benefit from using this, the data must be heavily
- *         used so it will stay in the cache and used frequently enough
- *         in the executive to justify turning this on.
- *
- */
+/* FIXME: Is this the right value? */
+#define CPU_CACHE_LINE_BYTES 32
 
-#define CPU_STRUCTURE_ALIGNMENT __attribute__ ((aligned (32)))
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /*
  *  Define what is required to specify how the network to host conversion
@@ -409,7 +391,6 @@ typedef Context_Control CPU_Interrupt_frame;
  */
 
 #define CPU_CONTEXT_FP_SIZE  0
-SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context;
 
 /*
  *  Amount of extra stack (above minimum stack size) required by
@@ -671,23 +652,8 @@ void _CPU_Context_Initialize(
 #define _CPU_Context_Fp_start( _base, _offset ) \
    ( (void *) _Addresses_Add_offset( (_base), (_offset) ) )
 
-/*
- *  This routine initializes the FP context area passed to it to.
- *  There are a few standard ways in which to initialize the
- *  floating point context.  The code included for this macro assumes
- *  that this is a CPU in which a "initial" FP context was saved into
- *  _CPU_Null_fp_context and it simply copies it to the destination
- *  context passed to it.
- *
- *  Other models include (1) not doing anything, and (2) putting
- *  a "null FP status word" in the correct place in the FP context.
- *
- */
-
 #define _CPU_Context_Initialize_fp( _destination ) \
-  { \
-   *(*(_destination)) = _CPU_Null_fp_context; \
-  }
+  memset( *( _destination ), 0, CPU_CONTEXT_FP_SIZE );
 
 /* end of Context handler macros */
 
@@ -707,116 +673,7 @@ void _CPU_Context_Initialize(
 
 /* end of Fatal Error manager macros */
 
-/* Bitfield handler macros */
-
-/*
- *  This routine sets _output to the bit number of the first bit
- *  set in _value.  _value is of CPU dependent type Priority_Bit_map_control.
- *  This type may be either 16 or 32 bits wide although only the 16
- *  least significant bits will be used.
- *
- *  There are a number of variables in using a "find first bit" type
- *  instruction.
- *
- *    (1) What happens when run on a value of zero?
- *    (2) Bits may be numbered from MSB to LSB or vice-versa.
- *    (3) The numbering may be zero or one based.
- *    (4) The "find first bit" instruction may search from MSB or LSB.
- *
- *  RTEMS guarantees that (1) will never happen so it is not a concern.
- *  (2),(3), (4) are handled by the macros _CPU_Priority_mask() and
- *  _CPU_Priority_bits_index().  These three form a set of routines
- *  which must logically operate together.  Bits in the _value are
- *  set and cleared based on masks built by _CPU_Priority_mask().
- *  The basic major and minor values calculated by _Priority_Major()
- *  and _Priority_Minor() are "massaged" by _CPU_Priority_bits_index()
- *  to properly range between the values returned by the "find first bit"
- *  instruction.  This makes it possible for _Priority_Get_highest() to
- *  calculate the major and directly index into the minor table.
- *  This mapping is necessary to ensure that 0 (a high priority major/minor)
- *  is the first bit found.
- *
- *  This entire "find first bit" and mapping process depends heavily
- *  on the manner in which a priority is broken into a major and minor
- *  components with the major being the 4 MSB of a priority and minor
- *  the 4 LSB.  Thus (0 << 4) + 0 corresponds to priority 0 -- the highest
- *  priority.  And (15 << 4) + 14 corresponds to priority 254 -- the next
- *  to the lowest priority.
- *
- *  If your CPU does not have a "find first bit" instruction, then
- *  there are ways to make do without it.  Here are a handful of ways
- *  to implement this in software:
- *
- *    - a series of 16 bit test instructions
- *    - a "binary search using if's"
- *    - _number = 0
- *      if _value > 0x00ff
- *        _value >>=8
- *        _number = 8;
- *
- *      if _value > 0x0000f
- *        _value >=8
- *        _number += 4
- *
- *      _number += bit_set_table[ _value ]
- *
- *    where bit_set_table[ 16 ] has values which indicate the first
- *      bit set
- *
- */
-
-  /* #define CPU_USE_GENERIC_BITFIELD_CODE FALSE */
 #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
-#define CPU_USE_GENERIC_BITFIELD_DATA TRUE
-
-#if (CPU_USE_GENERIC_BITFIELD_CODE == FALSE)
-
-  /* Get a value between 0 and N where N is the bit size */
-  /* This routine makes use of the fact that CPUCFGR defines
-     OB32S to have value 32, and OB64S to have value 64. If
-     this ever changes then this routine will fail. */
-#define _CPU_Bitfield_Find_first_bit( _value, _output ) \
-     asm volatile ("l.mfspr %0,r0,0x2   \n\t"\
-                   "l.andi  %0,%0,0x60  \n\t"\
-                   "l.ff1   %1,%1,r0    \n\t"\
-                   "l.sub   %0,%0,%1    \n\t" : "=&r" (_output), "+r" (_value));
-
-#endif
-
-/* end of Bitfield handler macros */
-
-/*
- *  This routine builds the mask which corresponds to the bit fields
- *  as searched by _CPU_Bitfield_Find_first_bit().  See the discussion
- *  for that routine.
- *
- */
-
-#if (CPU_USE_GENERIC_BITFIELD_CODE == FALSE)
-
-#define _CPU_Priority_Mask( _bit_number ) \
-    (1 << _bit_number)
-
-#endif
-
-/*
- *  This routine translates the bit numbers returned by
- *  _CPU_Bitfield_Find_first_bit() into something suitable for use as
- *  a major or minor component of a priority.  See the discussion
- *  for that routine.
- *
- */
-
-#if (CPU_USE_GENERIC_BITFIELD_CODE == FALSE)
-
-#define _CPU_Priority_bits_index( _priority ) \
-  (_priority)
-
-#endif
-
-#define CPU_TIMESTAMP_USE_STRUCT_TIMESPEC FALSE
-#define CPU_TIMESTAMP_USE_INT64 TRUE
-#define CPU_TIMESTAMP_USE_INT64_INLINE FALSE
 
 typedef struct {
 /* There is no CPU specific per-CPU state */
@@ -826,9 +683,10 @@ typedef struct {
 #define CPU_SIZEOF_POINTER 4
 #define CPU_PER_CPU_CONTROL_SIZE 0
 
+#define CPU_MAXIMUM_PROCESSORS 32
+
 #ifndef ASM
 typedef uint32_t CPU_Counter_ticks;
-typedef uint16_t Priority_bit_map_Word;
 
 typedef struct {
   uint32_t r[32];
@@ -950,7 +808,7 @@ void _CPU_Context_switch(
 
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /*
  *  _CPU_Context_save_fp

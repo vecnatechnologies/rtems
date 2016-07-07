@@ -29,12 +29,11 @@ EXTRA_DIST = startup/bootpstuff.c
 # startup
 libbsp_a_SOURCES += startup/bspstart.c \
     ../../powerpc/shared/startup/pgtbl_setup.c startup/pgtbl_activate.c \
-    ../../powerpc/shared/startup/pretaskinghook.c \
+    ../../powerpc/shared/startup/bsppredriverhook.c \
     ../../powerpc/shared/startup/zerobss.c \
     ../../powerpc/shared/startup/bspgetworkarea.c \
     ../../powerpc/shared/startup/sbrk.c ../../shared/bootcard.c \
-    ../../shared/bsppredriverhook.c startup/bspclean.c \
-    ../../shared/bsplibc.c ../../shared/bsppost.c \
+    startup/bspclean.c \
     ../../shared/gnatinstallhandler.c startup/bspreset.c \
     ../../powerpc/shared/startup/probeMemEnd.c
 
@@ -50,8 +49,10 @@ libbsp_a_SOURCES += ../../powerpc/shared/console/uart.c \
 include_bsp_HEADERS += pci/gtpcireg.h
 include_bsp_HEADERS += ../../powerpc/shared/pci/pci.h
 # pci
-libbsp_a_SOURCES += pci/pci.c pci/pci_interface.c pci/detect_host_bridge.c \
-    pci/pcifinddevice.c
+libbsp_a_SOURCES += pci/pci.c
+libbsp_a_SOURCES += pci/pci_interface.c
+libbsp_a_SOURCES += pci/detect_host_bridge.c
+libbsp_a_SOURCES += ../../shared/pci/pci_find_device.c
 
 include_bsp_HEADERS += irq/irq.h
 # irq

@@ -32,10 +32,10 @@ BUILT_SOURCES = scitab.c
 CLEANFILES = scitab.c
 
 # startup
-libbsp_a_SOURCES += ../../shared/bsplibc.c ../../shared/bsppost.c \
+libbsp_a_SOURCES += \
     ../../shared/bsppredriverhook.c ../shared/startup/bspstart.c \
     ../../shared/bspclean.c ../../shared/bspreset_loop.c \
-    ../../shared/bspgetworkarea.c ../../shared/bsppretaskinghook.c \
+    ../../shared/bspgetworkarea.c \
     ../../shared/sbrk.c ../../shared/bootcard.c ../shared/bsphwinit.c \
     ../../shared/gnatinstallhandler.c
 # scitab

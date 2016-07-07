@@ -19,38 +19,32 @@
 #endif
 
 #include <rtems/score/todimpl.h>
-#include <rtems/score/threaddispatch.h>
+#include <rtems/score/assert.h>
 #include <rtems/score/watchdogimpl.h>
 
-void _TOD_Set_with_timestamp(
-  const Timestamp_Control *tod_as_timestamp
+void _TOD_Set(
+  const Timestamp_Control *tod_as_timestamp,
+  ISR_lock_Context        *lock_context
 )
 {
-  struct timespec ts;
-  uint32_t nanoseconds;
-  Watchdog_Interval seconds_next;
-  Watchdog_Interval seconds_now;
-  Watchdog_Header *header;
+  struct timespec tod_as_timespec;
+  uint64_t        tod_as_ticks;
+  uint32_t        cpu_count;
+  uint32_t        cpu_index;
 
-  _Timestamp_To_timespec( tod_as_timestamp, &ts );
-  nanoseconds = ts.tv_nsec;
-  seconds_next = ts.tv_sec;
+  _Assert( _API_Mutex_Is_owner( _Once_Mutex ) );
 
-  _Thread_Disable_dispatch();
+  _Timecounter_Set_clock( tod_as_timestamp, lock_context );
 
-  seconds_now = _TOD_Seconds_since_epoch();
+  _Timestamp_To_timespec( tod_as_timestamp, &tod_as_timespec );
+  tod_as_ticks = _Watchdog_Ticks_from_timespec( &tod_as_timespec );
+  cpu_count = _SMP_Get_processor_count();
 
-  _Timecounter_Set_clock( &ts );
+  for ( cpu_index = 0 ; cpu_index < cpu_count ; ++cpu_index ) {
+    Per_CPU_Control *cpu = _Per_CPU_Get_by_index( cpu_index );
 
-  header = &_Watchdog_Seconds_header;
+    _Watchdog_Per_CPU_tickle_absolute( cpu, tod_as_ticks );
+  }
 
-  if ( seconds_next < seconds_now )
-    _Watchdog_Adjust_backward( header, seconds_now - seconds_next );
-  else
-    _Watchdog_Adjust_forward( header, seconds_next - seconds_now );
-
-  _TOD.seconds_trigger = nanoseconds;
   _TOD.is_set = true;
-
-  _Thread_Enable_dispatch();
 }

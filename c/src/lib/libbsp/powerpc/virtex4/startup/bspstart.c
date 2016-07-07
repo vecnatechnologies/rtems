@@ -109,9 +109,6 @@ static void _noopfun(void) {}
 void app_bsp_start(void)
 __attribute__(( weak, alias("_noopfun") ));
 
-void app_bsp_pretasking_hook(void)
-__attribute__(( weak, alias("_noopfun") ));
-
 void app_bsp_predriver_hook(void)
 __attribute__(( weak, alias("_noopfun") ));
 
@@ -137,7 +134,7 @@ void BSP_ask_for_reset(void)
 
 void BSP_panic(char *s)
 {
-  __attribute__((unused)) rtems_interrupt_level level;
+  RTEMS_UNUSED rtems_interrupt_level level;
 
   rtems_interrupt_disable(level);
 
@@ -149,7 +146,7 @@ void BSP_panic(char *s)
 
 void _BSP_Fatal_error(unsigned int v)
 {
-  __attribute__((unused)) rtems_interrupt_level level;
+  RTEMS_UNUSED rtems_interrupt_level level;
 
   rtems_interrupt_disable(level);
 
@@ -231,20 +228,6 @@ void bsp_start(void)
 
   /* Continue with application-specific initialization */
   app_bsp_start();
-}
-
-
-/*
- *  BSP pretasking hook.  Called just before drivers are initialized.
- *  Used to setup libc and install any BSP extensions.
- *
- *  Must not use libc (to do io) from here, since drivers are not yet
- *  initialized.
- */
-
-void bsp_pretasking_hook(void)
-{
-  app_bsp_pretasking_hook();
 }
 
 

@@ -41,6 +41,7 @@ include_bsp_HEADERS += include/irq.h
 include_bsp_HEADERS += include/i2c.h
 include_bsp_HEADERS += include/beagleboneblack.h
 include_bsp_HEADERS += include/bbb-gpio.h
+include_bsp_HEADERS += include/bbb-pwm.h
 
 include_libcpu_HEADERS =
 include_libcpu_HEADERS += ../../../libcpu/arm/shared/include/arm-cp15.h
@@ -77,10 +78,7 @@ libbsp_a_LIBADD =
 libbsp_a_SOURCES += ../../shared/bootcard.c
 libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
-libbsp_a_SOURCES += ../../shared/bsplibc.c
-libbsp_a_SOURCES += ../../shared/bsppost.c
 libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
-libbsp_a_SOURCES += ../../shared/bsppretaskinghook.c
 libbsp_a_SOURCES += ../../shared/gnatinstallhandler.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
 libbsp_a_SOURCES += ../../shared/src/stackalloc.c
@@ -120,6 +118,9 @@ libbsp_a_SOURCES += misc/i2c.c
 # GPIO
 libbsp_a_SOURCES += gpio/bbb-gpio.c
 
+#pwm
+libbsp_a_SOURCES += pwm/pwm.c
+
 #RTC
 libbsp_a_SOURCES += rtc.c
 libbsp_a_SOURCES += ../../shared/tod.c
@@ -129,8 +130,9 @@ libbsp_a_SOURCES += ../../shared/clockdrv_shell.h
 
 # Cache
 libbsp_a_SOURCES += ../../../libcpu/shared/src/cache_manager.c
-libbsp_a_SOURCES += ../../../libcpu/arm/shared/include/cache_.h
-libbsp_a_CPPFLAGS += -I$(srcdir)/../../../libcpu/arm/shared/include
+libbsp_a_SOURCES += ../shared/include/arm-cache-l1.h
+libbsp_a_SOURCES += ../shared/armv467ar-basic-cache/cache_.h
+libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/armv467ar-basic-cache
 
 ###############################################################################
 #                  Special Rules                                              #

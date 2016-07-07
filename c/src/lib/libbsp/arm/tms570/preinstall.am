@@ -114,6 +114,18 @@ $(PROJECT_INCLUDE)/bsp/system-clocks.h: include/system-clocks.h $(PROJECT_INCLUD
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/system-clocks.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/system-clocks.h
 
+$(PROJECT_INCLUDE)/bsp/tms570-pinmux.h: include/tms570-pinmux.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/tms570-pinmux.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/tms570-pinmux.h
+
+$(PROJECT_INCLUDE)/bsp/tms570-pins.h: include/tms570-pins.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/tms570-pins.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/tms570-pins.h
+
+$(PROJECT_INCLUDE)/bsp/tms570ls3137zwt-pins.h: include/tms570ls3137zwt-pins.h $(PROJECT_INCLUDE)/bsp/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/tms570ls3137zwt-pins.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/tms570ls3137zwt-pins.h
+
 $(PROJECT_INCLUDE)/bsp/ti_herc/reg_adc.h: include/ti_herc/reg_adc.h $(PROJECT_INCLUDE)/bsp/ti_herc/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/ti_herc/reg_adc.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/ti_herc/reg_adc.h
@@ -146,9 +158,9 @@ $(PROJECT_INCLUDE)/bsp/ti_herc/reg_efuse.h: include/ti_herc/reg_efuse.h $(PROJEC
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/ti_herc/reg_efuse.h
 PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/ti_herc/reg_efuse.h
 
-$(PROJECT_INCLUDE)/bsp/ti_herc/reg_emac.h: include/ti_herc/reg_emac.h $(PROJECT_INCLUDE)/bsp/ti_herc/$(dirstamp)
-	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/ti_herc/reg_emac.h
-PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/ti_herc/reg_emac.h
+$(PROJECT_INCLUDE)/bsp/ti_herc/reg_emacc.h: include/ti_herc/reg_emacc.h $(PROJECT_INCLUDE)/bsp/ti_herc/$(dirstamp)
+	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/ti_herc/reg_emacc.h
+PREINSTALL_FILES += $(PROJECT_INCLUDE)/bsp/ti_herc/reg_emacc.h
 
 $(PROJECT_INCLUDE)/bsp/ti_herc/reg_emacm.h: include/ti_herc/reg_emacm.h $(PROJECT_INCLUDE)/bsp/ti_herc/$(dirstamp)
 	$(INSTALL_DATA) $< $(PROJECT_INCLUDE)/bsp/ti_herc/reg_emacm.h

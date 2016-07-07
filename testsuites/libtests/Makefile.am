@@ -1,6 +1,7 @@
 ACLOCAL_AMFLAGS = -I ../aclocal
 
 _SUBDIRS = POSIX
+_SUBDIRS += libfdt01
 _SUBDIRS += defaultconfig01
 _SUBDIRS += pwdgrp02
 _SUBDIRS += shell01
@@ -40,6 +41,7 @@ if HAS_POSIX
 _SUBDIRS += mghttpd01
 endif
 _SUBDIRS += ftp01
+_SUBDIRS += networking01
 _SUBDIRS += syscall01
 endif
 

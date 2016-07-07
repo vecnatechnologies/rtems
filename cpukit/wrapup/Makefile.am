@@ -9,6 +9,7 @@ librtemscpu_a_SOURCES =
 
 TMP_LIBS =
 TMP_LIBS += ../dev/libdev.a
+TMP_LIBS += ../dtc/libfdt/libfdt.a
 TMP_LIBS += ../score/cpu/@RTEMS_CPU@/libscorecpu.a
 TMP_LIBS += ../score/libscore.a
 TMP_LIBS += ../sapi/libsapi.a
@@ -20,6 +21,7 @@ TMP_LIBS += ../libgnat/libgnat.a
 endif
 
 TMP_LIBS += ../libcrypt/libcrypt.a
+TMP_LIBS += ../libstdthreads/libstdthreads.a
 TMP_LIBS += ../libcsupport/libcsupport.a
 TMP_LIBS += ../libcsupport/libcalloc.a
 TMP_LIBS += ../libblock/libblock.a

@@ -141,6 +141,9 @@ AS_IF([test -n "$rtems_missing_header"],
 AC_CHECK_HEADERS([semaphore.h])
 AM_CONDITIONAL([HAVE_SEMAPHORE_H],[test x"$ac_cv_header_semaphore_h" = x"yes"])
 
+AC_CHECK_HEADERS([threads.h])
+AM_CONDITIONAL([HAVE_THREADS_H],[test x"$ac_cv_header_threads_h" = x"yes"])
+
 ## error out if libc doesn't provide stdint.h
 AS_IF([test x"${ac_cv_header_stdint_h}" != xyes],
 [AC_MSG_ERROR([Required header stdint.h not found])])
@@ -170,12 +173,16 @@ AC_CHECK_HEADER([pthread.h],[
   AC_CHECK_TYPES([pthread_rwlock_t])
   AC_CHECK_TYPES([pthread_barrier_t])
   AC_CHECK_TYPES([pthread_spinlock_t])
-  AC_CHECK_TYPES([struct _pthread_cleanup_context],[],[],[#include <pthread.h>])
+  AC_CHECK_TYPES([struct _pthread_cleanup_context],[],[AC_MSG_ERROR([struct _pthread_cleanup_context in <pthread.h> is mandatory])],[#include <pthread.h>])
 ])
 
 AC_CHECK_HEADER([signal.h],[
   AC_CHECK_TYPES([sighandler_t])
 ])
+
+if test x"$RTEMS_USE_NEWLIB" = xyes ; then
+  AC_CHECK_DECLS([__getreent],[],[AC_MSG_ERROR([__getreent() in <sys/reent.h> is mandatory])],[#include <sys/reent.h>])
+fi
 
 RTEMS_CHECK_MULTIPROCESSING
 RTEMS_CHECK_POSIX_API
@@ -258,18 +265,6 @@ RTEMS_CPUOPT([__RTEMS_DO_NOT_INLINE_THREAD_ENABLE_DISPATCH__],
   [test x"${RTEMS_DO_NOT_INLINE_THREAD_ENABLE_DISPATCH}" = x"1"],
   [1],
   [disable inlining _Thread_Enable_dispatch])
-
-## This improves both the size and coverage analysis.
-RTEMS_CPUOPT([__RTEMS_DO_NOT_INLINE_CORE_MUTEX_SEIZE__],
-  [test x"${RTEMS_DO_NOT_INLINE_CORE_MUTEX_SEIZE}" = x"1"],
-  [1],
-  [disable inlining _Thread_Enable_dispatch])
-
-## This gives the same behavior as 4.8 and older
-RTEMS_CPUOPT([__RTEMS_STRICT_ORDER_MUTEX__],
-  [test x"${ENABLE_STRICT_ORDER_MUTEX}" = x"1"],
-  [1],
-  [disable strict order mutex])
 
 ## Deactivate ada bindings
 RTEMS_CPUOPT([__RTEMS_ADA__],
@@ -381,14 +376,10 @@ AM_CONDITIONAL([RPCTOOLS],[test "$RPCGEN" = rpcgen \
 # reloc backends
 AC_MSG_CHECKING([whether CPU supports libdl])
 case $RTEMS_CPU in
-  arm | i386 | m32r | m68k | mips | \
-  moxie | powerpc | sparc)
+  arm | i386 | m68k | mips | moxie | powerpc | sparc)
    HAVE_LIBDL=yes ;;
   # bfin has an issue to resolve with libdl. See ticket #2252
   bfin)
-   HAVE_LIBDL=no ;;
-  # h8300 has an issue to resolve with libdl. See ticket #2284
-  h8300)
    HAVE_LIBDL=no ;;
   # lm32 has an issue to resolve with libdl. See ticket #2283
   lm32)
@@ -442,20 +433,18 @@ AC_CONFIG_FILES([
 Doxyfile
 Makefile
 dev/Makefile
+dtc/libfdt/Makefile
 rtems/Makefile
 sapi/Makefile
 score/Makefile
 score/cpu/Makefile
 score/cpu/arm/Makefile
 score/cpu/bfin/Makefile
-score/cpu/avr/Makefile
 score/cpu/epiphany/Makefile
-score/cpu/h8300/Makefile
 score/cpu/i386/Makefile
 score/cpu/lm32/Makefile
 score/cpu/m68k/Makefile
 score/cpu/m32c/Makefile
-score/cpu/m32r/Makefile
 score/cpu/mips/Makefile
 score/cpu/moxie/Makefile
 score/cpu/nios2/Makefile
@@ -481,6 +470,7 @@ libmisc/Makefile
 libi2c/Makefile
 libmd/Makefile
 libdl/Makefile
+libstdthreads/Makefile
 zlib/Makefile
 ftpd/Makefile
 telnetd/Makefile

@@ -26,6 +26,7 @@
 #include <bspopts.h>
 #include <rtems/counter.h>
 #include <rtems/timecounter.h>
+#include <rtems/score/sparcimpl.h>
 
 #if SIMSPARC_FAST_IDLE==1
 #define CLOCK_DRIVER_USE_FAST_IDLE 1
@@ -36,12 +37,15 @@
  */
 #define CLOCK_VECTOR ERC32_TRAP_TYPE( ERC32_INTERRUPT_REAL_TIME_CLOCK )
 
-#define Clock_driver_support_at_tick()
-
 #define Clock_driver_support_install_isr( _new, _old ) \
   do { \
     _old = set_vector( _new, CLOCK_VECTOR, 1 ); \
   } while(0)
+
+#define Clock_driver_support_set_interrupt_affinity( _online_processors ) \
+  do { \
+    (void) _online_processors; \
+  } while (0)
 
 extern int CLOCK_SPEED;
 
@@ -66,22 +70,28 @@ static uint32_t erc32_tc_get_timecount( struct timecounter *tc )
   );
 }
 
+static void erc32_tc_at_tick( rtems_timecounter_simple *tc )
+{
+  /* Nothing to do */
+}
+
 static void erc32_tc_tick( void )
 {
   rtems_timecounter_simple_downcounter_tick(
     &erc32_tc,
-    erc32_tc_get
+    erc32_tc_get,
+    erc32_tc_at_tick
   );
 }
 
-static CPU_Counter_ticks erc32_counter_difference(
-  CPU_Counter_ticks second,
-  CPU_Counter_ticks first
-)
+static void erc32_counter_initialize( uint32_t frequency )
 {
-  CPU_Counter_ticks period = rtems_configuration_get_microseconds_per_tick();
-
-  return (first + period - second) % period;
+  _SPARC_Counter_initialize(
+    _SPARC_Counter_read_address,
+    _SPARC_Counter_difference_clock_period,
+    &ERC32_MEC.Real_Time_Clock_Counter
+  );
+  rtems_counter_initialize_converter( frequency );
 }
 
 #define Clock_driver_support_initialize_hardware() \
@@ -108,11 +118,7 @@ static CPU_Counter_ticks erc32_counter_difference(
         rtems_configuration_get_microseconds_per_tick(), \
         erc32_tc_get_timecount \
     ); \
-    _SPARC_Counter_initialize( \
-      &ERC32_MEC.Real_Time_Clock_Counter, \
-      erc32_counter_difference \
-    ); \
-    rtems_counter_initialize_converter( frequency ); \
+    erc32_counter_initialize( frequency ); \
   } while (0)
 
 #define Clock_driver_timecounter_tick() erc32_tc_tick()
@@ -128,3 +134,4 @@ static CPU_Counter_ticks erc32_counter_difference(
 
 #include "../../../shared/clockdrv_shell.h"
 
+SPARC_COUNTER_DEFINITION;

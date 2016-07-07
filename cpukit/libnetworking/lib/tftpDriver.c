@@ -216,11 +216,9 @@ int rtems_tftpfs_initialize(
   sc = rtems_semaphore_create (
     rtems_build_name('T', 'F', 'T', 'P'),
     1,
-    RTEMS_FIFO |
     RTEMS_BINARY_SEMAPHORE |
-    RTEMS_NO_INHERIT_PRIORITY |
-    RTEMS_NO_PRIORITY_CEILING |
-    RTEMS_LOCAL,
+    RTEMS_PRIORITY |
+    RTEMS_INHERIT_PRIORITY,
     0,
     &fs->tftp_mutex
   );
@@ -968,8 +966,8 @@ static ssize_t rtems_tftp_write(
  * Dummy version to let fopen(xxxx,"w") work properly.
  */
 static int rtems_tftp_ftruncate(
-    rtems_libio_t   *iop __attribute__((unused)),
-    off_t            count __attribute__((unused))
+    rtems_libio_t   *iop RTEMS_UNUSED,
+    off_t            count RTEMS_UNUSED
 )
 {
     return 0;

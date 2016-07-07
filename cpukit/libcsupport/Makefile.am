@@ -6,12 +6,8 @@ libcsupport_a_CPPFLAGS = $(AM_CPPFLAGS)
 libcalloc_a_CPPFLAGS = $(AM_CPPFLAGS)
 
 include_rtemsdir = $(includedir)/rtems
-include_rtems_HEADERS = include/console.h
-include_rtems_HEADERS += include/clockdrv.h
-include_rtems_HEADERS += include/rtems/framebuffer.h
-include_rtems_HEADERS += include/iosupp.h
+include_rtems_HEADERS  = include/iosupp.h
 include_rtems_HEADERS += include/ringbuf.h
-include_rtems_HEADERS += include/rtc.h
 include_rtems_HEADERS += include/rtems/tod.h
 include_rtems_HEADERS += include/spurious.h
 include_rtems_HEADERS += include/vmeintr.h
@@ -41,7 +37,6 @@ ASSOCIATION_C_FILES = src/assoclocalbyname.c \
 BASE_FS_C_FILES = src/base_fs.c src/mount.c src/unmount.c src/libio.c \
     src/mount-mgr.c src/mount-mktgt.c src/libio_init.c \
     src/privateenv.c \
-    src/libio_helper_null.c \
     src/libio_exit.c \
     src/open_dev_console.c src/__usrenv.c src/rtems_mkdir.c
 BASE_FS_C_FILES += src/uenvgetgroups.c
@@ -78,7 +73,7 @@ DIRECTORY_SCAN_C_FILES += src/getcwd.c
 ID_C_FILES = src/getegid.c src/geteuid.c src/getgid.c src/getgroups.c \
     src/getlogin.c src/getpgrp.c src/getpid.c src/getppid.c src/getuid.c \
     src/seteuid.c src/setgid.c src/setuid.c src/setegid.c src/setpgid.c \
-    src/setsid.c
+    src/setsid.c src/setgroups.c
 
 MALLOC_C_FILES = src/malloc_initialize.c src/malloc.c \
     src/realloc.c src/_calloc_r.c src/_malloc_r.c \
@@ -88,7 +83,7 @@ MALLOC_C_FILES = src/malloc_initialize.c src/malloc.c \
     src/mallocinfo.c src/malloc_walk.c \
     src/posix_memalign.c \
     src/rtems_memalign.c src/malloc_deferred.c \
-    src/malloc_dirtier.c src/malloc_p.h src/rtems_malloc.c \
+    src/malloc_dirtier.c src/malloc_p.h \
     src/rtems_heap_extend_via_sbrk.c \
     src/rtems_heap_null_extend.c \
     src/rtems_heap_extend.c \
@@ -109,7 +104,7 @@ TERMINAL_IDENTIFICATION_C_FILES += src/ttyname.c
 
 LIBC_GLUE_C_FILES = src/__getpid.c src/__gettod.c src/__times.c \
     src/truncate.c src/access.c src/stat.c src/lstat.c src/pathconf.c \
-    src/newlibc_reent.c src/newlibc_init.c src/newlibc_exit.c \
+    src/newlibc_reent.c src/newlibc_exit.c \
     src/kill_noposix.c src/utsname.c src/realpath.c
 
 BSD_LIBC_C_FILES = src/strlcpy.c src/strlcat.c src/issetugid.c
@@ -117,6 +112,8 @@ BSD_LIBC_C_FILES = src/strlcpy.c src/strlcat.c src/issetugid.c
 libcsupport_a_SOURCES = src/gxx_wrappers.c src/getchark.c src/printk.c \
     src/printk_plugin.c src/putk.c src/vprintk.c \
     src/rtems_putc.c \
+    src/print_fprintf.c \
+    src/print_printf.c \
     src/printf_plugin.c \
     src/sup_fs_location.c \
     src/sup_fs_eval_path.c \
@@ -131,6 +128,7 @@ libcsupport_a_SOURCES = src/gxx_wrappers.c src/getchark.c src/printk.c \
     src/resource_snapshot.c \
     $(BSD_LIBC_C_FILES) $(BASE_FS_C_FILES) $(MALLOC_C_FILES) \
     $(ERROR_C_FILES) $(ASSOCIATION_C_FILES)
+libcsupport_a_SOURCES += src/printertask.c
 
 libcsupport_a_SOURCES += $(LIBC_GLUE_C_FILES) $(PASSWORD_GROUP_C_FILES) \
     $(TERMINAL_IDENTIFICATION_C_FILES) $(SYSTEM_CALL_C_FILES) \

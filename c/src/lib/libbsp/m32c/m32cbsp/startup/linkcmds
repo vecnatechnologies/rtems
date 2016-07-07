@@ -53,6 +53,7 @@ SECTIONS
     KEEP (*(.init))
     KEEP (*(.fini))
     *(.rodata .rodata.* .gnu.linkonce.r.*)
+    KEEP (*(SORT(.rtemsroset.*)))
     *(.rodata1)
     *(.eh_frame_hdr)
     KEEP (*(.eh_frame))
@@ -119,6 +120,7 @@ SECTIONS
     *(.dynamic)
 
     *(.data .data.* .gnu.linkonce.d.*)
+    KEEP (*(SORT(.rtemsrwset.*)))
     KEEP (*(.gnu.linkonce.d.*personality*))
     SORT(CONSTRUCTORS)
     *(.data1)

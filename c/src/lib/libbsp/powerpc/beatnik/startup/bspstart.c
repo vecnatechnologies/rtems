@@ -46,9 +46,6 @@
 #include <bsp/vectors.h>
 #include <bsp/vpd.h>
 
-/* for RTEMS_VERSION :-( I dont like the preassembled string */
-#include <rtems/sptables.h>
-
 #define SHOW_MORE_INIT_SETTINGS
 
 BSP_output_char_function_type     BSP_output_char = BSP_output_char_via_serial;
@@ -128,12 +125,6 @@ char BSP_enetAddr0[7] = {0};
 char BSP_enetAddr1[7] = {0};
 
 char *rtems_progname;
-
-/*
- *  Use the shared implementations of the following routines
- */
- 
-extern void bsp_pretasking_hook(void); 
 
 #define CMDLINE_BUF_SIZE	2048
 
@@ -334,8 +325,6 @@ void bsp_start( void )
 
   /*
    * Set up our hooks
-   * Make sure libc_init is done before drivers initialized so that
-   * they can use atexit()
    */
 
   bsp_clicks_per_usec = BSP_bus_frequency/(BSP_time_base_divisor * 1000);

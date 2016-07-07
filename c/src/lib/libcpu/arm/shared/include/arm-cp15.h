@@ -210,6 +210,18 @@ extern "C" {
 
 /** @} */
 
+/**
+ * @name CCSIDR, Cache Size ID Register Defines
+ *
+ * @{
+ */
+
+#define ARM_CP15_CACHE_CSS_ID_DATA 0
+#define ARM_CP15_CACHE_CSS_ID_INSTRUCTION 1
+#define ARM_CP15_CACHE_CSS_LEVEL(level) ((level) << 1)
+
+/** @} */
+
 ARM_CP15_TEXT_SECTION static inline uint32_t
 arm_cp15_get_id_code(void)
 {
@@ -355,6 +367,37 @@ arm_cp15_set_translation_table_base(uint32_t *base)
     ARM_SWITCH_BACK
     : ARM_SWITCH_OUTPUT
     : [base] "r" (base)
+  );
+}
+
+/* Translation Table Base Control Register - DDI0301H arm1176jzfs TRM 3.2.15 */
+ARM_CP15_TEXT_SECTION static inline uint32_t
+*arm_cp15_get_translation_table_base_control_register(void)
+{
+  ARM_SWITCH_REGISTERS;
+  uint32_t ttb_cr;
+
+  __asm__ volatile (
+    ARM_SWITCH_TO_ARM
+    "mrc p15, 0, %[ttb_cr], c2, c0, 2\n"
+    ARM_SWITCH_BACK
+    : [ttb_cr] "=&r" (ttb_cr) ARM_SWITCH_ADDITIONAL_OUTPUT
+  );
+
+  return ttb_cr;
+}
+
+ARM_CP15_TEXT_SECTION static inline void
+arm_cp15_set_translation_table_base_control_register(uint32_t ttb_cr)
+{
+  ARM_SWITCH_REGISTERS;
+
+  __asm__ volatile (
+    ARM_SWITCH_TO_ARM
+    "mcr p15, 0, %[ttb_cr], c2, c0, 2\n"
+    ARM_SWITCH_BACK
+    : ARM_SWITCH_OUTPUT
+    : [ttb_cr] "r" (ttb_cr)
   );
 }
 
@@ -788,6 +831,21 @@ arm_cp15_set_cache_size_selection(uint32_t val)
   );
 }
 
+ARM_CP15_TEXT_SECTION static inline uint32_t
+arm_cp15_get_cache_size_id_for_level(uint32_t level_and_inst_dat)
+{
+  rtems_interrupt_level irq_level;
+  uint32_t ccsidr;
+
+  rtems_interrupt_local_disable(irq_level);
+  arm_cp15_set_cache_size_selection(level_and_inst_dat);
+  _ARM_Instruction_synchronization_barrier();
+  ccsidr = arm_cp15_get_cache_size_id();
+  rtems_interrupt_local_enable(irq_level);
+
+  return ccsidr;
+}
+
 ARM_CP15_TEXT_SECTION static inline void
 arm_cp15_cache_invalidate(void)
 {
@@ -851,6 +909,23 @@ arm_cp15_branch_predictor_invalidate_all(void)
   __asm__ volatile (
     ARM_SWITCH_TO_ARM
     "mcr p15, 0, %[sbz], c7, c5, 6\n"
+    ARM_SWITCH_BACK
+    : ARM_SWITCH_OUTPUT
+    : [sbz] "r" (sbz)
+    : "memory"
+  );
+}
+
+/* Flush Prefetch Buffer - DDI0301H arm1176jzfs TRM 3.2.22 */
+ARM_CP15_TEXT_SECTION static inline void
+arm_cp15_flush_prefetch_buffer(void)
+{
+  ARM_SWITCH_REGISTERS;
+  uint32_t sbz = 0;
+
+  __asm__ volatile (
+    ARM_SWITCH_TO_ARM
+    "mcr p15, 0, %[sbz], c7, c5, 4\n"
     ARM_SWITCH_BACK
     : ARM_SWITCH_OUTPUT
     : [sbz] "r" (sbz)
@@ -988,10 +1063,8 @@ arm_cp15_data_cache_invalidate_all_levels(void)
       uint32_t way;
       uint32_t way_shift;
 
-      arm_cp15_set_cache_size_selection(level << 1);
-      _ARM_Instruction_synchronization_barrier();
+      ccsidr = arm_cp15_get_cache_size_id_for_level(level << 1);
 
-      ccsidr = arm_cp15_get_cache_size_id();
       line_power = arm_ccsidr_get_line_power(ccsidr);
       associativity = arm_ccsidr_get_associativity(ccsidr);
       way_shift = __builtin_clz(associativity - 1);
@@ -1270,6 +1343,36 @@ arm_cp15_set_vector_base_address(void *base)
   __asm__ volatile (
     ARM_SWITCH_TO_ARM
     "mcr p15, 0, %[base], c12, c0, 0\n"
+    ARM_SWITCH_BACK
+    : ARM_SWITCH_OUTPUT
+    : [base] "r" (base)
+  );
+}
+
+ARM_CP15_TEXT_SECTION static inline void
+*arm_cp15_get_hyp_vector_base_address(void)
+{
+  ARM_SWITCH_REGISTERS;
+  void *base;
+
+  __asm__ volatile (
+    ARM_SWITCH_TO_ARM
+    "mrc p15, 4, %[base], c12, c0, 0\n"
+    ARM_SWITCH_BACK
+    : [base] "=&r" (base) ARM_SWITCH_ADDITIONAL_OUTPUT
+  );
+
+  return base;
+}
+
+ARM_CP15_TEXT_SECTION static inline void
+arm_cp15_set_hyp_vector_base_address(void *base)
+{
+  ARM_SWITCH_REGISTERS;
+
+  __asm__ volatile (
+    ARM_SWITCH_TO_ARM
+    "mcr p15, 4, %[base], c12, c0, 0\n"
     ARM_SWITCH_BACK
     : ARM_SWITCH_OUTPUT
     : [base] "r" (base)

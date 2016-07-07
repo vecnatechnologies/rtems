@@ -70,7 +70,6 @@ static const Objects_Information *const objects_info_table[] = {
     &_POSIX_Barrier_Information,
     &_POSIX_Condition_variables_Information,
     &_POSIX_Message_queue_Information,
-    &_POSIX_Message_queue_Information_fds,
     &_POSIX_Mutex_Information,
     &_POSIX_RWLock_Information,
     &_POSIX_Semaphore_Information,
@@ -105,31 +104,22 @@ static void get_heap_info(Heap_Control *heap, Heap_Information_block *info)
   memset(&info->Stats, 0, sizeof(info->Stats));
 }
 
-static bool count_posix_key_value_pairs(
-  const RBTree_Node *node,
-  void *visitor_arg
-)
+static POSIX_Keys_Control *get_next_key(Objects_Id *id)
 {
-  uint32_t *count = visitor_arg;
-
-  (void) node;
-
-  ++(*count);
-
-  return false;
+  return (POSIX_Keys_Control *)
+    _Objects_Get_next(*id, &_POSIX_Keys_Information, id);
 }
 
 static uint32_t get_active_posix_key_value_pairs(void)
 {
   uint32_t count = 0;
+  Objects_Id id = OBJECTS_ID_INITIAL_INDEX;
+  POSIX_Keys_Control *the_key;
 
-  _Thread_Disable_dispatch();
-  _RBTree_Iterate(
-    &_POSIX_Keys_Key_value_lookup_tree,
-    count_posix_key_value_pairs,
-    &count
-  );
-  _Thread_Enable_dispatch();
+  while ((the_key = get_next_key(&id)) != NULL ) {
+    count += _Chain_Node_count_unprotected(&the_key->Key_value_pairs);
+    _Objects_Allocator_unlock();
+  }
 
   return count;
 }

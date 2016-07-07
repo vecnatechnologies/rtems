@@ -64,9 +64,11 @@ extern "C" {
 
 #define CPU_STACK_GROWS_UP FALSE
 
-#define CPU_STRUCTURE_ALIGNMENT __attribute__((section(".sdata"), aligned(32)))
+/* FIXME: Is this the right value? */
+#define CPU_CACHE_LINE_BYTES 32
 
-#define CPU_TIMESTAMP_USE_INT64_INLINE TRUE
+#define CPU_STRUCTURE_ALIGNMENT \
+  RTEMS_SECTION( ".sdata" ) RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 #define CPU_BIG_ENDIAN FALSE
 
@@ -103,11 +105,11 @@ extern "C" {
 
 #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
 
-#define CPU_USE_GENERIC_BITFIELD_DATA TRUE
-
 #define CPU_MPCI_RECEIVE_SERVER_EXTRA_STACK 0
 
 #define CPU_PER_CPU_CONTROL_SIZE 0
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 #ifndef ASM
 
@@ -306,7 +308,7 @@ void _CPU_Context_Initialize(
   _CPU_Context_restore( (_the_context) );
 
 void _CPU_Fatal_halt( uint32_t _source, uint32_t _error )
-  RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+  RTEMS_NO_RETURN;
 
 /**
  * @brief CPU initialization.
@@ -335,7 +337,7 @@ void _CPU_Context_switch( Context_Control *run, Context_Control *heir );
 
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 void _CPU_Context_volatile_clobber( uintptr_t pattern );
 

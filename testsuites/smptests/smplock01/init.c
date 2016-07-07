@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 embedded brains GmbH.  All rights reserved.
+ * Copyright (c) 2013, 2016 embedded brains GmbH.  All rights reserved.
  *
  *  embedded brains GmbH
  *  Dornierstr. 4
@@ -17,6 +17,8 @@
 #endif
 
 #include <rtems/score/smplock.h>
+#include <rtems/score/smplockmcs.h>
+#include <rtems/score/smplockseq.h>
 #include <rtems/score/smpbarrier.h>
 #include <rtems/score/atomic.h>
 #include <rtems.h>
@@ -29,7 +31,7 @@ const char rtems_test_name[] = "SMPLOCK 1";
 
 #define CPU_COUNT 32
 
-#define TEST_COUNT 5
+#define TEST_COUNT 11
 
 typedef enum {
   INITIAL,
@@ -45,20 +47,40 @@ typedef struct {
   unsigned long counter[TEST_COUNT];
   unsigned long test_counter[TEST_COUNT][CPU_COUNT];
   SMP_lock_Control lock;
+#if defined(RTEMS_PROFILING)
+  SMP_lock_Stats mcs_stats;
+#endif
+  SMP_MCS_lock_Control mcs_lock;
+  SMP_sequence_lock_Control seq_lock;
+  char unused_space_for_cache_line_separation_0[128];
+  int a;
+  char unused_space_for_cache_line_separation_1[128];
+  int b;
 } global_context;
 
 static global_context context = {
   .state = ATOMIC_INITIALIZER_UINT(INITIAL),
   .barrier = SMP_BARRIER_CONTROL_INITIALIZER,
-  .lock = SMP_LOCK_INITIALIZER("global")
+  .lock = SMP_LOCK_INITIALIZER("global ticket"),
+#if defined(RTEMS_PROFILING)
+  .mcs_stats = SMP_LOCK_STATS_INITIALIZER("global MCS"),
+#endif
+  .mcs_lock = SMP_MCS_LOCK_INITIALIZER,
+  .seq_lock = SMP_SEQUENCE_LOCK_INITIALIZER
 };
 
-static const char *test_names[TEST_COUNT] = {
-  "aquire global lock with local counter",
-  "aquire global lock with global counter",
-  "aquire local lock with local counter",
-  "aquire local lock with global counter",
-  "aquire global lock with busy section"
+static const char * const test_names[TEST_COUNT] = {
+  "global ticket lock with local counter",
+  "global MCS lock with local counter",
+  "global ticket lock with global counter",
+  "global MCS lock with global counter",
+  "local ticket lock with local counter",
+  "local MCS lock with local counter",
+  "local ticket lock with global counter",
+  "local MCS lock with global counter",
+  "global ticket lock with busy section",
+  "global MCS lock with busy section",
+  "sequence lock"
 };
 
 static void stop_test_timer(rtems_id timer_id, void *arg)
@@ -119,6 +141,26 @@ static void test_1_body(
 )
 {
   unsigned long counter = 0;
+  SMP_MCS_lock_Context lock_context;
+
+  while (assert_state(ctx, START_TEST)) {
+    _SMP_MCS_lock_Acquire(&ctx->mcs_lock, &lock_context, &ctx->mcs_stats);
+    _SMP_MCS_lock_Release(&ctx->mcs_lock, &lock_context);
+    ++counter;
+  }
+
+  ctx->test_counter[test][cpu_self] = counter;
+}
+
+static void test_2_body(
+  int test,
+  global_context *ctx,
+  SMP_barrier_State *bs,
+  unsigned int cpu_count,
+  unsigned int cpu_self
+)
+{
+  unsigned long counter = 0;
   SMP_lock_Context lock_context;
 
   while (assert_state(ctx, START_TEST)) {
@@ -131,7 +173,28 @@ static void test_1_body(
   ctx->test_counter[test][cpu_self] = counter;
 }
 
-static void test_2_body(
+static void test_3_body(
+  int test,
+  global_context *ctx,
+  SMP_barrier_State *bs,
+  unsigned int cpu_count,
+  unsigned int cpu_self
+)
+{
+  unsigned long counter = 0;
+  SMP_MCS_lock_Context lock_context;
+
+  while (assert_state(ctx, START_TEST)) {
+    _SMP_MCS_lock_Acquire(&ctx->mcs_lock, &lock_context, &ctx->mcs_stats);
+    ++ctx->counter[test];
+    _SMP_MCS_lock_Release(&ctx->mcs_lock, &lock_context);
+    ++counter;
+  }
+
+  ctx->test_counter[test][cpu_self] = counter;
+}
+
+static void test_4_body(
   int test,
   global_context *ctx,
   SMP_barrier_State *bs,
@@ -156,7 +219,37 @@ static void test_2_body(
   ctx->test_counter[test][cpu_self] = counter;
 }
 
-static void test_3_body(
+static void test_5_body(
+  int test,
+  global_context *ctx,
+  SMP_barrier_State *bs,
+  unsigned int cpu_count,
+  unsigned int cpu_self
+)
+{
+  unsigned long counter = 0;
+#if defined(RTEMS_PROFILING)
+  SMP_lock_Stats stats;
+#endif
+  SMP_MCS_lock_Control lock;
+  SMP_MCS_lock_Context lock_context;
+
+  _SMP_lock_Stats_initialize(&stats, "local");
+  _SMP_MCS_lock_Initialize(&lock);
+
+  while (assert_state(ctx, START_TEST)) {
+    _SMP_MCS_lock_Acquire(&lock, &lock_context, &stats);
+    _SMP_MCS_lock_Release(&lock, &lock_context);
+    ++counter;
+  }
+
+  _SMP_MCS_lock_Destroy(&lock);
+  _SMP_lock_Stats_destroy(&stats);
+
+  ctx->test_counter[test][cpu_self] = counter;
+}
+
+static void test_6_body(
   int test,
   global_context *ctx,
   SMP_barrier_State *bs,
@@ -185,6 +278,40 @@ static void test_3_body(
   ctx->test_counter[test][cpu_self] = counter;
 }
 
+static void test_7_body(
+  int test,
+  global_context *ctx,
+  SMP_barrier_State *bs,
+  unsigned int cpu_count,
+  unsigned int cpu_self
+)
+{
+  unsigned long counter = 0;
+#if defined(RTEMS_PROFILING)
+  SMP_lock_Stats stats;
+#endif
+  SMP_MCS_lock_Control lock;
+  SMP_MCS_lock_Context lock_context;
+
+  _SMP_lock_Stats_initialize(&stats, "local");
+  _SMP_MCS_lock_Initialize(&lock);
+
+  while (assert_state(ctx, START_TEST)) {
+    _SMP_MCS_lock_Acquire(&lock, &lock_context, &stats);
+
+    /* The counter value is not interesting, only the access to it */
+    ++ctx->counter[test];
+
+    _SMP_MCS_lock_Release(&lock, &lock_context);
+    ++counter;
+  }
+
+  _SMP_MCS_lock_Destroy(&lock);
+  _SMP_lock_Stats_destroy(&stats);
+
+  ctx->test_counter[test][cpu_self] = counter;
+}
+
 static void busy_section(void)
 {
   int i;
@@ -194,7 +321,7 @@ static void busy_section(void)
   }
 }
 
-static void test_4_body(
+static void test_8_body(
   int test,
   global_context *ctx,
   SMP_barrier_State *bs,
@@ -215,12 +342,82 @@ static void test_4_body(
   ctx->test_counter[test][cpu_self] = counter;
 }
 
+static void test_9_body(
+  int test,
+  global_context *ctx,
+  SMP_barrier_State *bs,
+  unsigned int cpu_count,
+  unsigned int cpu_self
+)
+{
+  unsigned long counter = 0;
+  SMP_MCS_lock_Context lock_context;
+
+  while (assert_state(ctx, START_TEST)) {
+    _SMP_MCS_lock_Acquire(&ctx->mcs_lock, &lock_context, &ctx->mcs_stats);
+    busy_section();
+    _SMP_MCS_lock_Release(&ctx->mcs_lock, &lock_context);
+    ++counter;
+  }
+
+  ctx->test_counter[test][cpu_self] = counter;
+}
+
+static void test_10_body(
+  int test,
+  global_context *ctx,
+  SMP_barrier_State *bs,
+  unsigned int cpu_count,
+  unsigned int cpu_self
+)
+{
+  unsigned long counter = 0;
+  unsigned long seq;
+
+  if (cpu_self == 0) {
+    while (assert_state(ctx, START_TEST)) {
+      seq = _SMP_sequence_lock_Write_begin(&ctx->seq_lock);
+
+      ctx->a = counter;
+      ctx->b = counter;
+
+      _SMP_sequence_lock_Write_end(&ctx->seq_lock, seq);
+
+      ++counter;
+    }
+  } else {
+    while (assert_state(ctx, START_TEST)) {
+      unsigned long a;
+      unsigned long b;
+
+      do {
+        seq = _SMP_sequence_lock_Read_begin(&ctx->seq_lock);
+
+        a = ctx->a;
+        b = ctx->b;
+
+      } while (_SMP_sequence_lock_Read_retry(&ctx->seq_lock, seq));
+
+      ++counter;
+      rtems_test_assert(a == b);
+    }
+  }
+
+  ctx->test_counter[test][cpu_self] = counter;
+}
+
 static const test_body test_bodies[TEST_COUNT] = {
   test_0_body,
   test_1_body,
   test_2_body,
   test_3_body,
-  test_4_body
+  test_4_body,
+  test_5_body,
+  test_6_body,
+  test_7_body,
+  test_8_body,
+  test_9_body,
+  test_10_body
 };
 
 static void run_tests(
@@ -299,7 +496,7 @@ static void test(void)
     }
   }
 
-  ctx->timeout = 10 * rtems_clock_get_ticks_per_second();
+  ctx->timeout = 5 * rtems_clock_get_ticks_per_second();
 
   sc = rtems_timer_create(rtems_build_name('T', 'I', 'M', 'R'), &ctx->timer_id);
   rtems_test_assert(sc == RTEMS_SUCCESSFUL);

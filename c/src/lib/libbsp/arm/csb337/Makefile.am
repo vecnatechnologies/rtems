@@ -13,6 +13,7 @@ include_HEADERS += include/sed1356.h
 endif
 
 include_bsp_HEADERS =
+libbsp_a_CPPFLAGS =
 
 if ENABLE_UMON
 include_umondir = $(includedir)/umon
@@ -50,9 +51,9 @@ EXTRA_DIST += README.kit637_v6
 noinst_LIBRARIES += libbsp.a
 
 # startup
-libbsp_a_SOURCES = ../../shared/bsplibc.c ../../shared/bsppost.c \
+libbsp_a_SOURCES = \
     ../../shared/bsppredriverhook.c ../../shared/bspgetworkarea.c \
-    ../../shared/bsppretaskinghook.c startup/bspstart.c \
+    startup/bspstart.c \
     ../../shared/bspclean.c startup/bspreset.c \
     startup/memmap.c ../../shared/bootcard.c ../../shared/sbrk.c \
     ../../shared/gnatinstallhandler.c
@@ -88,8 +89,9 @@ endif
 
 # Cache
 libbsp_a_SOURCES += ../../../libcpu/shared/src/cache_manager.c
-libbsp_a_SOURCES += ../../shared/include/cache_.h
-libbsp_a_CPPFLAGS = -I$(srcdir)/../../shared/include
+libbsp_a_SOURCES += ../shared/include/arm-cache-l1.h
+libbsp_a_SOURCES += ../shared/armv467ar-basic-cache/cache_.h
+libbsp_a_CPPFLAGS += -I$(srcdir)/../shared/armv467ar-basic-cache
 
 if HAS_NETWORKING
 network_CPPFLAGS = -D__INSIDE_RTEMS_BSD_TCPIP_STACK__

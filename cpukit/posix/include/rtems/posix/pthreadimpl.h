@@ -22,9 +22,11 @@
 #include <rtems/posix/pthread.h>
 #include <rtems/posix/config.h>
 #include <rtems/posix/threadsup.h>
-#include <rtems/score/objectimpl.h>
-#include <rtems/score/threadimpl.h>
 #include <rtems/score/assert.h>
+#include <rtems/score/objectimpl.h>
+#include <rtems/score/timespec.h>
+#include <rtems/score/threadimpl.h>
+#include <rtems/score/watchdogimpl.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,66 +46,27 @@ extern "C" {
  * The following defines the information control block used to manage
  * this class of objects.
  */
-POSIX_EXTERN Thread_Information  _POSIX_Threads_Information;
+extern Thread_Information _POSIX_Threads_Information;
 
 /**
  * This variable contains the default POSIX Thread attributes.
  */
 extern pthread_attr_t _POSIX_Threads_Default_attributes;
 
-/**
- * When the user configures a set of POSIX API initialization threads,
- * This variable will point to the method used to initialize them.
- *
- * NOTE: It is instantiated and initialized by confdefs.h based upon
- *       application requirements.
- */
-extern void (*_POSIX_Threads_Initialize_user_threads_p)(void);
+RTEMS_INLINE_ROUTINE void _POSIX_Threads_Sporadic_timer_insert(
+  Thread_Control    *the_thread,
+  POSIX_API_Control *api
+)
+{
+  the_thread->cpu_time_budget =
+    _Timespec_To_ticks( &api->Attributes.schedparam.sched_ss_init_budget );
 
-/**
- * @brief POSIX threads manager initialization.
- *
- * This routine performs the initialization necessary for this manager.
- */
-void _POSIX_Threads_Manager_initialization(void);
-
-/**
- * @brief Copy POSIX Thread attribute structure.
- *
- * This routine copies the attr2 thread attribute structure
- * to the attr1 Thread Attribute structure.
- *
- * @param[in] dst_attr is a pointer to the thread attribute
- * structure to copy into.
- *
- * @param[out] src_attr is a pointer to the thread attribute
- * structure to copy from.
- */
-RTEMS_INLINE_ROUTINE void _POSIX_Threads_Copy_attributes(
-  pthread_attr_t        *dst_attr,
-  const pthread_attr_t  *src_attr
-);
-
-/**
- * @brief Free POSIX control block.
- *
- * This routine frees a pthread control block to the
- * inactive chain of free pthread control blocks.
- *
- * @param[in] the_pthread is a pointer to the thread to free.
- */
-RTEMS_INLINE_ROUTINE void _POSIX_Threads_Free(
-  Thread_Control *the_pthread
-);
-
-/**
- * @brief POSIX threads initialize user threads body.
- *
- * This routine initializes the thread attributes structure.
- */
-RTEMS_INLINE_ROUTINE void _POSIX_Threads_Initialize_attributes(
-  pthread_attr_t  *attr
-);
+  _Watchdog_Per_CPU_insert_relative(
+    &api->Sporadic.Timer,
+    _Per_CPU_Get(),
+    _Timespec_To_ticks( &api->Attributes.schedparam.sched_ss_repl_period )
+  );
+}
 
 /**
  * @brief POSIX threads sporadic budget callout.
@@ -115,24 +78,6 @@ RTEMS_INLINE_ROUTINE void _POSIX_Threads_Initialize_attributes(
  */
 void _POSIX_Threads_Sporadic_budget_callout(
   Thread_Control *the_thread
-);
-
-/**
- * This routine supports the sporadic scheduling algorithm.  It
- * is scheduled to be executed at the end of each replenishment
- * period.  In sporadic scheduling a thread will execute at a
- * high priority for a user specified amount of CPU time.  When
- * it exceeds that amount of CPU time, its priority is automatically
- * lowered. This TSR is executed when it is time to replenish
- * the thread's processor budget and raise its priority.
- *
- * @param[in] id is ignored
- * @param[in] argument is a pointer to the Thread_Control structure
- *            for the thread being replenished.
- */
-void _POSIX_Threads_Sporadic_budget_TSR(
-  Objects_Id      id,
-  void           *argument
 );
 
 /**
@@ -174,10 +119,6 @@ RTEMS_INLINE_ROUTINE Thread_Control *_POSIX_Threads_Allocate(void)
     _Objects_Allocate_unprotected( &_POSIX_Threads_Information.Objects );
 }
 
-/*
- * _POSIX_Threads_Copy_attributes
- */
-
 RTEMS_INLINE_ROUTINE void _POSIX_Threads_Copy_attributes(
   pthread_attr_t        *dst_attr,
   const pthread_attr_t  *src_attr
@@ -192,20 +133,12 @@ RTEMS_INLINE_ROUTINE void _POSIX_Threads_Copy_attributes(
 #endif
 }
 
-/*
- *  _POSIX_Threads_Free
- */
-
 RTEMS_INLINE_ROUTINE void _POSIX_Threads_Free (
   Thread_Control *the_pthread
 )
 {
   _Objects_Free( &_POSIX_Threads_Information.Objects, &the_pthread->Object );
 }
-
-/*
- * _POSIX_Threads_Initialize_attributes
- */
 
 RTEMS_INLINE_ROUTINE void _POSIX_Threads_Initialize_attributes(
   pthread_attr_t  *attr
@@ -215,17 +148,6 @@ RTEMS_INLINE_ROUTINE void _POSIX_Threads_Initialize_attributes(
     attr,
     &_POSIX_Threads_Default_attributes
   );
-}
-
-/*
- *  _POSIX_Threads_Is_null
- */
-
-RTEMS_INLINE_ROUTINE bool _POSIX_Threads_Is_null (
-  Thread_Control *the_pthread
-)
-{
-  return !the_pthread;
 }
 
 /** @} */

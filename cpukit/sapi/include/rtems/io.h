@@ -19,10 +19,6 @@
 #ifndef _RTEMS_IO_H
 #define _RTEMS_IO_H
 
-#ifndef SAPI_IO_EXTERN
-#define SAPI_IO_EXTERN extern
-#endif
-
 #include <rtems/rtems/status.h>
 
 #ifdef __cplusplus
@@ -248,20 +244,7 @@ typedef struct {
 rtems_status_code rtems_io_lookup_name(
     const char           *name,
     rtems_driver_name_t  *device_info
-) RTEMS_COMPILER_DEPRECATED_ATTRIBUTE;
-
-extern const size_t _IO_Number_of_drivers;
-
-extern rtems_driver_address_table _IO_Driver_address_table[];
-
-extern bool _IO_All_drivers_initialized;
-
-/**
- * @brief Initialization of all device drivers.
- *
- * Initializes all device drivers.
- */
-void _IO_Initialize_all_drivers( void );
+) RTEMS_DEPRECATED;
 
 #ifdef __cplusplus
 }

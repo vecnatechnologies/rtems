@@ -140,9 +140,12 @@ psxchroot01/Makefile
 psxclassic01/Makefile
 psxcleanup/Makefile
 psxcleanup01/Makefile
+psxcleanup02/Makefile
 psxclock/Makefile
 psxclock01/Makefile
+psxconcurrency01/Makefile
 psxcond01/Makefile
+psxcond02/Makefile
 psxconfig01/Makefile
 psxeintr_join/Makefile
 psxenosys/Makefile

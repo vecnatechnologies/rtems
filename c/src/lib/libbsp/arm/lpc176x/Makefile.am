@@ -41,7 +41,7 @@ include_bsp_HEADERS += include/io-defs.h
 include_bsp_HEADERS += include/io.h
 include_bsp_HEADERS += include/common-types.h
 include_bsp_HEADERS += include/gpio-defs.h
-include_bsp_HEADERS += include/gpio.h
+include_bsp_HEADERS += include/lpc-gpio.h
 include_bsp_HEADERS += include/can.h
 include_bsp_HEADERS += include/can-defs.h
 include_bsp_HEADERS += include/pwmout.h
@@ -92,8 +92,6 @@ libbsp_a_LIBADD =
 libbsp_a_SOURCES += ../../shared/bootcard.c
 libbsp_a_SOURCES += ../../shared/bspclean.c
 libbsp_a_SOURCES += ../../shared/bspgetworkarea.c
-libbsp_a_SOURCES += ../../shared/bsplibc.c
-libbsp_a_SOURCES += ../../shared/bsppost.c
 libbsp_a_SOURCES += ../../shared/bsppredriverhook.c
 libbsp_a_SOURCES += ../../shared/gnatinstallhandler.c
 libbsp_a_SOURCES += ../../shared/sbrk.c
@@ -102,7 +100,7 @@ libbsp_a_SOURCES += ../../shared/src/uart-output-char.c
 
 # Startup
 libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
-libbsp_a_SOURCES += startup/bspreset.c
+libbsp_a_SOURCES += ../shared/armv7m/startup/bspreset.c
 libbsp_a_SOURCES += startup/bspstart.c
 
 # IRQ
@@ -131,7 +129,7 @@ libbsp_a_SOURCES += ../../shared/tod.c \
 			rtc/rtc-config.c
 
 # GPIO
-libbsp_a_SOURCES += gpio/gpio.c
+libbsp_a_SOURCES += gpio/lpc-gpio.c
 
 # CAN
 libbsp_a_SOURCES += can/can.c

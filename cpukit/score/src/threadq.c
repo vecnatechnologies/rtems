@@ -25,12 +25,6 @@
 #if HAVE_STRUCT__THREAD_QUEUE_QUEUE
 
 RTEMS_STATIC_ASSERT(
-  offsetof( Thread_queue_Syslock_queue, Queue.heads )
-    == offsetof( struct _Thread_queue_Queue, _heads ),
-  THREAD_QUEUE_SYSLOCK_QUEUE_HEADS
-);
-
-RTEMS_STATIC_ASSERT(
 #if defined(RTEMS_SMP)
   offsetof( Thread_queue_Syslock_queue, Queue.Lock.next_ticket )
 #else
@@ -51,6 +45,18 @@ RTEMS_STATIC_ASSERT(
 );
 
 RTEMS_STATIC_ASSERT(
+  offsetof( Thread_queue_Syslock_queue, Queue.heads )
+    == offsetof( struct _Thread_queue_Queue, _heads ),
+  THREAD_QUEUE_SYSLOCK_QUEUE_HEADS
+);
+
+RTEMS_STATIC_ASSERT(
+  offsetof( Thread_queue_Syslock_queue, Queue.owner )
+    == offsetof( struct _Thread_queue_Queue, _owner ),
+  THREAD_QUEUE_SYSLOCK_QUEUE_OWNER
+);
+
+RTEMS_STATIC_ASSERT(
   sizeof( Thread_queue_Syslock_queue )
     == sizeof( struct _Thread_queue_Queue ),
   THREAD_QUEUE_SYSLOCK_QUEUE_SIZE
@@ -58,45 +64,20 @@ RTEMS_STATIC_ASSERT(
 
 #endif /* HAVE_STRUCT__THREAD_QUEUE_QUEUE */
 
-RBTree_Compare_result _Thread_queue_Compare_priority(
-  const RBTree_Node *left,
-  const RBTree_Node *right
-)
+void _Thread_queue_Initialize( Thread_queue_Control *the_thread_queue )
 {
-  const Thread_Control *left_thread;
-  const Thread_Control *right_thread;
-  Priority_Control      left_prio;
-  Priority_Control      right_prio;
-
-  left_thread = THREAD_RBTREE_NODE_TO_THREAD( left );
-  right_thread = THREAD_RBTREE_NODE_TO_THREAD( right );
-  left_prio = left_thread->current_priority;
-  right_prio = right_thread->current_priority;
-
-  /*
-   * SuperCore priorities use lower numbers to indicate greater importance.
-   */
-  return ( left_prio > right_prio ) - ( left_prio < right_prio );
-}
-
-void _Thread_queue_Initialize(
-  Thread_queue_Control     *the_thread_queue,
-  Thread_queue_Disciplines  the_discipline
-)
-{
-  const Thread_queue_Operations *operations;
-
-  if ( the_discipline == THREAD_QUEUE_DISCIPLINE_PRIORITY ) {
-    operations = &_Thread_queue_Operations_priority;
-  } else {
-    _Assert( the_discipline == THREAD_QUEUE_DISCIPLINE_FIFO );
-    operations = &_Thread_queue_Operations_FIFO;
-  }
-
-  the_thread_queue->operations = operations;
-
   _Thread_queue_Queue_initialize( &the_thread_queue->Queue );
 #if defined(RTEMS_SMP)
   _SMP_lock_Stats_initialize( &the_thread_queue->Lock_stats, "Thread Queue" );
 #endif
 }
+
+#if defined(RTEMS_MULTIPROCESSING)
+void _Thread_queue_MP_callout_do_nothing(
+  Thread_Control *the_proxy,
+  Objects_Id      mp_id
+)
+{
+  /* Do nothing */
+}
+#endif

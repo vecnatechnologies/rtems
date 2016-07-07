@@ -23,12 +23,23 @@
 #include <rtems/rtems/status.h>
 #include <rtems/rtems/support.h>
 #include <rtems/rtems/modes.h>
-#include <rtems/rtems/rtemsapi.h>
+#include <rtems/score/assert.h>
 #include <rtems/score/stack.h>
 #include <rtems/rtems/tasksimpl.h>
 #include <rtems/score/thread.h>
 #include <rtems/score/wkspace.h>
-#include <rtems/score/apiext.h>
+
+static void _RTEMS_Global_construction( rtems_task_argument arg )
+{
+  Thread_Control           *executing = _Thread_Get_executing();
+  Thread_Entry_information  entry = executing->Start.Entry;
+
+  entry.Kinds.Numeric.entry =
+    Configuration_RTEMS_API.User_initialization_tasks_table[ 0 ].entry_point;
+
+  (void) arg;
+  _Thread_Global_construction( executing, &entry );
+}
 
 /*
  *  _RTEMS_tasks_Initialize_user_tasks_body
@@ -81,10 +92,17 @@ void _RTEMS_tasks_Initialize_user_tasks_body( void )
       _Terminate( INTERNAL_ERROR_RTEMS_API, true, return_value );
 
     entry_point = user_tasks[ index ].entry_point;
+    if ( entry_point == NULL ) {
+      _Terminate(
+        INTERNAL_ERROR_CORE,
+        false,
+        INTERNAL_ERROR_RTEMS_INIT_TASK_ENTRY_IS_NULL
+      );
+    }
 
-    if ( register_global_construction && entry_point != NULL ) {
+    if ( register_global_construction ) {
       register_global_construction = false;
-      entry_point = (rtems_task_entry) _Thread_Global_construction;
+      entry_point = _RTEMS_Global_construction;
     }
 
     return_value = rtems_task_start(
@@ -92,7 +110,7 @@ void _RTEMS_tasks_Initialize_user_tasks_body( void )
       entry_point,
       user_tasks[ index ].argument
     );
-    if ( !rtems_is_status_successful( return_value ) )
-      _Terminate( INTERNAL_ERROR_RTEMS_API, true, return_value );
+    _Assert( rtems_is_status_successful( return_value ) );
+    (void) return_value;
   }
 }

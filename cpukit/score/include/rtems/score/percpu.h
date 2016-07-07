@@ -23,10 +23,11 @@
   #include <rtems/asm.h>
 #else
   #include <rtems/score/assert.h>
-  #include <rtems/score/isrlevel.h>
+  #include <rtems/score/isrlock.h>
   #include <rtems/score/smp.h>
   #include <rtems/score/smplock.h>
   #include <rtems/score/timestamp.h>
+  #include <rtems/score/watchdog.h>
 #endif
 
 #ifdef __cplusplus
@@ -41,6 +42,8 @@ extern "C" {
    * processor.
    */
   #if defined( RTEMS_PROFILING )
+    #define PER_CPU_CONTROL_SIZE_LOG2 9
+  #elif defined( RTEMS_DEBUG )
     #define PER_CPU_CONTROL_SIZE_LOG2 8
   #else
     #define PER_CPU_CONTROL_SIZE_LOG2 7
@@ -226,6 +229,32 @@ typedef struct {
 } Per_CPU_Stats;
 
 /**
+ * @brief Per-CPU watchdog header index.
+ */
+typedef enum {
+  /**
+   * @brief Index for relative per-CPU watchdog header.
+   *
+   * The reference time point for this header is current ticks value
+   * during insert.  Time is measured in clock ticks.
+   */
+  PER_CPU_WATCHDOG_RELATIVE,
+
+  /**
+   * @brief Index for absolute per-CPU watchdog header.
+   *
+   * The reference time point for this header is the POSIX Epoch.  Time is
+   * measured in nanoseconds since POSIX Epoch.
+   */
+  PER_CPU_WATCHDOG_ABSOLUTE,
+
+  /**
+   * @brief Count of per-CPU watchdog headers.
+   */
+  PER_CPU_WATCHDOG_COUNT
+} Per_CPU_Watchdog_index;
+
+/**
  *  @brief Per CPU Core Structure
  *
  *  This structure is used to hold per core state information.
@@ -279,9 +308,11 @@ typedef struct Per_CPU_Control {
    * @brief This is the heir thread for this processor.
    *
    * This field is not protected by a lock.  The only writer after multitasking
-   * start is the scheduler owning this processor.  This processor will set the
-   * dispatch necessary indicator to false, before it reads the heir.  This
-   * field is used in combination with the dispatch necessary indicator.
+   * start is the scheduler owning this processor.  It is assumed that stores
+   * to pointers are atomic on all supported SMP architectures.  The CPU port
+   * specific code (inter-processor interrupt handling and
+   * _CPU_SMP_Send_interrupt()) must guarantee that this processor observes the
+   * last value written.
    *
    * A thread can be a heir on at most one processor in the system.
    *
@@ -290,23 +321,53 @@ typedef struct Per_CPU_Control {
   struct _Thread_Control *heir;
 
   /**
-   * @brief This is set to true when this processor needs to run the
+   * @brief This is set to true when this processor needs to run the thread
    * dispatcher.
    *
    * It is volatile since interrupts may alter this flag.
    *
-   * This field is not protected by a lock.  There are two writers after
-   * multitasking start.  The scheduler owning this processor sets this
-   * indicator to true, after it updated the heir field.  This processor sets
-   * this indicator to false, before it reads the heir.  This field is used in
-   * combination with the heir field.
+   * This field is not protected by a lock and must be accessed only by this
+   * processor.  Code (e.g. scheduler and post-switch action requests) running
+   * on another processors must use an inter-processor interrupt to set the
+   * thread dispatch necessary indicator to true.
    *
    * @see _Thread_Get_heir_and_make_it_executing().
    */
   volatile bool dispatch_necessary;
 
-  /** This is the time of the last context switch on this CPU. */
-  Timestamp_Control time_of_last_context_switch;
+  /**
+   * @brief The CPU usage timestamp contains the time point of the last heir
+   * thread change or last CPU usage update of the executing thread of this
+   * processor.
+   *
+   * Protected by the scheduler lock.
+   *
+   * @see _Scheduler_Update_heir(), _Thread_Dispatch_update_heir() and
+   * _Thread_Get_CPU_time_used().
+   */
+  Timestamp_Control cpu_usage_timestamp;
+
+  /**
+   * @brief Watchdog state for this processor.
+   */
+  struct {
+    /**
+     * @brief Protects all watchdog operations on this processor.
+     */
+    ISR_LOCK_MEMBER( Lock )
+
+    /**
+     * @brief Watchdog ticks on this processor used for relative watchdogs.
+     */
+    uint64_t ticks;
+
+    /**
+     * @brief Header for watchdogs.
+     *
+     * @see Per_CPU_Watchdog_index.
+     */
+    Watchdog_Header Header[ PER_CPU_WATCHDOG_COUNT ];
+  } Watchdog;
 
   #if defined( RTEMS_SMP )
     /**
@@ -332,12 +393,6 @@ typedef struct Per_CPU_Control {
     #endif
 
     /**
-     * @brief Context for the Giant lock acquire and release pair of this
-     * processor.
-     */
-    SMP_lock_Context Giant_lock_context;
-
-    /**
      * @brief Bit field for SMP messages.
      *
      * This bit field is not protected locks.  Atomic operations are used to
@@ -360,10 +415,24 @@ typedef struct Per_CPU_Control {
     Per_CPU_State state;
 
     /**
+     * @brief Action to be executed by this processor in the
+     * SYSTEM_STATE_BEFORE_MULTITASKING state on behalf of the boot processor.
+     *
+     * @see _SMP_Before_multitasking_action().
+     */
+    Atomic_Uintptr before_multitasking_action;
+
+    /**
      * @brief Indicates if the processor has been successfully started via
      * _CPU_SMP_Start_processor().
      */
-    bool started;
+    bool online;
+
+    /**
+     * @brief Indicates if the processor is the one that performed the initial
+     * system initialization.
+     */
+    bool boot;
   #endif
 
   Per_CPU_Stats Stats;
@@ -418,13 +487,13 @@ extern Per_CPU_Control_envelope _Per_CPU_Information[] CPU_STRUCTURE_ALIGNMENT;
 #if defined( RTEMS_SMP )
 #define _Per_CPU_ISR_disable_and_acquire( cpu, isr_cookie ) \
   do { \
-    _ISR_Disable_without_giant( isr_cookie ); \
+    _ISR_Local_disable( isr_cookie ); \
     _Per_CPU_Acquire( cpu ); \
   } while ( 0 )
 #else
 #define _Per_CPU_ISR_disable_and_acquire( cpu, isr_cookie ) \
   do { \
-    _ISR_Disable( isr_cookie ); \
+    _ISR_Local_disable( isr_cookie ); \
     (void) ( cpu ); \
   } while ( 0 )
 #endif
@@ -433,13 +502,13 @@ extern Per_CPU_Control_envelope _Per_CPU_Information[] CPU_STRUCTURE_ALIGNMENT;
 #define _Per_CPU_Release_and_ISR_enable( cpu, isr_cookie ) \
   do { \
     _Per_CPU_Release( cpu ); \
-    _ISR_Enable_without_giant( isr_cookie ); \
+    _ISR_Local_enable( isr_cookie ); \
   } while ( 0 )
 #else
 #define _Per_CPU_Release_and_ISR_enable( cpu, isr_cookie ) \
   do { \
     (void) ( cpu ); \
-    _ISR_Enable( isr_cookie ); \
+    _ISR_Local_enable( isr_cookie ); \
   } while ( 0 )
 #endif
 
@@ -448,14 +517,14 @@ extern Per_CPU_Control_envelope _Per_CPU_Information[] CPU_STRUCTURE_ALIGNMENT;
   do { \
     uint32_t ncpus = _SMP_Get_processor_count(); \
     uint32_t cpu; \
-    _ISR_Disable( isr_cookie ); \
+    _ISR_Local_disable( isr_cookie ); \
     for ( cpu = 0 ; cpu < ncpus ; ++cpu ) { \
       _Per_CPU_Acquire( _Per_CPU_Get_by_index( cpu ) ); \
     } \
   } while ( 0 )
 #else
 #define _Per_CPU_Acquire_all( isr_cookie ) \
-  _ISR_Disable( isr_cookie )
+  _ISR_Local_disable( isr_cookie )
 #endif
 
 #if defined( RTEMS_SMP )
@@ -466,11 +535,11 @@ extern Per_CPU_Control_envelope _Per_CPU_Information[] CPU_STRUCTURE_ALIGNMENT;
     for ( cpu = 0 ; cpu < ncpus ; ++cpu ) { \
       _Per_CPU_Release( _Per_CPU_Get_by_index( cpu ) ); \
     } \
-    _ISR_Enable( isr_cookie ); \
+    _ISR_Local_enable( isr_cookie ); \
   } while ( 0 )
 #else
 #define _Per_CPU_Release_all( isr_cookie ) \
-  _ISR_Enable( isr_cookie )
+  _ISR_Local_enable( isr_cookie )
 #endif
 
 /*
@@ -515,12 +584,32 @@ static inline uint32_t _Per_CPU_Get_index( const Per_CPU_Control *cpu )
   return ( uint32_t ) ( per_cpu_envelope - &_Per_CPU_Information[ 0 ] );
 }
 
-static inline bool _Per_CPU_Is_processor_started(
+static inline struct _Thread_Control *_Per_CPU_Get_executing(
+  const Per_CPU_Control *cpu
+)
+{
+  return cpu->executing;
+}
+
+static inline bool _Per_CPU_Is_processor_online(
   const Per_CPU_Control *cpu
 )
 {
 #if defined( RTEMS_SMP )
-  return cpu->started;
+  return cpu->online;
+#else
+  (void) cpu;
+
+  return true;
+#endif
+}
+
+static inline bool _Per_CPU_Is_boot_processor(
+  const Per_CPU_Control *cpu
+)
+{
+#if defined( RTEMS_SMP )
+  return cpu->boot;
 #else
   (void) cpu;
 
@@ -529,11 +618,6 @@ static inline bool _Per_CPU_Is_processor_started(
 }
 
 #if defined( RTEMS_SMP )
-
-static inline void _Per_CPU_Send_interrupt( const Per_CPU_Control *cpu )
-{
-  _CPU_SMP_Send_interrupt( _Per_CPU_Get_index( cpu ) );
-}
 
 /**
  *  @brief Allocate and Initialize Per CPU Structures
@@ -597,8 +681,6 @@ bool _Per_CPU_State_wait_for_non_initial_state(
   _Per_CPU_Get()->interrupt_stack_high
 #define _Thread_Dispatch_necessary \
   _Per_CPU_Get()->dispatch_necessary
-#define _Thread_Time_of_last_context_switch \
-  _Per_CPU_Get()->time_of_last_context_switch
 
 /**
  * @brief Returns the thread control block of the executing thread.
@@ -616,13 +698,13 @@ RTEMS_INLINE_ROUTINE struct _Thread_Control *_Thread_Get_executing( void )
   #if defined( RTEMS_SMP )
     ISR_Level level;
 
-    _ISR_Disable_without_giant( level );
+    _ISR_Local_disable( level );
   #endif
 
   executing = _Thread_Executing;
 
   #if defined( RTEMS_SMP )
-    _ISR_Enable_without_giant( level );
+    _ISR_Local_enable( level );
   #endif
 
   return executing;

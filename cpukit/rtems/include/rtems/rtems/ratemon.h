@@ -20,7 +20,7 @@
  * - obtain status information on a period
  */
 
-/* COPYRIGHT (c) 1989-2009.
+/* COPYRIGHT (c) 1989-2009, 2016.
  * On-Line Applications Research Corporation (OAR).
  *
  * The license and distribution terms for this file may be
@@ -35,7 +35,8 @@
 #include <rtems/rtems/status.h>
 #include <rtems/score/thread.h>
 #include <rtems/score/watchdog.h>
-#include <rtems/bspIo.h>
+
+struct rtems_printer;
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,15 +47,14 @@ extern "C" {
  *
  *  @ingroup ClassicRTEMS
  *
- *  This encapsulates functionality related to the
- *  Classic API Rate Monotonic Manager.
+ *  This encapsulates functionality related to the Classic API Rate
+ *  Monotonic Manager.
  *
  *  Statistics are kept for each period and can be obtained or printed via
  *  API calls.  The statistics kept include minimum, maximum and average times
- *  for both cpu usage and wall time.  The statistics indicate the execution time
- *  used by the owning thread between successive calls to rtems_rate_monotonic_period.
- *
- *  Rate Monotonic Manager -- Reset Statistics for All Periods
+ *  for both cpu usage and wall time.  The statistics indicate the execution
+ *  and wall time used by the owning thread between successive calls to
+ *  rtems_rate_monotonic_period.
  */
 /**@{*/
 
@@ -72,8 +72,6 @@ typedef struct timespec rtems_rate_monotonic_period_time_t;
  */
 #include <rtems/score/timestamp.h>
 
-typedef Timestamp_Control Rate_monotonic_Period_time_t;
-
 /**
  *  The following enumerated type defines the states in which a
  *  period may be.
@@ -87,22 +85,10 @@ typedef enum {
 
   /**
    * This value indicates the period is on the watchdog chain, and
-   * the owner is blocked waiting on it.
-   */
-  RATE_MONOTONIC_OWNER_IS_BLOCKING,
-
-  /**
-   * This value indicates the period is on the watchdog chain, and
    * running.  The owner should be executed or blocked waiting on
    * another object.
    */
   RATE_MONOTONIC_ACTIVE,
-
-  /**
-   * This value indicates the period is on the watchdog chain, and
-   * has expired.  The owner should be blocked waiting for the next period.
-   */
-  RATE_MONOTONIC_EXPIRED_WHILE_BLOCKING,
 
   /**
    * This value indicates the period is off the watchdog chain, and
@@ -157,18 +143,18 @@ typedef struct {
   uint32_t     missed_count;
 
   /** This field contains the least amount of CPU time used in a period. */
-  Thread_CPU_usage_t                   min_cpu_time;
+  Timestamp_Control min_cpu_time;
   /** This field contains the highest amount of CPU time used in a period. */
-  Thread_CPU_usage_t                   max_cpu_time;
+  Timestamp_Control max_cpu_time;
   /** This field contains the total amount of wall time used in a period. */
-  Thread_CPU_usage_t                   total_cpu_time;
+  Timestamp_Control total_cpu_time;
 
   /** This field contains the least amount of wall time used in a period. */
-  Rate_monotonic_Period_time_t         min_wall_time;
+  Timestamp_Control min_wall_time;
   /** This field contains the highest amount of wall time used in a period. */
-  Rate_monotonic_Period_time_t         max_wall_time;
+  Timestamp_Control max_wall_time;
   /** This field contains the total amount of CPU time used in a period. */
-  Rate_monotonic_Period_time_t         total_wall_time;
+  Timestamp_Control total_wall_time;
 }  Rate_monotonic_Statistics;
 
 /**
@@ -197,8 +183,12 @@ typedef struct {
 }  rtems_rate_monotonic_period_status;
 
 /**
- *  The following structure defines the control block used to manage
- *  each period.
+ * @brief The following structure defines the control block used to manage each
+ * period.
+ *
+ * State changes are protected by the default thread lock of the owner thread.
+ * The owner thread is the thread that created the period object.  The owner
+ * thread field is immutable after object creation.
  */
 typedef struct {
   /** This field is the object management portion of a Period instance. */
@@ -227,13 +217,13 @@ typedef struct {
    * the period was initiated.  It is used to compute the period's
    * statistics.
    */
-  Thread_CPU_usage_t                      cpu_usage_period_initiated;
+  Timestamp_Control                       cpu_usage_period_initiated;
 
   /**
    * This field contains the wall time value when the period
    * was initiated.  It is used to compute the period's statistics.
    */
-  Rate_monotonic_Period_time_t            time_period_initiated;
+  Timestamp_Control                       time_period_initiated;
 
   /**
    * This field contains the statistics maintained for the period.
@@ -367,14 +357,13 @@ void rtems_rate_monotonic_reset_all_statistics( void );
  *  @brief RTEMS Report Rate Monotonic Statistics
  *
  *  This routine allows a thread to print the statistics information
- *  on ALL period instances which have non-zero counts using printk.
- *  The implementation of this directive straddles the fence between
- *  inside and outside of RTEMS.  It is presented as part of the Manager
- *  but actually uses other services of the Manager.
+ *  on ALL period instances which have non-zero counts using the RTEMS
+ *  printer. The implementation of this directive straddles the fence
+ *  between inside and outside of RTEMS.  It is presented as part of
+ *  the Manager but actually uses other services of the Manager.
  */
 void rtems_rate_monotonic_report_statistics_with_plugin(
-  void                  *context,
-  rtems_printk_plugin_t  print
+  const struct rtems_printer *printer
 );
 
 /**

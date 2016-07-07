@@ -60,15 +60,6 @@ static bool _Scheduler_priority_affinity_SMP_Insert_priority_fifo_order(
     && _Scheduler_SMP_Insert_priority_fifo_order( to_insert, next );
 }
 
-static Scheduler_priority_affinity_SMP_Node *
-_Scheduler_priority_affinity_SMP_Thread_get_own_node(
-  Thread_Control *thread
-)
-{
-  return (Scheduler_priority_affinity_SMP_Node *)
-    _Scheduler_Thread_get_own_node( thread );
-}
-
 /*
  * This method returns the scheduler node for the specified thread
  * as a scheduler specific type.
@@ -96,42 +87,21 @@ _Scheduler_priority_affinity_SMP_Node_downcast(
  */
 void _Scheduler_priority_affinity_SMP_Node_initialize(
   const Scheduler_Control *scheduler,
-  Thread_Control          *thread
+  Scheduler_Node          *node,
+  Thread_Control          *the_thread,
+  Priority_Control         priority
 )
 {
-  Scheduler_priority_affinity_SMP_Node *node =
-    _Scheduler_priority_affinity_SMP_Thread_get_own_node( thread );
+  Scheduler_priority_affinity_SMP_Node *the_node;
 
-  (void) scheduler;
-
-  _Scheduler_SMP_Node_initialize( &node->Base.Base, thread );
+  _Scheduler_priority_SMP_Node_initialize( scheduler, node, the_thread, priority );
 
   /*
    *  All we add is affinity information to the basic SMP node.
    */
-  node->Affinity     = *_CPU_set_Default();
-  node->Affinity.set = &node->Affinity.preallocated;
-}
-
-/*
- * This method is slightly different from
- * _Scheduler_SMP_Allocate_processor_lazy() in that it does what it is asked to
- * do. _Scheduler_SMP_Allocate_processor_lazy() attempts to prevent migrations
- * but does not take into account affinity.
- */
-static inline void _Scheduler_SMP_Allocate_processor_exact(
-  Scheduler_Context *context,
-  Thread_Control    *scheduled_thread,
-  Thread_Control    *victim_thread
-)
-{
-  Per_CPU_Control *victim_cpu = _Thread_Get_CPU( victim_thread );
-  Per_CPU_Control *cpu_self = _Per_CPU_Get();
-
-  (void) context;
-
-  _Thread_Set_CPU( scheduled_thread, victim_cpu );
-  _Thread_Dispatch_update_heir( cpu_self, victim_cpu, scheduled_thread );
+  the_node = _Scheduler_priority_affinity_SMP_Node_downcast( node );
+  the_node->Affinity     = *_CPU_set_Default();
+  the_node->Affinity.set = &the_node->Affinity.preallocated;
 }
 
 /*
@@ -328,10 +298,18 @@ static void _Scheduler_priority_affinity_SMP_Check_for_migrations(
   Scheduler_Context *context
 )
 {
-  Scheduler_Node        *lowest_scheduled;
-  Scheduler_Node        *highest_ready;
+  Scheduler_priority_SMP_Context *self;
+  Scheduler_Node                 *lowest_scheduled;
+  Scheduler_Node                 *highest_ready;
+
+  self = _Scheduler_priority_SMP_Get_self( context );
 
   while (1) {
+    if ( _Priority_bit_map_Is_empty( &self->Bit_map ) ) {
+      /* Nothing to do */
+      break;
+    }
+
     highest_ready =
       _Scheduler_priority_affinity_SMP_Get_highest_ready( context, NULL );
 
@@ -409,6 +387,7 @@ Thread_Control *_Scheduler_priority_affinity_SMP_Unblock(
   needs_help = _Scheduler_SMP_Unblock(
     context,
     thread,
+    _Scheduler_priority_SMP_Do_update,
     _Scheduler_priority_affinity_SMP_Enqueue_fifo
   );
 
@@ -535,21 +514,17 @@ static Thread_Control *_Scheduler_priority_affinity_SMP_Enqueue_scheduled_fifo(
 /*
  * This is the public scheduler specific Change Priority operation.
  */
-Thread_Control *_Scheduler_priority_affinity_SMP_Change_priority(
+Thread_Control *_Scheduler_priority_affinity_SMP_Update_priority(
   const Scheduler_Control *scheduler,
-  Thread_Control          *thread,
-  Priority_Control         new_priority,
-  bool                     prepend_it
+  Thread_Control          *thread
 )
 {
   Scheduler_Context *context = _Scheduler_Get_context( scheduler );
   Thread_Control    *displaced;
 
-  displaced = _Scheduler_SMP_Change_priority(
+  displaced = _Scheduler_SMP_Update_priority(
     context,
     thread,
-    new_priority,
-    prepend_it,
     _Scheduler_priority_SMP_Extract_from_ready,
     _Scheduler_priority_SMP_Do_update,
     _Scheduler_priority_affinity_SMP_Enqueue_fifo,
@@ -616,10 +591,8 @@ bool _Scheduler_priority_affinity_SMP_Set_affinity(
   const cpu_set_t         *cpuset
 )
 {
-  Scheduler_priority_affinity_SMP_Node *node =
-    _Scheduler_priority_affinity_SMP_Thread_get_node(thread);
-
-  (void) scheduler;
+  Scheduler_priority_affinity_SMP_Node *node;
+  States_Control                        current_state;
 
   /*
    * Validate that the cpset meets basic requirements.
@@ -628,6 +601,8 @@ bool _Scheduler_priority_affinity_SMP_Set_affinity(
     return false;
   }
 
+  node = _Scheduler_priority_affinity_SMP_Thread_get_node( thread );
+
   /*
    * The old and new set are the same, there is no point in
    * doing anything.
@@ -635,9 +610,20 @@ bool _Scheduler_priority_affinity_SMP_Set_affinity(
   if ( CPU_EQUAL_S( cpusetsize, cpuset, node->Affinity.set ) )
     return true;
 
-  _Thread_Set_state( thread, STATES_MIGRATING );
-    CPU_COPY( node->Affinity.set, cpuset );
-  _Thread_Clear_state( thread, STATES_MIGRATING );
+  current_state = thread->current_state;
+
+  if ( _States_Is_ready( current_state ) ) {
+    _Scheduler_priority_affinity_SMP_Block( scheduler, thread );
+  }
+
+  CPU_COPY( node->Affinity.set, cpuset );
+
+  if ( _States_Is_ready( current_state ) ) {
+    /*
+     * FIXME: Do not ignore threads in need for help.
+     */
+    (void) _Scheduler_priority_affinity_SMP_Unblock( scheduler, thread );
+  }
 
   return true;
 }

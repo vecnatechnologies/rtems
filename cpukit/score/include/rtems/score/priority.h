@@ -53,7 +53,7 @@ extern "C" {
  *
  *  @note Priority 0 is reserved for internal threads only.
  */
-typedef uint32_t   Priority_Control;
+typedef uint64_t Priority_Control;
 
 /** This defines the highest (most important) thread priority. */
 #define PRIORITY_MINIMUM      0
@@ -71,14 +71,6 @@ typedef uint32_t   Priority_Control;
 #else
   #define PRIORITY_DEFAULT_MAXIMUM      255
 #endif
-
-/** This defines the lowest (least important) thread priority. */
-#define PRIORITY_MAXIMUM      rtems_maximum_priority
-
-/**
- *  This variable contains the configured number of priorities
- */
-extern uint8_t rtems_maximum_priority;
 
 #ifdef __cplusplus
 }

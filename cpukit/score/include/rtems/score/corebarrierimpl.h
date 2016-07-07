@@ -20,9 +20,8 @@
 #define _RTEMS_SCORE_COREBARRIERIMPL_H
 
 #include <rtems/score/corebarrier.h>
-#include <rtems/score/thread.h>
+#include <rtems/score/status.h>
 #include <rtems/score/threadqimpl.h>
-#include <rtems/score/watchdog.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,43 +32,7 @@ extern "C" {
  */
 /**@{**/
 
-/**
- *  Core Barrier handler return statuses.
- */
-typedef enum {
-  /** This status indicates that the operation completed successfully. */
-  CORE_BARRIER_STATUS_SUCCESSFUL,
-  /** This status indicates that the barrier is configured for automatic
-   *  release and the caller tripped the automatic release.  The caller
-   *  thus did not block.
-   */
-  CORE_BARRIER_STATUS_AUTOMATICALLY_RELEASED,
-  /** This status indicates that the thread was blocked waiting for an
-   *  operation to complete and the barrier was deleted.
-   */
-  CORE_BARRIER_WAS_DELETED,
-  /** This status indicates that the calling task was willing to block
-   *  but the operation was unable to complete within the time allotted
-   *  because the resource never became available.
-   */
-  CORE_BARRIER_TIMEOUT
-}   CORE_barrier_Status;
-
-/**
- *  @brief Core barrier last status value.
- *
- *  This is the last status value.
- */
-#define CORE_BARRIER_STATUS_LAST CORE_BARRIER_TIMEOUT
-
-/**
- *  The following type defines the callout which the API provides
- *  to support global/multiprocessor operations on barriers.
- */
-typedef void ( *CORE_barrier_API_mp_support_callout )(
-                 Thread_Control *,
-                 Objects_Id
-             );
+#define CORE_BARRIER_TQ_OPERATIONS &_Thread_queue_Operations_FIFO
 
 /**
  *  @brief Initialize core barrier.
@@ -91,6 +54,28 @@ RTEMS_INLINE_ROUTINE void _CORE_barrier_Destroy(
   _Thread_queue_Destroy( &the_barrier->Wait_queue );
 }
 
+RTEMS_INLINE_ROUTINE void _CORE_barrier_Acquire_critical(
+  CORE_barrier_Control *the_barrier,
+  Thread_queue_Context *queue_context
+)
+{
+  _Thread_queue_Acquire_critical(
+    &the_barrier->Wait_queue,
+    &queue_context->Lock_context
+  );
+}
+
+RTEMS_INLINE_ROUTINE void _CORE_barrier_Release(
+  CORE_barrier_Control *the_barrier,
+  Thread_queue_Context *queue_context
+)
+{
+  _Thread_queue_Release(
+    &the_barrier->Wait_queue,
+    &queue_context->Lock_context
+  );
+}
+
 /**
  *  @brief Wait for the barrier.
  *
@@ -101,22 +86,26 @@ RTEMS_INLINE_ROUTINE void _CORE_barrier_Destroy(
  *
  *  @param[in] the_barrier is the barrier to wait for
  *  @param[in,out] executing The currently executing thread.
- *  @param[in] id is the id of the object being waited upon
  *  @param[in] wait is true if the calling thread is willing to wait
  *  @param[in] timeout is the number of ticks the calling thread is willing
  *         to wait if @a wait is true.
- *  @param[in] api_barrier_mp_support is the routine to invoke if the
+ *  @param[in] mp_callout is the routine to invoke if the
  *         thread unblocked is remote
  *
- * @note Status is returned via the thread control block.
+ * @return The method status.
  */
-void _CORE_barrier_Wait(
-  CORE_barrier_Control                *the_barrier,
-  Thread_Control                      *executing,
-  Objects_Id                           id,
-  bool                                 wait,
-  Watchdog_Interval                    timeout,
-  CORE_barrier_API_mp_support_callout  api_barrier_mp_support
+Status_Control _CORE_barrier_Seize(
+  CORE_barrier_Control *the_barrier,
+  Thread_Control       *executing,
+  bool                  wait,
+  Watchdog_Interval     timeout,
+  Thread_queue_Context *queue_context
+);
+
+uint32_t _CORE_barrier_Do_flush(
+  CORE_barrier_Control      *the_barrier,
+  Thread_queue_Flush_filter  filter,
+  Thread_queue_Context      *queue_context
 );
 
 /**
@@ -126,33 +115,34 @@ void _CORE_barrier_Wait(
  *  for the barrier will be readied.
  *
  *  @param[in] the_barrier is the barrier to surrender
- *  @param[in] id is the id of the object for a remote unblock
- *  @param[in] api_barrier_mp_support is the routine to invoke if the
+ *  @param[in] mp_callout is the routine to invoke if the
  *         thread unblocked is remote
  *
  *  @retval the number of unblocked threads
  */
-uint32_t _CORE_barrier_Release(
-  CORE_barrier_Control                *the_barrier,
-  Objects_Id                           id,
-  CORE_barrier_API_mp_support_callout  api_barrier_mp_support
-);
+RTEMS_INLINE_ROUTINE uint32_t _CORE_barrier_Surrender(
+  CORE_barrier_Control *the_barrier,
+  Thread_queue_Context *queue_context
+)
+{
+  return _CORE_barrier_Do_flush(
+    the_barrier,
+    _Thread_queue_Flush_default_filter,
+    queue_context
+  );
+}
 
-/**
- *  This routine assists in the deletion of a barrier by flushing the
- *  associated wait queue.
- *
- *  @param[in] _the_barrier is the barrier to flush
- *  @param[in] _remote_extract_callout is the routine to invoke if the
- *         thread unblocked is remote
- *  @param[in] _status is the status to be returned to the unblocked thread
- */
-#define _CORE_barrier_Flush( _the_barrier, _remote_extract_callout, _status) \
-  _Thread_queue_Flush( \
-    &((_the_barrier)->Wait_queue), \
-    (_remote_extract_callout), \
-    (_status) \
-  )
+RTEMS_INLINE_ROUTINE void _CORE_barrier_Flush(
+  CORE_barrier_Control *the_barrier,
+  Thread_queue_Context *queue_context
+)
+{
+  _CORE_barrier_Do_flush(
+    the_barrier,
+    _Thread_queue_Flush_status_object_was_deleted,
+    queue_context
+  );
+}
 
 /**
  * This function returns true if the automatic release attribute is

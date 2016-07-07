@@ -27,5 +27,30 @@ void _Scheduler_priority_Initialize( const Scheduler_Control *scheduler )
     _Scheduler_priority_Get_context( scheduler );
 
   _Priority_bit_map_Initialize( &context->Bit_map );
-  _Scheduler_priority_Ready_queue_initialize( &context->Ready[ 0 ] );
+  _Scheduler_priority_Ready_queue_initialize(
+    &context->Ready[ 0 ],
+    scheduler->maximum_priority
+  );
+}
+
+void _Scheduler_priority_Node_initialize(
+  const Scheduler_Control *scheduler,
+  Scheduler_Node          *node,
+  Thread_Control          *the_thread,
+  Priority_Control         priority
+)
+{
+  Scheduler_priority_Context *context;
+  Scheduler_priority_Node    *the_node;
+
+  _Scheduler_Node_do_initialize( node, the_thread, priority );
+
+  context = _Scheduler_priority_Get_context( scheduler );
+  the_node = _Scheduler_priority_Node_downcast( node );
+  _Scheduler_priority_Ready_queue_update(
+    &the_node->Ready_queue,
+    priority,
+    &context->Bit_map,
+    &context->Ready[ 0 ]
+  );
 }

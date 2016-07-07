@@ -210,19 +210,10 @@ extern "C" {
  */
 #define CPU_STACK_GROWS_UP               FALSE
 
-/**
- * The following is the variable attribute used to force alignment
- * of critical data structures.  On some processors it may make
- * sense to have these aligned on tighter boundaries than
- * the minimum requirements of the compiler in order to have as
- * much of the critical data area as possible in a cache line.
- *
- * The SPARC does not appear to have particularly strict alignment
- * requirements.  This value was chosen to take advantages of caches.
- */
-#define CPU_STRUCTURE_ALIGNMENT          __attribute__ ((aligned (32)))
+/* LEON3 systems may use a cache line size of 64 */
+#define CPU_CACHE_LINE_BYTES 64
 
-#define CPU_TIMESTAMP_USE_INT64_INLINE TRUE
+#define CPU_STRUCTURE_ALIGNMENT RTEMS_ALIGNED( CPU_CACHE_LINE_BYTES )
 
 /**
  * Define what is required to specify how the network to host conversion
@@ -371,6 +362,8 @@ typedef struct {
 #else
   #define CPU_PER_CPU_CONTROL_SIZE 4
 #endif
+
+#define CPU_MAXIMUM_PROCESSORS 32
 
 /**
  * @brief Offset of the CPU_Per_CPU_control::isr_dispatch_disable field
@@ -794,7 +787,7 @@ typedef struct {
  * It is filled in by _CPU_Initialize and copied into the task's FP
  * context area during _CPU_Context_Initialize.
  */
-SCORE_EXTERN Context_Control_fp  _CPU_Null_fp_context CPU_STRUCTURE_ALIGNMENT;
+extern Context_Control_fp _CPU_Null_fp_context;
 
 /**
  * The following type defines an entry in the SPARC's trap table.
@@ -1108,7 +1101,7 @@ void _CPU_Context_Initialize(
  * halts/stops the CPU.
  */
 extern void _CPU_Fatal_halt(uint32_t source, uint32_t error)
-  RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+  RTEMS_NO_RETURN;
 
 /* end of Fatal Error manager macros */
 
@@ -1120,12 +1113,6 @@ extern void _CPU_Fatal_halt(uint32_t source, uint32_t error)
    * CPU model does not have a scan instruction.
    */
   #define CPU_USE_GENERIC_BITFIELD_CODE TRUE
-  /**
-   * The SPARC port uses the generic C algorithm for bitfield scan if the
-   * CPU model does not have a scan instruction.  Thus is needs the generic
-   * data table used by that algorithm.
-   */
-  #define CPU_USE_GENERIC_BITFIELD_DATA TRUE
 #else
   #error "scan instruction not currently supported by RTEMS!!"
 #endif
@@ -1196,7 +1183,7 @@ void _CPU_Context_switch(
  */
 void _CPU_Context_restore(
   Context_Control *new_context
-) RTEMS_COMPILER_NO_RETURN_ATTRIBUTE;
+) RTEMS_NO_RETURN;
 
 /**
  * @brief The pointer to the current per-CPU control is available via register
@@ -1204,7 +1191,7 @@ void _CPU_Context_restore(
  */
 register struct Per_CPU_Control *_SPARC_Per_CPU_current __asm__( "g6" );
 
-#define _CPU_Get_current_per_CPU_control() ( _SPARC_Per_CPU_current )
+#define _CPU_Get_current_per_CPU_control() _SPARC_Per_CPU_current
 
 #if defined(RTEMS_SMP)
   uint32_t _CPU_SMP_Initialize( void );
@@ -1317,53 +1304,31 @@ static inline uint32_t CPU_swap_u32(
 
 typedef uint32_t CPU_Counter_ticks;
 
-typedef CPU_Counter_ticks (*SPARC_Counter_difference)(
+typedef CPU_Counter_ticks ( *SPARC_Counter_read )( void );
+
+typedef CPU_Counter_ticks ( *SPARC_Counter_difference )(
   CPU_Counter_ticks second,
   CPU_Counter_ticks first
 );
 
 /*
  * The SPARC processors supported by RTEMS have no built-in CPU counter
- * support.  We have to use some hardware counter module for this purpose.  The
- * BSP must provide a 32-bit register which contains the current CPU counter
- * value and a function for the difference calculation.  It can use for example
- * the GPTIMER instance used for the clock driver.
+ * support.  We have to use some hardware counter module for this purpose, for
+ * example the GPTIMER instance used by the clock driver.  The BSP must provide
+ * an implementation of the CPU counter read and difference functions.  This
+ * allows the use of dynamic hardware enumeration.
  */
 typedef struct {
-  volatile const CPU_Counter_ticks *counter_register;
-  SPARC_Counter_difference counter_difference;
+  SPARC_Counter_read                counter_read;
+  SPARC_Counter_difference          counter_difference;
+  volatile const CPU_Counter_ticks *counter_address;
 } SPARC_Counter;
 
-extern SPARC_Counter _SPARC_Counter;
-
-/*
- * Returns always a value of one regardless of the parameters.  This prevents
- * an infinite loop in rtems_counter_delay_ticks().  Its only a reasonably safe
- * default.
- */
-CPU_Counter_ticks _SPARC_Counter_difference_default(
-  CPU_Counter_ticks second,
-  CPU_Counter_ticks first
-);
-
-static inline bool _SPARC_Counter_is_default( void )
-{
-  return _SPARC_Counter.counter_difference
-    == _SPARC_Counter_difference_default;
-}
-
-static inline void _SPARC_Counter_initialize(
-  volatile const CPU_Counter_ticks *counter_register,
-  SPARC_Counter_difference counter_difference
-)
-{
-  _SPARC_Counter.counter_register = counter_register;
-  _SPARC_Counter.counter_difference = counter_difference;
-}
+extern const SPARC_Counter _SPARC_Counter;
 
 static inline CPU_Counter_ticks _CPU_Counter_read( void )
 {
-  return *_SPARC_Counter.counter_register;
+  return ( *_SPARC_Counter.counter_read )();
 }
 
 static inline CPU_Counter_ticks _CPU_Counter_difference(
@@ -1371,7 +1336,7 @@ static inline CPU_Counter_ticks _CPU_Counter_difference(
   CPU_Counter_ticks first
 )
 {
-  return (*_SPARC_Counter.counter_difference)( second, first );
+  return ( *_SPARC_Counter.counter_difference )( second, first );
 }
 
 #endif /* ASM */

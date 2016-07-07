@@ -94,8 +94,6 @@ libbsp_a_LIBADD =
 libbsp_a_SOURCES += ../../shared/bootcard.c \
 	../../shared/bspclean.c \
 	../../shared/bspgetworkarea.c \
-	../../shared/bsplibc.c \
-	../../shared/bsppost.c \
 	../../shared/bsppredriverhook.c \
 	../../shared/gnatinstallhandler.c \
 	../../shared/sbrk.c \
@@ -105,7 +103,8 @@ libbsp_a_SOURCES += ../../shared/cpucounterdiff.c
 
 # Startup
 libbsp_a_SOURCES += ../shared/startup/bsp-start-memcpy.S
-libbsp_a_SOURCES += startup/bspreset.c
+libbsp_a_SOURCES += ../shared/armv7m/startup/bspreset.c
+libbsp_a_SOURCES += startup/bspreset-armv4.c
 libbsp_a_SOURCES += startup/bspstart.c
 
 # IRQ

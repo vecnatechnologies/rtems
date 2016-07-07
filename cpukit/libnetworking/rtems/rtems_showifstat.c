@@ -15,7 +15,8 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
+
+#include <rtems/rtems_bsdnet.h>
 
 /*
  * Display an address

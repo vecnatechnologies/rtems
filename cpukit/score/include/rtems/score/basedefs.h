@@ -10,7 +10,7 @@
  *  COPYRIGHT (c) 1989-2007.
  *  On-Line Applications Research Corporation (OAR).
  *
- *  Copyright (c) 2010 embedded brains GmbH.
+ *  Copyright (c) 2010-2015 embedded brains GmbH.
  *
  *  The license and distribution terms for this file may be
  *  found in the file LICENSE in this distribution or at
@@ -68,62 +68,6 @@
 #endif
 
 /**
- *  The following ensures that all data is declared in the space
- *  of the initialization routine for either the Initialization Manager
- *  or the initialization file for the appropriate API.  It is
- *  referenced as "external" in every other file.
- */
-#ifdef SCORE_INIT
-  #undef  SCORE_EXTERN
-  #define SCORE_EXTERN
-#else
-  #undef  SCORE_EXTERN
-  #define SCORE_EXTERN  extern
-#endif
-
-/**
- *  The following ensures that all data is declared in the space
- *  of the initialization routine for either the Initialization Manager
- *  or the initialization file for the appropriate API.  It is
- *  referenced as "external" in every other file.
- */
-#ifdef SAPI_INIT
-  #undef  SAPI_EXTERN
-  #define SAPI_EXTERN
-#else
-  #undef  SAPI_EXTERN
-  #define SAPI_EXTERN  extern
-#endif
-
-/**
- *  The following ensures that all data is declared in the space
- *  of the initialization routine for either the Initialization Manager
- *  or the initialization file for the appropriate API.  It is
- *  referenced as "external" in every other file.
- */
-#ifdef RTEMS_API_INIT
-  #undef  RTEMS_EXTERN
-  #define RTEMS_EXTERN
-#else
-  #undef  RTEMS_EXTERN
-  #define RTEMS_EXTERN  extern
-#endif
-
-/**
- *  The following ensures that all data is declared in the space
- *  of the initialization routine for either the Initialization Manager
- *  or the initialization file for the appropriate API.  It is
- *  referenced as "external" in every other file.
- */
-#ifdef POSIX_API_INIT
-  #undef  POSIX_EXTERN
-  #define POSIX_EXTERN
-#else
-  #undef  POSIX_EXTERN
-  #define POSIX_EXTERN  extern
-#endif
-
-/**
  *  The following (in conjunction with compiler arguments) are used
  *  to choose between the use of static inline functions and macro
  *  functions.   The static inline implementation allows better
@@ -154,13 +98,15 @@
  *  rtems_fatal_error_occurred and _Terminate.
  */
 #if defined(RTEMS_SCHEDSIM)
-  #define RTEMS_COMPILER_NO_RETURN_ATTRIBUTE
+  #define RTEMS_NO_RETURN
 #elif defined(__GNUC__)
-  #define RTEMS_COMPILER_NO_RETURN_ATTRIBUTE \
-      __attribute__ ((noreturn))
+  #define RTEMS_NO_RETURN __attribute__((__noreturn__))
 #else
-  #define RTEMS_COMPILER_NO_RETURN_ATTRIBUTE
+  #define RTEMS_NO_RETURN
 #endif
+
+/* Provided for backward compatibility */
+#define RTEMS_COMPILER_NO_RETURN_ATTRIBUTE RTEMS_NO_RETURN
 
 /**
  *  The following defines a compiler specific attribute which informs
@@ -169,21 +115,44 @@
  *  variables.
  */
 #ifdef __GNUC__
-  #define RTEMS_COMPILER_PURE_ATTRIBUTE \
-     __attribute__ ((pure))
+  #define RTEMS_PURE __attribute__((__pure__))
 #else
-  #define RTEMS_COMPILER_PURE_ATTRIBUTE
+  #define RTEMS_PURE
 #endif
+
+/* Provided for backward compatibility */
+#define RTEMS_COMPILER_PURE_ATTRIBUTE RTEMS_PURE
 
 /**
  *  Instructs the compiler to issue a warning whenever a variable or function
  *  with this attribute will be used.
  */
 #ifdef __GNUC__
-  #define RTEMS_COMPILER_DEPRECATED_ATTRIBUTE \
-     __attribute__ ((deprecated))
+  #define RTEMS_DEPRECATED __attribute__((__deprecated__))
 #else
-  #define RTEMS_COMPILER_DEPRECATED_ATTRIBUTE
+  #define RTEMS_DEPRECATED
+#endif
+
+/* Provided for backward compatibility */
+#define RTEMS_COMPILER_DEPRECATED_ATTRIBUTE RTEMS_DEPRECATED
+
+/**
+ * @brief Instructs the compiler to place a specific variable or function in
+ * the specified section.
+ */
+#if defined(__GNUC__)
+  #define RTEMS_SECTION( _section ) __attribute__((__section__(_section)))
+#else
+  #define RTEMS_SECTION( _section )
+#endif
+
+/**
+ * @brief Instructs the compiler that a specific variable or function is used.
+ */
+#if defined(__GNUC__)
+  #define RTEMS_USED __attribute__((__used__))
+#else
+  #define RTEMS_USED
 #endif
 
 /**
@@ -192,19 +161,64 @@
  *  in a variable argument method.
  */
 #if defined(__GNUC__)
-  #define RTEMS_COMPILER_UNUSED_ATTRIBUTE __attribute__((unused))
+  #define RTEMS_UNUSED __attribute__((__unused__))
 #else
-  #define RTEMS_COMPILER_UNUSED_ATTRIBUTE
+  #define RTEMS_UNUSED
 #endif
+
+/* Provided for backward compatibility */
+#define RTEMS_COMPILER_UNUSED_ATTRIBUTE RTEMS_UNUSED
 
 /**
  *  Instructs the compiler that a specific structure or union members will be
  *  placed so that the least memory is used.
  */
 #if defined(__GNUC__)
-  #define RTEMS_COMPILER_PACKED_ATTRIBUTE __attribute__((packed))
+  #define RTEMS_PACKED __attribute__((__packed__))
 #else
-  #define RTEMS_COMPILER_PACKED_ATTRIBUTE
+  #define RTEMS_PACKED
+#endif
+
+/**
+ * @brief Instructs the compiler to enforce the specified alignment.
+ */
+#if defined(__GNUC__)
+  #define RTEMS_ALIGNED( _alignment ) __attribute__((__aligned__(_alignment)))
+#else
+  #define RTEMS_ALIGNED( _alignment )
+#endif
+
+/* Provided for backward compatibility */
+#define RTEMS_COMPILER_PACKED_ATTRIBUTE RTEMS_PACKED
+
+#if defined(RTEMS_DEBUG) && !defined(RTEMS_SCHEDSIM)
+  #define _Assert_Unreachable() _Assert( 0 )
+#else
+  #define _Assert_Unreachable() do { } while ( 0 )
+#endif
+
+/**
+ * @brief Tells the compiler that this program point is unreachable.
+ */
+#if defined(__GNUC__) && !defined(RTEMS_SCHEDSIM)
+  #define RTEMS_UNREACHABLE() \
+    do { \
+      __builtin_unreachable(); \
+      _Assert_Unreachable(); \
+    } while ( 0 )
+#else
+  #define RTEMS_UNREACHABLE() _Assert_Unreachable()
+#endif
+
+/**
+ * @brief Tells the compiler that this function expects printf()-like
+ * arguments.
+ */
+#if defined(__GNUC__)
+  #define RTEMS_PRINTFLIKE( _format_pos, _ap_pos ) \
+    __attribute__((__format__(__printf__, _format_pos, _ap_pos)))
+#else
+  #define RTEMS_PRINTFLIKE( _format_pos, _ap_pos )
 #endif
 
 #if __cplusplus >= 201103L
@@ -315,6 +329,26 @@ extern void RTEMS_DEQUALIFY_types_not_compatible(void);
 
 #endif /*RTEMS_DEQUALIFY_DEPTHX*/
 #endif /*RTEMS_DEQUALIFY*/
+
+/**
+ * @brief Concatenates _x and _y without expanding.
+ */
+#define RTEMS_CONCAT( _x, _y ) _x##_y
+
+/**
+ * @brief Concatenates expansion of _x and expansion of _y.
+ */
+#define RTEMS_XCONCAT( _x, _y ) RTEMS_CONCAT( _x, _y )
+
+/**
+ * @brief Stringifies _x  without expanding.
+ */
+#define RTEMS_STRING( _x ) #_x
+
+/**
+ * @brief Stringifies expansion of _x.
+ */
+#define RTEMS_XSTRING( _x ) RTEMS_STRING( _x )
 
 #ifndef ASM
   #ifdef RTEMS_DEPRECATED_TYPES

@@ -33,6 +33,9 @@ AC_CHECK_SIZEOF([time_t])
 AC_CHECK_TYPES([struct _Thread_queue_Queue],[],[],[#include <sys/lock.h>])
 AM_CONDITIONAL(HAS__THREAD_QUEUE_QUEUE,test x"${ac_cv_type_struct__Thread_queue_Queue}" = x"yes")
 
+AC_CHECK_HEADERS([threads.h])
+AM_CONDITIONAL([HAS_THREADS_H],[test x"$ac_cv_header_threads_h" = x"yes"])
+
 # Added to newlib pthreads for RTEMS SMP (np), may not be present
 AC_CHECK_HEADERS([sys/cpuset.h])
 AM_CONDITIONAL(HAS_CPUSET,test x"${ac_cv_header_sys_cpuset_h}" = x"yes")
@@ -43,6 +46,12 @@ AM_CONDITIONAL(HAS_SMP,test "$rtems_cv_RTEMS_SMP" = "yes")
 
 # Explicitly list all Makefiles here
 AC_CONFIG_FILES([Makefile
+spmutex01/Makefile
+spextensions01/Makefile
+sptimerserver01/Makefile
+spsysinit01/Makefile
+splinkersets01/Makefile
+spstdthreads01/Makefile
 spsyslock01/Makefile
 sptasknopreempt01/Makefile
 spintrcritical23/Makefile
@@ -81,7 +90,6 @@ sp05/Makefile
 sp06/Makefile
 sp07/Makefile
 sp08/Makefile
-sp10/Makefile
 sp11/Makefile
 sp12/Makefile
 sp13/Makefile
@@ -100,7 +108,6 @@ sp25/Makefile
 sp26/Makefile
 sp27/Makefile
 sp27a/Makefile
-sp28/Makefile
 sp29/Makefile
 sp30/Makefile
 sp31/Makefile
@@ -154,7 +161,6 @@ spcbssched01/Makefile
 spcbssched02/Makefile
 spcbssched03/Makefile
 spchain/Makefile
-spclockget/Makefile
 spclock_err01/Makefile
 spclock_err02/Makefile
 spcoverage/Makefile
@@ -211,14 +217,11 @@ spintrcritical13/Makefile
 spintrcritical14/Makefile
 spintrcritical15/Makefile
 spintrcritical16/Makefile
-spintrcritical17/Makefile
 spheapprot/Makefile
 spmkdir/Makefile
 spmountmgr01/Makefile
 spmsgq_err01/Makefile
 spmsgq_err02/Makefile
-spnotepad01/Makefile
-spnotepad02/Makefile
 spnsext01/Makefile
 spobjgetnext/Makefile
 sppagesize/Makefile

@@ -18,8 +18,8 @@
 
 #include <bsp.h>
 #include <leon.h>
-#include <rtems/bspIo.h>
 #include <bsp/bootcard.h>
+#include <rtems/sysinit.h>
 
 #if defined(RTEMS_SMP) || defined(RTEMS_MULTIPROCESSING)
 /* Irq used by shared memory driver and for inter-processor interrupts.
@@ -58,21 +58,20 @@ static inline int set_snooping(void)
 void bsp_start( void )
 {
   CPU_SPARC_HAS_SNOOPING = set_snooping();
+}
 
+static void leon3_cpu_index_init(void)
+{
   /* Get the LEON3 CPU index, normally 0, but for MP systems we do
    * _not_ assume that this is CPU0. One may run another OS on CPU0
    * and RTEMS on this CPU, and AMP system with mixed operating
    * systems
    */
   LEON3_Cpu_Index = _LEON3_Get_current_processor();
-
-  /* Scan AMBA Plug&Play and parse it into a RAM description (ambapp_plb),
-   * find GPTIMER for bus frequency, find IRQ Controller and initialize
-   * interrupt support
-   */
-  amba_initialize();
-  leon3_cpu_counter_initialize();
-
-  /* find debug UART for printk() */
-  bsp_debug_uart_init();
 }
+
+RTEMS_SYSINIT_ITEM(
+  leon3_cpu_index_init,
+  RTEMS_SYSINIT_BSP_START,
+  RTEMS_SYSINIT_ORDER_FIRST
+);

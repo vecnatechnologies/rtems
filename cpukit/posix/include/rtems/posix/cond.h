@@ -42,9 +42,8 @@ extern "C" {
 
 typedef struct {
    Objects_Control       Object;
-   int                   process_shared;
-   pthread_mutex_t       Mutex;
    Thread_queue_Control  Wait_queue;
+   pthread_mutex_t       mutex;
 }  POSIX_Condition_variables_Control;
 
 #ifdef __cplusplus

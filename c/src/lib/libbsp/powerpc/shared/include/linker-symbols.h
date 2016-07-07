@@ -7,10 +7,10 @@
  */
 
 /*
- * Copyright (c) 2010-2013 embedded brains GmbH.  All rights reserved.
+ * Copyright (c) 2010, 2016 embedded brains GmbH.  All rights reserved.
  *
  *  embedded brains GmbH
- *  Donrierstr. 4
+ *  Dornierstr. 4
  *  82178 Puchheim
  *  Germany
  *  <rtems@embedded-brains.de>
@@ -99,6 +99,14 @@ LINKER_SYMBOL(bsp_section_nocache_size)
 LINKER_SYMBOL(bsp_section_nocache_load_begin)
 LINKER_SYMBOL(bsp_section_nocache_load_end)
 
+LINKER_SYMBOL(bsp_section_nocachenoload_begin)
+LINKER_SYMBOL(bsp_section_nocachenoload_end)
+LINKER_SYMBOL(bsp_section_nocachenoload_size)
+
+LINKER_SYMBOL(bsp_section_nocacheheap_begin)
+LINKER_SYMBOL(bsp_section_nocacheheap_end)
+LINKER_SYMBOL(bsp_section_nocacheheap_size)
+
 LINKER_SYMBOL(bsp_section_nvram_begin)
 LINKER_SYMBOL(bsp_section_nvram_end)
 LINKER_SYMBOL(bsp_section_nvram_size)
@@ -109,7 +117,18 @@ LINKER_SYMBOL(bsp_section_nvram_size)
 
 #define BSP_NOCACHE_SECTION __attribute__((section(".bsp_nocache")))
 
+#define BSP_NOCACHE_SUBSECTION(subsection) \
+  __attribute__((section(".bsp_nocache." # subsection)))
+
+#define BSP_NOCACHENOLOAD_SECTION __attribute__((section(".bsp_noload_nocache")))
+
+#define BSP_NOCACHENOLOAD_SUBSECTION(subsection) \
+  __attribute__((section(".bsp_noload_nocache." # subsection)))
+
 #define BSP_NVRAM_SECTION __attribute__((section(".bsp_nvram")))
+
+#define BSP_NVRAM_SUBSECTION(subsection) \
+  __attribute__((section(".bsp_nvram." # subsection)))
 
 /** @} */
 
